@@ -262,14 +262,30 @@ export const getTestProgress = async (userId) => {
 /**
  * Get all test submissions (for admin)
  * @param {string} userId - Optional user ID filter
+ * @param {number} limitCount - Number of submissions to fetch (default 50)
  */
-export const getAllSubmissions = async (userId = null) => {
+export const getAllSubmissions = async (userId = null, limitCount = 50) => {
+  // Check cache first (5 minute cache)
+  const cacheKey = `submissions_cache_${userId || 'all'}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  
+  if (cached) {
+    const { data, timestamp } = JSON.parse(cached);
+    const cacheAge = Date.now() - timestamp;
+    
+    // Return cached data if less than 5 minutes old
+    if (cacheAge < 5 * 60 * 1000) {
+      console.log('✅ Using cached submissions (age:', Math.round(cacheAge / 1000), 'seconds)');
+      return { success: true, data, cached: true };
+    }
+  }
+  
   try {
     const submissionsRef = collection(db, 'testSubmissions');
-    let q = query(submissionsRef, orderBy('submittedAt', 'desc'), limit(100));
+    let q = query(submissionsRef, orderBy('submittedAt', 'desc'), limit(limitCount));
     
     if (userId) {
-      q = query(submissionsRef, where('userId', '==', userId), orderBy('submittedAt', 'desc'));
+      q = query(submissionsRef, where('userId', '==', userId), orderBy('submittedAt', 'desc'), limit(limitCount));
     }
     
     const querySnapshot = await getDocs(q);
@@ -279,13 +295,29 @@ export const getAllSubmissions = async (userId = null) => {
       submissions.push({ id: doc.id, ...doc.data() });
     });
     
+    // Cache the results
+    sessionStorage.setItem(cacheKey, JSON.stringify({
+      data: submissions,
+      timestamp: Date.now()
+    }));
+    
+    console.log(`✅ Fetched ${submissions.length} submissions from Firestore (cached for 5 min)`);
     return { success: true, data: submissions };
   } catch (error) {
     console.error('❌ Error fetching submissions:', error);
     
     // Fallback to localStorage
     const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
-    const filtered = userId ? existingResults.filter(r => r.userId === userId) : existingResults;
+    const filtered = userId 
+      ? existingResults.filter(r => r.userId === userId).slice(0, limitCount)
+      : existingResults.slice(0, limitCount);
+    
+    // Cache localStorage results too
+    sessionStorage.setItem(cacheKey, JSON.stringify({
+      data: filtered,
+      timestamp: Date.now()
+    }));
+    
     return { success: true, data: filtered, fallback: true };
   }
 };
@@ -293,68 +325,119 @@ export const getAllSubmissions = async (userId = null) => {
 // ==================== REAL-TIME LISTENERS ====================
 
 /**
- * Listen to user activity changes (for admin dashboard)
+ * Listen to user activity using HTTP polling (ad-blocker proof)
+ * Uses getDocs() with polling instead of onSnapshot() WebSocket
  * @param {function} callback - Callback function to handle updates
  */
 export const subscribeToUserActivity = (callback) => {
-  try {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, orderBy('lastLogin', 'desc'));
+  let pollInterval = null;
+  let isActive = true;
+  
+  // Fetch user data using HTTP polling
+  const fetchUsers = async () => {
+    if (!isActive) return;
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    try {
+      // Use getDocs() instead of onSnapshot() - works with ad blockers
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, orderBy('lastLogin', 'desc'));
+      const snapshot = await getDocs(q);
+      
       const users = [];
       snapshot.forEach((doc) => {
         users.push({ uid: doc.id, ...doc.data() });
       });
-      callback(users);
-    }, (error) => {
-      console.error('❌ Error in user activity listener:', error);
-      // Fallback to polling localStorage
-      const interval = setInterval(() => {
-        const users = JSON.parse(localStorage.getItem('all_registered_users') || '[]');
-        callback(users);
-      }, 5000); // Poll every 5 seconds
       
-      return () => clearInterval(interval);
-    });
-    
-    return unsubscribe;
-  } catch (error) {
-    console.error('❌ Error setting up listener:', error);
-    // Fallback to polling
-    const interval = setInterval(() => {
-      const users = JSON.parse(localStorage.getItem('all_registered_users') || '[]');
+      console.log('✅ HTTP polling: Fetched', users.length, 'users');
+      
+      // Update localStorage as backup
+      localStorage.setItem('all_registered_users', JSON.stringify(users));
       callback(users);
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }
+      
+    } catch (error) {
+      console.error('❌ Error fetching users via HTTP:', error);
+      
+      // Fallback to localStorage
+      const cachedUsers = JSON.parse(localStorage.getItem('all_registered_users') || '[]');
+      if (cachedUsers.length > 0) {
+        console.log('🔄 Using cached data:', cachedUsers.length, 'users');
+        callback(cachedUsers);
+      }
+    }
+  };
+  
+  // Initial fetch
+  fetchUsers();
+  
+  // Poll every 5 seconds (can be adjusted)
+  pollInterval = setInterval(fetchUsers, 5000);
+  
+  // Return cleanup function
+  return () => {
+    isActive = false;
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  };
 };
 
 /**
- * Listen to test submissions (for admin dashboard)
+ * Listen to test submissions using HTTP polling (ad-blocker proof)
+ * Uses getDocs() with polling instead of onSnapshot() WebSocket
  * @param {function} callback - Callback function to handle updates
  */
 export const subscribeToSubmissions = (callback) => {
-  try {
-    const submissionsRef = collection(db, 'testSubmissions');
-    const q = query(submissionsRef, orderBy('submittedAt', 'desc'), limit(100));
+  let pollInterval = null;
+  let isActive = true;
+  
+  // Fetch submissions data using HTTP polling
+  const fetchSubmissions = async () => {
+    if (!isActive) return;
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    try {
+      // Use getDocs() instead of onSnapshot() - works with ad blockers
+      const submissionsRef = collection(db, 'testSubmissions');
+      const q = query(submissionsRef, orderBy('submittedAt', 'desc'), limit(100));
+      const snapshot = await getDocs(q);
+      
       const submissions = [];
       snapshot.forEach((doc) => {
         submissions.push({ id: doc.id, ...doc.data() });
       });
+      
+      console.log('✅ HTTP polling: Fetched', submissions.length, 'submissions');
+      
+      // Update localStorage as backup
+      localStorage.setItem('test_results', JSON.stringify(submissions));
       callback(submissions);
-    }, (error) => {
-      console.error('❌ Error in submissions listener:', error);
-    });
-    
-    return unsubscribe;
-  } catch (error) {
-    console.error('❌ Error setting up submissions listener:', error);
-    return () => {}; // Return empty cleanup function
-  }
+      
+    } catch (error) {
+      console.error('❌ Error fetching submissions via HTTP:', error);
+      
+      // Fallback to localStorage
+      const cachedSubmissions = JSON.parse(localStorage.getItem('test_results') || '[]');
+      if (cachedSubmissions.length > 0) {
+        console.log('🔄 Using cached submissions:', cachedSubmissions.length, 'items');
+        callback(cachedSubmissions);
+      }
+    }
+  };
+  
+  // Initial fetch
+  fetchSubmissions();
+  
+  // Poll every 5 seconds (can be adjusted)
+  pollInterval = setInterval(fetchSubmissions, 5000);
+  
+  // Return cleanup function
+  return () => {
+    isActive = false;
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  };
 };
 
 // ==================== OFFLINE SYNC ====================

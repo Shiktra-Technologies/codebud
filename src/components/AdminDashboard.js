@@ -14,6 +14,9 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('students');
   const [searchTerm, setSearchTerm] = useState('');
   const [realTimeEnabled, setRealTimeEnabled] = useState(true);
+  const [resultsPage, setResultsPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const resultsPerPage = 20;
 
   // Set up real-time listeners for user activity and test submissions
   useEffect(() => {
@@ -29,38 +32,44 @@ const AdminDashboard = () => {
 
     console.log('📡 Setting up real-time listeners...');
 
-    // Subscribe to user activity changes
-    const unsubscribeUsers = subscribeToUserActivity((users) => {
-      console.log('✅ Real-time update: Users changed', users.length);
-      const realStudents = users.filter(user => user.role === 'student');
-      
-      const studentsWithStats = realStudents.map(student => ({
-        ...student,
-        id: student.uid,
-        lastActive: student.lastLogin,
-        testsCompleted: testResults.filter(result => result.userId === student.uid).length,
-        status: student.status || 'active',
-        isOnline: isUserActive(student.lastLogin),
-        lastSeenFormatted: formatLastSeen(student.lastLogin)
-      }));
+    // Subscribe to user activity changes (only when on students tab)
+    let unsubscribeUsers = () => {};
+    if (activeTab === 'students') {
+      unsubscribeUsers = subscribeToUserActivity((users) => {
+        console.log('✅ Real-time update: Users changed', users.length);
+        const realStudents = users.filter(user => user.role === 'student');
+        
+        const studentsWithStats = realStudents.map(student => ({
+          ...student,
+          id: student.uid,
+          lastActive: student.lastLogin,
+          testsCompleted: testResults.filter(result => result.userId === student.uid).length,
+          status: student.status || 'active',
+          isOnline: isUserActive(student.lastLogin),
+          lastSeenFormatted: formatLastSeen(student.lastLogin)
+        }));
 
-      setStudents(studentsWithStats);
-      setLoading(false);
-    });
+        setStudents(studentsWithStats);
+        setLoading(false);
+      });
+    }
 
-    // Subscribe to test submissions changes
-    const unsubscribeSubmissions = subscribeToSubmissions((submissions) => {
-      console.log('✅ Real-time update: Submissions changed', submissions.length);
-      setTestResults(submissions);
-    });
+    // Subscribe to test submissions changes (only when on results tab)
+    let unsubscribeSubmissions = () => {};
+    if (activeTab === 'results') {
+      unsubscribeSubmissions = subscribeToSubmissions((submissions) => {
+        console.log('✅ Real-time update: Submissions changed', submissions.length);
+        setTestResults(submissions);
+      });
+    }
 
-    // Cleanup listeners on unmount
+    // Cleanup listeners on unmount or tab change
     return () => {
       console.log('🔌 Disconnecting real-time listeners');
       unsubscribeUsers();
       unsubscribeSubmissions();
     };
-  }, [isAdmin, isSuperAdmin, realTimeEnabled]);
+  }, [isAdmin, isSuperAdmin, realTimeEnabled, activeTab]);
 
   // Initial data load (fallback if real-time fails)
   useEffect(() => {
@@ -78,25 +87,35 @@ const AdminDashboard = () => {
     setLoading(true);
     
     try {
-      // Get fresh data from Firestore (with localStorage fallback)
+      // Load users first (faster, smaller dataset)
       const allUsers = await getAllUsers();
       const realStudents = allUsers.filter(user => user.role === 'student');
       
-      // Get submissions from Firestore
-      const submissionsResult = await getAllSubmissions();
-      const testResultsData = submissionsResult.data || [];
-
+      // Show students immediately (don't wait for submissions)
       const studentsWithStats = realStudents.map(student => ({
         ...student,
         id: student.uid,
         lastActive: student.lastLogin,
-        testsCompleted: testResultsData.filter(result => result.userId === student.uid).length,
+        testsCompleted: 0, // Will update when submissions load
         status: student.status || 'active',
         isOnline: isUserActive(student.lastLogin),
         lastSeenFormatted: formatLastSeen(student.lastLogin)
       }));
-
+      
       setStudents(studentsWithStats);
+      setLoading(false); // Stop main loading spinner
+      
+      // Load submissions in background (slower, larger dataset)
+      const submissionsResult = await getAllSubmissions(null, 30); // Limit to 30 most recent
+      const testResultsData = submissionsResult.data || [];
+      
+      // Update test counts after submissions load
+      const updatedStudents = studentsWithStats.map(student => ({
+        ...student,
+        testsCompleted: testResultsData.filter(result => result.userId === student.uid).length,
+      }));
+      
+      setStudents(updatedStudents);
       setTestResults(testResultsData);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -179,17 +198,44 @@ const AdminDashboard = () => {
     return studentName.includes(search) || testType.includes(search);
   });
 
+  // Paginate results
+  const totalPages = Math.ceil(filteredResults.length / resultsPerPage);
+  const paginatedResults = filteredResults.slice(
+    (resultsPage - 1) * resultsPerPage,
+    resultsPage * resultsPerPage
+  );
+
+  const handlePageChange = (newPage) => {
+    setResultsPage(newPage);
+    // Scroll to top of results
+    document.querySelector('.results-section')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleRefresh = async () => {
+    // Clear cache
+    sessionStorage.clear();
+    console.log('🔄 Cache cleared, refreshing data...');
+    await fetchData();
+  };
+
   return (
     <div className="admin-dashboard">
       <div className="admin-header">
-        <h1>Admin Dashboard</h1>
-        <div className="admin-header-info">
-          <p>Welcome back, {currentUser?.displayName || currentUser?.email || 'Admin'}</p>
-          <div className="connection-status">
-            <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
-            <span className="status-text">{isOnline ? '🌐 Online' : '📡 Offline'}</span>
-            {realTimeEnabled && isOnline && <span className="realtime-badge">🔄 Real-time</span>}
+        <div className="admin-header-content">
+          <div>
+            <h1>Admin Dashboard</h1>
+            <div className="admin-header-info">
+              <p>Welcome back, {currentUser?.displayName || currentUser?.email || 'Admin'}</p>
+            </div>
           </div>
+          <button className="refresh-btn" onClick={handleRefresh} title="Refresh data and clear cache">
+            🔄 Refresh
+          </button>
+        </div>
+        <div className="connection-status">
+          <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
+          <span className="status-text">{isOnline ? '🌐 Online' : '📡 Offline'}</span>
+          {realTimeEnabled && isOnline && <span className="realtime-badge">🔄 Real-time</span>}
         </div>
       </div>
 
@@ -334,7 +380,12 @@ const AdminDashboard = () => {
 
         {activeTab === 'results' && (
           <div className="results-section">
-            <h2>Test Results</h2>
+            <div className="results-header">
+              <h2>Test Results</h2>
+              <div className="results-count">
+                Showing {paginatedResults.length} of {filteredResults.length} results
+              </div>
+            </div>
             {filteredResults.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">📊</div>
@@ -342,64 +393,89 @@ const AdminDashboard = () => {
                 <p>No test results match your search criteria.</p>
               </div>
             ) : (
-              <div className="results-table-container">
-                <table className="results-table">
-                  <thead>
-                    <tr>
-                      <th>Student</th>
-                      <th>Test Type</th>
-                      <th>Score</th>
-                      <th>Status</th>
-                      <th>Violations</th>
-                      <th>Submitted</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredResults.map(result => (
-                      <tr key={result.id} className={result.passed ? 'passed' : 'failed'}>
-                        <td>
-                          <div className="student-info-compact">
-                            <strong>{getStudentName(result.userId)}</strong>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="test-type-badge">
-                            {getTestTypeDisplay(result.testType)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="score">
-                            {result.testType === 'aptitude' 
-                              ? `${result.score}/${result.totalQuestions} (${result.percentage}%)`
-                              : result.solved ? 'Solved' : 'Not Solved'
-                            }
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-badge ${result.passed ? 'passed' : 'failed'}`}>
-                            {result.passed ? 'Passed' : 'Failed'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="violations-info">
-                            <span className={`violation-count ${result.violations?.count > 0 ? 'has-violations' : ''}`}>
-                              {result.violations?.count || 0}
-                            </span>
-                            {result.violations?.submittedDueToViolation && (
-                              <span className="auto-submit-badge">Auto-Submitted</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <span className="submit-date">
-                            {formatDate(result.submittedAt)}
-                          </span>
-                        </td>
+              <>
+                <div className="results-table-container">
+                  <table className="results-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Test Type</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Violations</th>
+                        <th>Submitted</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginatedResults.map(result => (
+                        <tr key={result.id} className={result.passed ? 'passed' : 'failed'}>
+                          <td>
+                            <div className="student-info-compact">
+                              <strong>{getStudentName(result.userId)}</strong>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="test-type-badge">
+                              {getTestTypeDisplay(result.testType)}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="score">
+                              {result.testType === 'aptitude' 
+                                ? `${result.score}/${result.totalQuestions} (${result.percentage}%)`
+                                : result.solved ? 'Solved' : 'Not Solved'
+                              }
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-badge ${result.passed ? 'passed' : 'failed'}`}>
+                              {result.passed ? 'Passed' : 'Failed'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="violations-info">
+                              <span className={`violation-count ${result.violations?.count > 0 ? 'has-violations' : ''}`}>
+                                {result.violations?.count || 0}
+                              </span>
+                              {result.violations?.submittedDueToViolation && (
+                                <span className="auto-submit-badge">Auto-Submitted</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <span className="submit-date">
+                              {formatDate(result.submittedAt)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="pagination">
+                    <button
+                      className="pagination-btn"
+                      onClick={() => handlePageChange(resultsPage - 1)}
+                      disabled={resultsPage === 1}
+                    >
+                      ← Previous
+                    </button>
+                    <div className="pagination-info">
+                      Page {resultsPage} of {totalPages}
+                    </div>
+                    <button
+                      className="pagination-btn"
+                      onClick={() => handlePageChange(resultsPage + 1)}
+                      disabled={resultsPage === totalPages}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
