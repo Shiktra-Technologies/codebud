@@ -1,13 +1,91 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useProctor } from '../context/ProctorContext';
+import { getEnvironmentInfo, getPermissionInstructions } from '../utils/environmentCheck';
 import './PermissionPage.css';
 
 const PermissionPage = () => {
   const navigate = useNavigate();
+  const { testType } = useParams();
   const { requestMediaPermissions, requestFullscreen, permissions } = useProctor();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState({
+    camera: 'prompt',
+    microphone: 'prompt'
+  });
+  const [environmentInfo, setEnvironmentInfo] = useState(null);
+
+  // Redirect to dashboard if no test type is specified
+  React.useEffect(() => {
+    if (!testType || (testType !== 'aptitude' && testType !== 'dsa')) {
+      navigate('/');
+    }
+  }, [testType, navigate]);
+
+  // Check environment and permission status
+  useEffect(() => {
+    const envInfo = getEnvironmentInfo();
+    setEnvironmentInfo(envInfo);
+
+    const checkPermissions = async () => {
+      if (navigator.permissions) {
+        try {
+          const cameraPermission = await navigator.permissions.query({ name: 'camera' });
+          const microphonePermission = await navigator.permissions.query({ name: 'microphone' });
+          
+          setPermissionStatus({
+            camera: cameraPermission.state,
+            microphone: microphonePermission.state
+          });
+
+          // Listen for permission changes
+          cameraPermission.onchange = () => {
+            setPermissionStatus(prev => ({
+              ...prev,
+              camera: cameraPermission.state
+            }));
+          };
+
+          microphonePermission.onchange = () => {
+            setPermissionStatus(prev => ({
+              ...prev,
+              microphone: microphonePermission.state
+            }));
+          };
+        } catch (error) {
+          console.log('Permission API not fully supported:', error);
+        }
+      }
+    };
+    
+    checkPermissions();
+  }, []);
+
+  const getTestTypeInfo = () => {
+    switch (testType) {
+      case 'aptitude':
+        return {
+          title: 'Aptitude Test',
+          description: 'Complete the logical reasoning and quantitative aptitude assessment',
+          nextRoute: '/aptitude-test' // We'll create this route
+        };
+      case 'dsa':
+        return {
+          title: 'DSA Problems',
+          description: 'Solve Data Structures and Algorithms coding challenges',
+          nextRoute: '/problems'
+        };
+      default:
+        return {
+          title: 'Assessment',
+          description: 'Complete your assessment',
+          nextRoute: '/problems'
+        };
+    }
+  };
+
+  const testInfo = getTestTypeInfo();
 
   const steps = [
     {
@@ -47,7 +125,8 @@ const PermissionPage = () => {
     if (success) {
       nextStep();
     } else {
-      alert(`Failed to ${step.title.toLowerCase()}. Please try again or check your browser settings.`);
+      // More detailed error handling is now in the ProctorContext
+      console.log(`Failed to ${step.title.toLowerCase()}`);
     }
   };
 
@@ -55,8 +134,8 @@ const PermissionPage = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // All permissions granted, navigate to problem list
-      navigate('/problems');
+      // All permissions granted, navigate to appropriate test
+      navigate(testInfo.nextRoute);
     }
   };
 
@@ -66,8 +145,42 @@ const PermissionPage = () => {
     <div className="permission-page">
       <div className="permission-container">
         <div className="header">
-          <h1>CodeBud - Proctored DSA Platform</h1>
-          <p>Before starting your test, we need to set up monitoring permissions</p>
+          <h1>CodeBud - {testInfo.title}</h1>
+          <p>Before starting your {testType} test, we need to set up monitoring permissions</p>
+          {!window.location.protocol.includes('https') && window.location.hostname !== 'localhost' && (
+            <div style={{
+              background: '#fed7d7',
+              border: '1px solid #feb2b2',
+              borderRadius: '8px',
+              padding: '15px',
+              margin: '20px 0',
+              color: '#c53030'
+            }}>
+              ⚠️ <strong>HTTPS Required:</strong> Camera and microphone access requires a secure connection. 
+              Please access this site via HTTPS for permissions to work properly.
+            </div>
+          )}
+          
+          {environmentInfo && !environmentInfo.isCompatible && (
+            <div style={{
+              background: '#fed7d7',
+              border: '1px solid #feb2b2',
+              borderRadius: '8px',
+              padding: '15px',
+              margin: '20px 0',
+              color: '#c53030'
+            }}>
+              ⚠️ <strong>Compatibility Issues Detected:</strong>
+              <ul style={{ textAlign: 'left', marginTop: '10px' }}>
+                {environmentInfo.issues.map(issue => (
+                  <li key={issue}>
+                    <strong>{issue}:</strong> Not supported in your current browser/environment
+                  </li>
+                ))}
+              </ul>
+              <p><strong>Recommendation:</strong> Use the latest version of Chrome, Firefox, or Safari for best compatibility.</p>
+            </div>
+          )}
         </div>
 
         <div className="steps-progress">
@@ -100,6 +213,42 @@ const PermissionPage = () => {
             </ul>
           </div>
 
+          {(permissionStatus.camera === 'denied' || permissionStatus.microphone === 'denied') && (
+            <div className="permission-denied-help">
+              <h3>🚨 Permissions Blocked</h3>
+              <p>Camera or microphone access has been blocked. To fix this:</p>
+              {environmentInfo && (
+                <>
+                  <p><strong>For {environmentInfo.browser}:</strong></p>
+                  <ol>
+                    <li>{getPermissionInstructions(environmentInfo.browser).camera}</li>
+                  </ol>
+                </>
+              )}
+              <p><strong>General steps:</strong></p>
+              <ol>
+                <li>Look for a <strong>camera/microphone icon</strong> in your browser's address bar (usually on the left side)</li>
+                <li>Click on it and change the setting to <strong>"Allow"</strong></li>
+                <li>Click the "Retry Permissions" button below</li>
+              </ol>
+              <button 
+                className="retry-btn" 
+                onClick={() => window.location.reload()}
+                style={{
+                  background: '#f6ad55',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  marginTop: '10px'
+                }}
+              >
+                🔄 Retry Permissions
+              </button>
+            </div>
+          )}
+
           <div className="warning-box">
             ⚠️ <strong>Important:</strong> Once the test starts:
             <br />• Do not switch tabs or applications
@@ -121,9 +270,9 @@ const PermissionPage = () => {
           {allPermissionsGranted && (
             <button 
               className="start-test-btn"
-              onClick={() => navigate('/problems')}
+              onClick={() => navigate(testInfo.nextRoute)}
             >
-              Start Test 🚀
+              Start {testInfo.title} 🚀
             </button>
           )}
         </div>

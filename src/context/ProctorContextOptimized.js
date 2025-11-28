@@ -143,18 +143,13 @@ export const ProctorProvider = ({ children }) => {
 
       // Use optimized constraints based on device capabilities
       const constraints = {
-        video: optimalSettings?.videoResolution ? {
-          width: { ideal: optimalSettings.videoResolution.width },
-          height: { ideal: optimalSettings.videoResolution.height },
-          facingMode: 'user',
-          frameRate: { ideal: 15, max: 30 } // Reduced FPS for performance
-        } : optimizeMemoryUsage.videoConstraints,
+        video: optimalSettings?.videoResolution || optimizeMemoryUsage.videoConstraints,
         audio: optimalSettings?.audioSampleRate ? 
           { ...optimizeMemoryUsage.audioConstraints, sampleRate: optimalSettings.audioSampleRate } :
           optimizeMemoryUsage.audioConstraints
       };
 
-      console.log('📹 Requesting optimized media with constraints:', constraints);
+      console.log('📹 Requesting media with optimized constraints:', constraints);
       
       const stream = await errorHandling.retryOperation(
         () => navigator.mediaDevices.getUserMedia(constraints),
@@ -162,7 +157,6 @@ export const ProctorProvider = ({ children }) => {
         1000
       );
       
-      console.log('✅ Optimized media permissions granted successfully');
       setMediaStream(stream);
       setPermissions(prev => ({
         ...prev,
@@ -173,34 +167,15 @@ export const ProctorProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('❌ Media permissions failed:', error);
-      
-      let errorMessage = 'Failed to access camera and microphone. ';
-      if (error.name === 'NotAllowedError') {
-        errorMessage += 'Please allow camera and microphone access when prompted, or:\n1. Click the camera icon in your browser\'s address bar\n2. Change settings to "Allow"\n3. Refresh this page';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage += 'No camera or microphone found. Please connect these devices and try again.';
-      } else if (error.name === 'NotReadableError') {
-        errorMessage += 'Camera or microphone is being used by another application. Please close other applications and try again.';
-      } else {
-        errorMessage += `Error: ${error.message}`;
-      }
-      
-      alert(errorMessage);
       return false;
     }
   }, [optimalSettings]);
 
-  // Request fullscreen
+  // Request fullscreen with error handling
   const requestFullscreen = useCallback(async () => {
     try {
-      // Check if fullscreen is supported
       const docEl = document.documentElement;
-      if (!docEl.requestFullscreen && !docEl.webkitRequestFullscreen && !docEl.mozRequestFullScreen && !docEl.msRequestFullscreen) {
-        alert('Fullscreen mode is not supported in your browser. Please use a modern browser like Chrome, Firefox, or Safari.');
-        return false;
-      }
-
-      // Try different fullscreen methods for browser compatibility
+      
       if (docEl.requestFullscreen) {
         await docEl.requestFullscreen();
       } else if (docEl.webkitRequestFullscreen) {
@@ -209,9 +184,10 @@ export const ProctorProvider = ({ children }) => {
         await docEl.mozRequestFullScreen();
       } else if (docEl.msRequestFullscreen) {
         await docEl.msRequestFullscreen();
+      } else {
+        throw new Error('Fullscreen not supported');
       }
       
-      // Small delay to ensure fullscreen is active
       setTimeout(() => {
         if (document.fullscreenElement || document.webkitFullscreenElement || 
             document.mozFullScreenElement || document.msFullscreenElement) {
@@ -221,13 +197,7 @@ export const ProctorProvider = ({ children }) => {
       
       return true;
     } catch (error) {
-      console.error('Failed to enter fullscreen:', error);
-      
-      if (error.name === 'NotAllowedError') {
-        alert('Fullscreen access was denied. Please:\n1. Click "Allow" when prompted for fullscreen\n2. Or press F11 to enter fullscreen manually\n3. Refresh this page if needed');
-      } else {
-        alert('Failed to enter fullscreen mode. Please try pressing F11 or check your browser settings.');
-      }
+      console.error('❌ Fullscreen request failed:', error);
       return false;
     }
   }, []);
@@ -244,10 +214,11 @@ export const ProctorProvider = ({ children }) => {
     setProctorState(prev => ({ ...prev, isMonitoring: false }));
   }, []);
 
-  // Stop monitoring and cleanup (only call when truly needed)
+  // Stop monitoring and cleanup
   const stopMonitoring = useCallback(() => {
     console.log('🛑 Stopping monitoring with full cleanup');
     setProctorState(prev => ({ ...prev, isMonitoring: false }));
+    
     if (mediaStream) {
       mediaStream.getTracks().forEach(track => track.stop());
       setMediaStream(null);
@@ -256,7 +227,7 @@ export const ProctorProvider = ({ children }) => {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    // Reset permissions state
+    
     setPermissions(prev => ({
       ...prev,
       camera: false,
@@ -319,13 +290,22 @@ export const ProctorProvider = ({ children }) => {
     }));
   }, []);
 
-  // Monitor violation count and auto-submit at maximum violations
+  // Monitor violation count for auto-submission
   useEffect(() => {
-    if (proctorState.violationCount >= proctorState.maxViolations && !proctorState.testSubmitted && proctorState.isMonitoring) {
-      const violationSummary = proctorState.violations.map(v => v.description).join(', ');
-      submitTestDueToViolation(`Maximum violations exceeded (${proctorState.violationCount}/${proctorState.maxViolations}). Violations: ${violationSummary}`);
+    if (proctorState.violationCount >= proctorState.maxViolations && 
+        !proctorState.testSubmitted && 
+        proctorState.isMonitoring) {
+      
+      const violationSummary = proctorState.violations
+        .map(v => v.description)
+        .join(', ');
+        
+      submitTestDueToViolation(
+        `Maximum violations exceeded (${proctorState.violationCount}/${proctorState.maxViolations}). Violations: ${violationSummary}`
+      );
     }
-  }, [proctorState.violationCount, proctorState.maxViolations, proctorState.testSubmitted, proctorState.isMonitoring, proctorState.violations, submitTestDueToViolation]);
+  }, [proctorState.violationCount, proctorState.maxViolations, proctorState.testSubmitted, 
+      proctorState.isMonitoring, proctorState.violations, submitTestDueToViolation]);
 
   // Optimized monitoring effect with adaptive intervals
   useEffect(() => {
@@ -388,9 +368,7 @@ export const ProctorProvider = ({ children }) => {
           // If too many errors, fall back to basic monitoring
           if (performanceRef.current.errorCount > 10) {
             console.warn('⚠️ Too many AI detection errors, falling back to basic monitoring');
-            if (optimalSettings) {
-              optimalSettings.enableAIDetection = false;
-            }
+            optimalSettings.enableAIDetection = false;
           }
         }
       };
@@ -413,7 +391,6 @@ export const ProctorProvider = ({ children }) => {
     };
   }, [proctorState.isMonitoring, proctorState.testSubmitted, modelsLoaded, 
       mediaStream, optimalSettings, submitTestDueToViolation]);
-
 
   // Enhanced event monitoring with performance optimization
   useEffect(() => {
@@ -457,7 +434,7 @@ export const ProctorProvider = ({ children }) => {
       }
     };
 
-    // Add event listeners with passive option for better performance
+    // Add event listeners
     document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true });
     window.addEventListener('blur', handleBlur, { passive: true });
     document.addEventListener('keydown', handleKeydown);
@@ -507,7 +484,6 @@ export const ProctorProvider = ({ children }) => {
 
   return (
     <ProctorContext.Provider value={value}>
-      {/* This video element is required for person detection but is hidden from the user */}
       <video
         ref={videoRef}
         autoPlay
@@ -519,3 +495,5 @@ export const ProctorProvider = ({ children }) => {
     </ProctorContext.Provider>
   );
 };
+
+export default ProctorProvider;

@@ -153,16 +153,30 @@ const ProblemList = () => {
   const categories = ['All', ...new Set(problems.map(p => p.category))];
   const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
 
-  // Show warning if trying to start without proper permissions
+  // Show loading state if media stream is not yet available
   if (!mediaStream) {
     return (
       <div className="problem-list-container">
-        <div className="error-message">
-          <h2>⚠️ Access Denied</h2>
-          <p>Please go back and grant all required permissions before accessing problems.</p>
-          <button onClick={() => navigate('/')} className="back-btn">
-            Go Back to Permissions
-          </button>
+        <div className="permission-check">
+          <div className="permission-loading">
+            <div className="spinner"></div>
+            <h2>🔒 Setting up Security</h2>
+            <p>Initializing camera and microphone access for proctored testing...</p>
+            <div className="permission-actions">
+              <button 
+                onClick={() => navigate('/permission/dsa')} 
+                className="permission-retry-btn"
+              >
+                Grant Permissions
+              </button>
+              <button 
+                onClick={() => navigate('/')} 
+                className="back-btn secondary"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );

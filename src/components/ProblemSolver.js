@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { useProctor } from '../context/ProctorContext';
+import ViolationModal from './ViolationModal';
+import ViolationWarningPopup from './ViolationWarningPopup';
+import { generateViolationAnalysis } from '../utils/violationAnalysis';
 import './ProblemSolver.css';
 
 // Sample problem data with test cases
@@ -272,7 +275,7 @@ public:
 const ProblemSolver = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { proctorState, mediaStream } = useProctor();
+  const { proctorState, mediaStream, startMonitoring, pauseMonitoring, stopMonitoring } = useProctor();
   
   const [problem, setProblem] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
@@ -281,17 +284,35 @@ const ProblemSolver = () => {
   const [testResults, setTestResults] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
+  const [showViolationModal, setShowViolationModal] = useState(false);
+  const [unacknowledgedViolations, setUnacknowledgedViolations] = useState([]);
+  const [currentWarningViolation, setCurrentWarningViolation] = useState(null);
+  const [showWarningCount, setShowWarningCount] = useState(0);
+  const [startTime, setStartTime] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const problemData = problemsData[id];
     if (problemData) {
       setProblem(problemData);
       setCode(problemData.starterCode[selectedLanguage] || '');
+      setStartTime(new Date()); // Track when user started working on this problem
     } else {
       navigate('/problems');
     }
-  }, [id, navigate]);
+  }, [id, navigate, selectedLanguage]);
 
+  // Start monitoring when component mounts
+  useEffect(() => {
+    startMonitoring();
+    
+    return () => {
+      // Only pause monitoring on unmount (keep permissions)
+      pauseMonitoring();
+    };
+  }, [startMonitoring, pauseMonitoring]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (problem && problem.starterCode[selectedLanguage]) {
       setCode(problem.starterCode[selectedLanguage]);
@@ -300,13 +321,69 @@ const ProblemSolver = () => {
 
   // Check if test was submitted due to violation
   useEffect(() => {
-    if (proctorState.testSubmitted) {
+    if (proctorState.testSubmitted && !isSubmitting) {
       navigate('/submitted');
     }
-  }, [proctorState.testSubmitted, navigate]);
+  }, [proctorState.testSubmitted, navigate, isSubmitting]);
+
+  // Monitor for violations
+  useEffect(() => {
+    const newViolations = proctorState.violations.filter(
+      v => !unacknowledgedViolations.find(uv => uv.id === v.id)
+    );
+
+    if (newViolations.length > 0) {
+      // Show warning popup for new violations
+      const latestViolation = newViolations[newViolations.length - 1];
+      setCurrentWarningViolation(latestViolation);
+      setShowWarningCount(prev => prev + 1);
+      
+      setUnacknowledgedViolations(prev => [...prev, ...newViolations]);
+      
+      // If it's a critical violation, also show the modal
+      if (newViolations.some(v => v.type === 'CRITICAL')) {
+        setShowViolationModal(true);
+      }
+    }
+  }, [proctorState.violations, unacknowledgedViolations]);
+
+  // Add CSS to enhance security
+  useEffect(() => {
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+    document.body.style.mozUserSelect = 'none';
+    document.body.style.msUserSelect = 'none';
+
+    return () => {
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.body.style.mozUserSelect = '';
+      document.body.style.msUserSelect = '';
+    };
+  }, []);
 
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language);
+  };
+
+  const handleViolationAcknowledge = () => {
+    setShowViolationModal(false);
+    // Keep violations but mark them as acknowledged
+  };
+
+  const handleViolationSubmit = () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    // Stop monitoring immediately when submitted due to violations
+    stopMonitoring();
+    
+    setShowViolationModal(false);
+    navigate('/submitted');
+  };
+
+  const handleWarningClose = () => {
+    setCurrentWarningViolation(null);
   };
 
   const runCode = () => {
@@ -332,9 +409,91 @@ const ProblemSolver = () => {
   };
 
   const submitSolution = () => {
+    if (isSubmitting) return;
+    
     if (window.confirm('Are you sure you want to submit your solution?')) {
-      // In real app, submit to backend
+      setIsSubmitting(true);
+      
+      // Pause monitoring when solution is submitted (keep permissions for future tests)
+      pauseMonitoring();
+      
+      const endTime = new Date();
+      
+      // Handle case where startTime might be null
+      if (!startTime) {
+        console.error('Start time is null, using current time as fallback');
+        setStartTime(endTime);
+      }
+      
+      const totalTimeSpent = startTime ? Math.floor((endTime - startTime) / 1000) : 0; // in seconds
+      
+      // Calculate basic test case results (simplified)
+      const passedTests = testResults.filter(result => result.passed).length;
+      const totalTests = testResults.length || problem.testCases?.length || 0;
+      const percentage = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
+      const passed = percentage >= 50; // DSA: 50% test cases to pass
+
+      // Prepare comprehensive results for DSA with violation analysis
+      const baseResults = {
+        testType: 'dsa',
+        problemId: problem.id,
+        problemTitle: problem.title,
+        difficulty: problem.difficulty,
+        category: problem.category,
+        solution: code,
+        language: selectedLanguage,
+        testCases: {
+          passed: passedTests,
+          total: totalTests,
+          percentage,
+          details: testResults
+        },
+        passed,
+        timing: {
+          startTime: startTime ? startTime.toISOString() : endTime.toISOString(),
+          endTime: endTime.toISOString(),
+          totalTimeSpent,
+          totalTimeSpentFormatted: formatDuration(totalTimeSpent)
+        },
+        violations: {
+          count: proctorState.violationCount,
+          maxViolations: proctorState.maxViolations,
+          details: proctorState.violations,
+          submittedDueToViolation: proctorState.testSubmitted,
+          autoSubmitted: proctorState.autoSubmitted
+        },
+        submittedAt: endTime ? endTime.toISOString() : new Date().toISOString()
+      };
+
+      // Generate comprehensive violation analysis
+      const violationAnalysis = generateViolationAnalysis(
+        proctorState.violations, 
+        'dsa', 
+        baseResults
+      );
+
+      const results = {
+        ...baseResults,
+        violationAnalysis
+      };
+
+      // Save results
+      localStorage.setItem('testResults', JSON.stringify(results));
       navigate('/submitted');
+    }
+  };
+
+  const formatDuration = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
     }
   };
 
@@ -351,16 +510,30 @@ const ProblemSolver = () => {
     return <div className="loading">Loading problem...</div>;
   }
 
-  // Show error if no media stream (shouldn't happen if user followed proper flow)
+  // Show loading state if media stream is not yet available
   if (!mediaStream) {
     return (
       <div className="problem-solver-container">
-        <div className="error-message">
-          <h2>⚠️ Access Denied</h2>
-          <p>Please restart the test with proper permissions.</p>
-          <button onClick={() => navigate('/')} className="back-btn">
-            Start Over
-          </button>
+        <div className="permission-check">
+          <div className="permission-loading">
+            <div className="spinner"></div>
+            <h2>🔒 Setting up Security</h2>
+            <p>Initializing camera and microphone access for proctored testing...</p>
+            <div className="permission-actions">
+              <button 
+                onClick={() => navigate('/permission/dsa')} 
+                className="permission-retry-btn"
+              >
+                Grant Permissions
+              </button>
+              <button 
+                onClick={() => navigate('/problems')} 
+                className="back-btn secondary"
+              >
+                Back to Problems
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -368,6 +541,23 @@ const ProblemSolver = () => {
 
   return (
     <div className="problem-solver-container">
+      {showViolationModal && (
+        <ViolationModal 
+          violations={unacknowledgedViolations}
+          onAcknowledge={handleViolationAcknowledge}
+          onSubmitTest={handleViolationSubmit}
+        />
+      )}
+      
+      {currentWarningViolation && (
+        <ViolationWarningPopup 
+          key={showWarningCount}
+          violation={currentWarningViolation}
+          violationCount={proctorState.violationCount}
+          maxViolations={proctorState.maxViolations}
+          onClose={handleWarningClose}
+        />
+      )}
       {/* Header with monitoring info */}
       <div className="solver-header">
         <div className="problem-info">
@@ -398,8 +588,8 @@ const ProblemSolver = () => {
           </div>
           <div className="status-indicator">
             🔴 <strong>MONITORED</strong>
-            <div className="violation-count">
-              Violations: {proctorState.violations.length}
+            <div className={`violation-count ${proctorState.violationCount >= 3 ? 'warning' : ''}`}>
+              ⚠️ Violations: {proctorState.violationCount}/{proctorState.maxViolations}
             </div>
           </div>
         </div>

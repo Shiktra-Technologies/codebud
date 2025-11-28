@@ -1,0 +1,67 @@
+{
+  "name": "codebud_frontend_optimized",
+  "version": "2.0.0",
+  "description": "Optimized proctored testing platform for 60+ concurrent users",
+  "private": true,
+  "dependencies": {
+    "@craco/craco": "^7.1.0",
+    "@monaco-editor/react": "^4.6.0",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.26.2",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "craco start",
+    "build": "GENERATE_SOURCEMAP=false craco build",
+    "build:analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
+    "build:optimize": "npm run build && npm run compress",
+    "compress": "gzip -k build/static/js/*.js && gzip -k build/static/css/*.css",
+    "test": "craco test",
+    "eject": "react-scripts eject",
+    "performance:audit": "lighthouse http://localhost:3000 --view --chrome-flags=\"--headless\"",
+    "performance:test": "node scripts/performance-test.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "compression-webpack-plugin": "^10.0.0",
+    "terser-webpack-plugin": "^5.3.10",
+    "webpack-bundle-analyzer": "^4.10.1"
+  },
+  "performance": {
+    "budget": [
+      {
+        "type": "initial",
+        "maximumWarning": "500kb",
+        "maximumError": "1mb"
+      },
+      {
+        "type": "anyComponentStyle",
+        "maximumWarning": "10kb"
+      }
+    ]
+  }
+}
