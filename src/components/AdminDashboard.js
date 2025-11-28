@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSimpleAuth } from '../context/SimpleAuthContext';
 import { isUserActive, formatLastSeen, getUserStats } from '../utils/userActivity';
 import { subscribeToUserActivity, subscribeToSubmissions, getAllSubmissions } from '../services/firestoreService';
@@ -17,6 +17,77 @@ const AdminDashboard = () => {
   const [resultsPage, setResultsPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const resultsPerPage = 20;
+
+  // Memoized helper functions to prevent unnecessary recalculations
+  const getStudentName = useCallback((userId) => {
+    const student = students.find(s => s.uid === userId);
+    return student?.displayName || student?.email || 'Unknown Student';
+  }, [students]);
+
+  const formatDate = useCallback((dateString) => {
+    return new Date(dateString).toLocaleString();
+  }, []);
+
+  const getTestTypeDisplay = useCallback((testType) => {
+    switch (testType) {
+      case 'dsa': return 'DSA Problem';
+      case 'aptitude': return 'Aptitude Test';
+      default: return testType;
+    }
+  }, []);
+
+  // Memoize stats calculation to prevent recalculation on every render
+  const stats = useMemo(() => {
+    const userStats = getUserStats(students.map(s => ({ ...s, role: 'student' })));
+    const totalSubmissions = testResults.length;
+    const passedTests = testResults.filter(result => result.passed).length;
+    const violationSubmissions = testResults.filter(result => 
+      result.violations?.submittedDueToViolation
+    ).length;
+
+    return {
+      totalStudents: students.length,
+      activeStudents: students.filter(s => s.isOnline).length,
+      totalSubmissions,
+      passedTests,
+      violationSubmissions,
+      passRate: totalSubmissions > 0 ? Math.round((passedTests / totalSubmissions) * 100) : 0
+    };
+  }, [students, testResults]);
+
+  // Memoized filtered students and results to prevent recalculation on every render
+  const filteredStudents = useMemo(() => 
+    students.filter(student =>
+      student.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    [students, searchTerm]
+  );
+
+  const filteredResults = useMemo(() => 
+    testResults.filter(result => {
+      const studentName = getStudentName(result.userId).toLowerCase();
+      const testType = getTestTypeDisplay(result.testType).toLowerCase();
+      const search = searchTerm.toLowerCase();
+      return studentName.includes(search) || testType.includes(search);
+    }),
+    [testResults, searchTerm, getStudentName, getTestTypeDisplay]
+  );
+
+  // Memoized pagination to prevent recalculation on every render
+  const { totalPages, paginatedResults } = useMemo(() => ({
+    totalPages: Math.ceil(filteredResults.length / resultsPerPage),
+    paginatedResults: filteredResults.slice(
+      (resultsPage - 1) * resultsPerPage,
+      resultsPage * resultsPerPage
+    )
+  }), [filteredResults, resultsPage, resultsPerPage]);
+
+  const handlePageChange = useCallback((newPage) => {
+    setResultsPage(newPage);
+    // Scroll to top of results
+    document.querySelector('.results-section')?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // Set up real-time listeners for user activity and test submissions
   useEffect(() => {
@@ -87,77 +158,34 @@ const AdminDashboard = () => {
     setLoading(true);
     
     try {
-      // Load users first (faster, smaller dataset)
-      const allUsers = await getAllUsers();
-      const realStudents = allUsers.filter(user => user.role === 'student');
+      // Load users and submissions in parallel for faster loading
+      const [allUsers, submissionsResult] = await Promise.all([
+        getAllUsers(),
+        getAllSubmissions(null, 20) // Reduced to 20 for faster loading
+      ]);
       
-      // Show students immediately (don't wait for submissions)
+      const realStudents = allUsers.filter(user => user.role === 'student');
+      const testResultsData = submissionsResult.data || [];
+      
+      // Process students with stats
       const studentsWithStats = realStudents.map(student => ({
         ...student,
         id: student.uid,
         lastActive: student.lastLogin,
-        testsCompleted: 0, // Will update when submissions load
+        testsCompleted: testResultsData.filter(result => result.userId === student.uid).length,
         status: student.status || 'active',
         isOnline: isUserActive(student.lastLogin),
         lastSeenFormatted: formatLastSeen(student.lastLogin)
       }));
       
       setStudents(studentsWithStats);
-      setLoading(false); // Stop main loading spinner
-      
-      // Load submissions in background (slower, larger dataset)
-      const submissionsResult = await getAllSubmissions(null, 30); // Limit to 30 most recent
-      const testResultsData = submissionsResult.data || [];
-      
-      // Update test counts after submissions load
-      const updatedStudents = studentsWithStats.map(student => ({
-        ...student,
-        testsCompleted: testResultsData.filter(result => result.userId === student.uid).length,
-      }));
-      
-      setStudents(updatedStudents);
       setTestResults(testResultsData);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to load data. Please try again.');
-    } finally {
       setLoading(false);
     }
-  };
-
-  const getStudentName = (userId) => {
-    const student = students.find(s => s.uid === userId);
-    return student?.displayName || student?.email || 'Unknown Student';
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  const getTestTypeDisplay = (testType) => {
-    switch (testType) {
-      case 'dsa': return 'DSA Problem';
-      case 'aptitude': return 'Aptitude Test';
-      default: return testType;
-    }
-  };
-
-  const calculateStats = () => {
-    const userStats = getUserStats(students.map(s => ({ ...s, role: 'student' })));
-    const totalSubmissions = testResults.length;
-    const passedTests = testResults.filter(result => result.passed).length;
-    const violationSubmissions = testResults.filter(result => 
-      result.violations?.submittedDueToViolation
-    ).length;
-
-    return {
-      totalStudents: students.length,
-      activeStudents: students.filter(s => s.isOnline).length,
-      totalSubmissions,
-      passedTests,
-      violationSubmissions,
-      passRate: totalSubmissions > 0 ? Math.round((passedTests / totalSubmissions) * 100) : 0
-    };
   };
 
   if (loading) {
@@ -182,34 +210,6 @@ const AdminDashboard = () => {
       </div>
     );
   }
-
-  const stats = calculateStats();
-
-  // Filter students and results based on search term
-  const filteredStudents = students.filter(student =>
-    student.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredResults = testResults.filter(result => {
-    const studentName = getStudentName(result.userId).toLowerCase();
-    const testType = getTestTypeDisplay(result.testType).toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return studentName.includes(search) || testType.includes(search);
-  });
-
-  // Paginate results
-  const totalPages = Math.ceil(filteredResults.length / resultsPerPage);
-  const paginatedResults = filteredResults.slice(
-    (resultsPage - 1) * resultsPerPage,
-    resultsPage * resultsPerPage
-  );
-
-  const handlePageChange = (newPage) => {
-    setResultsPage(newPage);
-    // Scroll to top of results
-    document.querySelector('.results-section')?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleRefresh = async () => {
     // Clear cache

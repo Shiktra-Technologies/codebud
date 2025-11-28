@@ -104,20 +104,33 @@ export function SimpleAuthProvider({ children }) {
   // Simple login with email/password (now accepts optional role override)
   const login = async (email, password, roleOverride = null) => {
     console.log('🔑 Login attempt with role override:', roleOverride);
+    
+    // If role override provided, set it FIRST before signing in
+    if (roleOverride) {
+      // Use a temporary flag to indicate we're setting role during login
+      sessionStorage.setItem('pending_login_role', roleOverride);
+      console.log('🔑 Login - Set pending role:', roleOverride);
+    }
+    
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    
+    // Get the pending role we set before signin
+    const pendingRole = sessionStorage.getItem('pending_login_role');
     
     // Use role override if provided, otherwise try to get from localStorage
     const storedRole = localStorage.getItem(`user_role_${userCredential.user.uid}`) || USER_ROLES.STUDENT;
-    const finalRole = roleOverride || storedRole;
+    const finalRole = pendingRole || roleOverride || storedRole;
     
     console.log('🔑 Login - Stored role:', storedRole);
+    console.log('🔑 Login - Pending role:', pendingRole);
     console.log('🔑 Login - Final role:', finalRole);
     
-    // Update role in localStorage if overridden
-    if (roleOverride) {
-      localStorage.setItem(`user_role_${userCredential.user.uid}`, roleOverride);
-      console.log('🔑 Login - Updated localStorage with role:', roleOverride);
-    }
+    // Update role in localStorage with the final role
+    localStorage.setItem(`user_role_${userCredential.user.uid}`, finalRole);
+    console.log('🔑 Login - Updated localStorage with role:', finalRole);
+    
+    // Clear the pending role flag
+    sessionStorage.removeItem('pending_login_role');
     
     // Update user's last active time and save data with the final role
     await saveUserData(userCredential.user, finalRole);
@@ -175,12 +188,31 @@ export function SimpleAuthProvider({ children }) {
       setCurrentUser(user);
       
       if (user) {
+        // Check if there's a pending login role (set before authentication)
+        const pendingRole = sessionStorage.getItem('pending_login_role');
+        
         // Get role from localStorage
         const storedRole = localStorage.getItem(`user_role_${user.uid}`) || USER_ROLES.STUDENT;
-        console.log('SimpleAuth: Using stored role:', storedRole);
-        setUserRole(storedRole);
+        
+        // Use pending role if available (means we're in the middle of login)
+        const roleToUse = pendingRole || storedRole;
+        
+        console.log('SimpleAuth: Pending role:', pendingRole);
+        console.log('SimpleAuth: Stored role:', storedRole);
+        console.log('SimpleAuth: Using role:', roleToUse);
+        
+        // If pending role exists, save it to localStorage and clear the pending flag
+        if (pendingRole) {
+          localStorage.setItem(`user_role_${user.uid}`, pendingRole);
+          sessionStorage.removeItem('pending_login_role');
+          console.log('SimpleAuth: Applied pending role to localStorage');
+        }
+        
+        setUserRole(roleToUse);
       } else {
         setUserRole(null);
+        // Clear any pending role on logout
+        sessionStorage.removeItem('pending_login_role');
       }
       
       setLoading(false);

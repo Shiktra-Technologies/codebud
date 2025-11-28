@@ -369,8 +369,8 @@ export const subscribeToUserActivity = (callback) => {
   // Initial fetch
   fetchUsers();
   
-  // Poll every 5 seconds (can be adjusted)
-  pollInterval = setInterval(fetchUsers, 5000);
+  // Poll every 10 seconds (balanced between updates and performance)
+  pollInterval = setInterval(fetchUsers, 10000);
   
   // Return cleanup function
   return () => {
@@ -397,8 +397,9 @@ export const subscribeToSubmissions = (callback) => {
     
     try {
       // Use getDocs() instead of onSnapshot() - works with ad blockers
+      // Reduced limit for faster loading (20 most recent submissions)
       const submissionsRef = collection(db, 'testSubmissions');
-      const q = query(submissionsRef, orderBy('submittedAt', 'desc'), limit(100));
+      const q = query(submissionsRef, orderBy('submittedAt', 'desc'), limit(20));
       const snapshot = await getDocs(q);
       
       const submissions = [];
@@ -427,8 +428,8 @@ export const subscribeToSubmissions = (callback) => {
   // Initial fetch
   fetchSubmissions();
   
-  // Poll every 5 seconds (can be adjusted)
-  pollInterval = setInterval(fetchSubmissions, 5000);
+  // Poll every 10 seconds (balanced between updates and performance)
+  pollInterval = setInterval(fetchSubmissions, 10000);
   
   // Return cleanup function
   return () => {
