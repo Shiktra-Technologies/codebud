@@ -51,6 +51,8 @@ const Login = ({ onToggle }) => {
       let errorMessage = 'Failed to sign in: ';
       if (error.message.includes('Invalid super admin secret code')) {
         errorMessage = 'Invalid super admin secret code. Please check and try again.';
+      } else if (error.message.includes('Access denied')) {
+        errorMessage = error.message; // Use the full role validation error message
       } else if (error.message.includes('invalid-credential')) {
         errorMessage = 'Invalid email or password.';
       } else if (error.message.includes('user-not-found')) {

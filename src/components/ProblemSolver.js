@@ -504,26 +504,43 @@ const ProblemSolver = () => {
         submittedAt: results.timing.endTime
       };
 
-      // Record in real-time for immediate admin dashboard updates
-      if (currentUser) {
-        console.log('🚀 Recording real-time DSA submission:', submissionData);
-        recordSubmission(submissionData);
-        
-        // Track user activity
-        realTimeService.trackUserActivity(currentUser.uid, `completed DSA: ${problem.title}`);
-      }
-
-      // Store in test_results for persistence
-      const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
-      existingResults.unshift(submissionData);
-      localStorage.setItem('test_results', JSON.stringify(existingResults.slice(0, 100)));
-
-      // Automatically cleanup - exit fullscreen and turn off camera
-      setTimeout(() => {
-        completeTestCleanup();
-      }, 1000); // Small delay to ensure results are saved
-
+      // Navigate immediately for better UX
       navigate('/submitted');
+
+      // Run all async operations in parallel without blocking navigation
+      Promise.all([
+        // Record in real-time for immediate admin dashboard updates
+        new Promise(resolve => {
+          if (currentUser) {
+            console.log('🚀 Recording real-time DSA submission:', submissionData);
+            recordSubmission(submissionData);
+            realTimeService.trackUserActivity(currentUser.uid, `completed DSA: ${problem.title}`);
+          }
+          resolve();
+        }),
+        
+        // Store in test_results for persistence
+        new Promise(resolve => {
+          try {
+            const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+            existingResults.unshift(submissionData);
+            localStorage.setItem('test_results', JSON.stringify(existingResults.slice(0, 100)));
+          } catch (error) {
+            console.error('Error saving to localStorage:', error);
+          }
+          resolve();
+        }),
+
+        // Cleanup in background with minimal delay
+        new Promise(resolve => {
+          setTimeout(() => {
+            completeTestCleanup();
+            resolve();
+          }, 100); // Much shorter delay
+        })
+      ]).catch(error => {
+        console.error('Error in post-submission tasks:', error);
+      });
     }
   };
 
@@ -746,8 +763,27 @@ const ProblemSolver = () => {
               <button 
                 onClick={submitSolution}
                 className="submit-btn"
+                disabled={isSubmitting}
+                style={{
+                  opacity: isSubmitting ? 0.7 : 1,
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                }}
               >
-                Submit Solution
+                {isSubmitting ? (
+                  <>
+                    <span style={{ 
+                      display: 'inline-block', 
+                      width: '12px', 
+                      height: '12px', 
+                      border: '2px solid transparent',
+                      borderTop: '2px solid currentColor',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      marginRight: '8px'
+                    }}></span>
+                    Submitting...
+                  </>
+                ) : 'Submit Solution'}
               </button>
             </div>
           </div>

@@ -48,7 +48,7 @@ const AdminDashboard = () => {
       try {
         realUsers = await getAllUsers();
       } catch (error) {
-        console.warn('Could not fetch users from Firebase:', error);
+        console.warn('Could not fetch users from Supabase:', error);
       }
 
       // Process students
@@ -57,7 +57,7 @@ const AdminDashboard = () => {
           .filter(user => user.role === 'student' || !user.role) // Include users without role as potential students
           .map(student => ({
             ...student,
-            id: student.uid || student.id,
+            id: student.id || student.uid,
             testsCompleted: 0, // TODO: Calculate from submissions
             isOnline: isUserActive(student.lastLogin || student.lastActive),
             lastSeenFormatted: formatLastSeen(student.lastLogin || student.lastActive)
@@ -66,11 +66,14 @@ const AdminDashboard = () => {
         setStudents(studentUsers);
         
         // Filter active users (online in last 5 minutes)
+        // Exclude current admin user and only show active student users
         const currentlyActive = studentUsers
           .filter(user => user.isOnline)
+          .filter(user => user.id !== currentUser?.id) // Exclude current admin user
+          .filter(user => user.role === 'student' || !user.role) // Only show student users
           .map(user => ({
             ...user,
-            uid: user.uid || user.id,
+            id: user.id || user.uid,
             currentActivity: user.currentActivity || 'Browsing platform',
             lastSeen: user.lastLogin || user.lastActive || new Date().toISOString()
           }));
@@ -105,7 +108,7 @@ const AdminDashboard = () => {
       setRealTimeStatus('error');
       setLoading(false);
     }
-  }, [getAllUsers]);
+  }, [getAllUsers, currentUser]);
 
   // Initialize real-time subscriptions
   useEffect(() => {
@@ -128,7 +131,11 @@ const AdminDashboard = () => {
       console.log('👥 Real-time users update:', payload);
       const data = Array.isArray(payload) ? payload : payload.data || [];
       if (data.length > 0) {
-        setActiveUsers(data);
+        // Apply the same filtering logic: exclude current admin, only show students
+        const filteredActiveUsers = data
+          .filter(user => user.id !== currentUser?.id) // Exclude current admin user
+          .filter(user => user.role === 'student' || !user.role); // Only show student users
+        setActiveUsers(filteredActiveUsers);
         setRealTimeStatus('connected');
       }
     }, { pollInterval: 3000 });
@@ -141,7 +148,7 @@ const AdminDashboard = () => {
 
     // Track admin user activity
     if (currentUser) {
-      realTimeService.trackUserActivity(currentUser.uid, 'admin dashboard');
+      realTimeService.trackUserActivity(currentUser.id, 'admin dashboard');
     }
 
     // Cleanup subscriptions
@@ -399,11 +406,11 @@ const AdminDashboard = () => {
                 {activeUsers.map(user => {
                   // Get user's recent submissions
                   const userSubmissions = testResults.filter(submission => 
-                    submission.userId === user.uid || submission.studentEmail === user.email
+                    submission.userId === user.id || submission.studentEmail === user.email
                   ).slice(0, 5); // Show last 5 submissions
 
                   return (
-                    <div key={user.uid} style={{ 
+                    <div key={user.id} style={{ 
                       border: '1px solid #dee2e6', 
                       borderRadius: '12px', 
                       padding: '0',
@@ -692,12 +699,12 @@ const AdminDashboard = () => {
                   type: 'user_active',
                   timestamp: user.lastSeen || Date.now(),
                   user,
-                  id: `active_${user.uid}`
+                  id: `active_${user.id}`
                 })), ...testResults.slice(0, 10).map(submission => ({
                   type: 'submission',
                   timestamp: submission.submittedAt || submission.timestamp,
                   submission,
-                  user: students.find(s => s.uid === submission.userId || s.email === submission.studentEmail),
+                  user: students.find(s => s.id === submission.userId || s.email === submission.studentEmail),
                   id: submission.id || `sub_${Math.random()}`
                 }))].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 20).map((activity, index) => (
                   <div key={activity.id} style={{

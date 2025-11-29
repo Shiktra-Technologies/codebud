@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import './ErrorBoundary.css';
 
-const FirebaseBlockedError = () => {
+const SupabaseBlockedError = () => {
   const [showInstructions, setShowInstructions] = useState(false);
 
   return (
     <div className="error-boundary">
       <div className="error-content">
-        <h1>🔒 Firebase Access Blocked</h1>
+        <h1>🔒 Supabase Access Blocked</h1>
         <p>
-          Your browser or an extension is blocking Firebase/Firestore connections.
+          Your browser or an extension is blocking Supabase connections.
           This is preventing the authentication system from working properly.
         </p>
         
@@ -66,10 +66,10 @@ const FirebaseBlockedError = () => {
           <details>
             <summary>Technical Details</summary>
             <p>Error: <code>net::ERR_BLOCKED_BY_CLIENT</code></p>
-            <p>Blocked URLs: firestore.googleapis.com</p>
+            <p>Blocked URLs: supabase.co</p>
             <p>
               This error occurs when browser extensions or network settings 
-              prevent connections to Google's Firebase services.
+              prevent connections to Supabase services.
             </p>
           </details>
         </div>
@@ -78,4 +78,4 @@ const FirebaseBlockedError = () => {
   );
 };
 
-export default FirebaseBlockedError;
+export default SupabaseBlockedError;

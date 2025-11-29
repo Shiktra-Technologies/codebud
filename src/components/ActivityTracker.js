@@ -7,11 +7,11 @@ const ActivityTracker = () => {
   useEffect(() => {
     if (currentUser) {
       // Update activity immediately
-      updateLastActive(currentUser.uid);
+      updateLastActive(currentUser.id); // Fixed: Changed from uid to id for Supabase
 
       // Set up interval to update activity every 30 seconds
       const activityInterval = setInterval(() => {
-        updateLastActive(currentUser.uid);
+        updateLastActive(currentUser.id); // Fixed: Changed from uid to id for Supabase
       }, 30000); // 30 seconds
 
       // Cleanup on unmount
@@ -23,7 +23,7 @@ const ActivityTracker = () => {
   useEffect(() => {
     const handleUserActivity = () => {
       if (currentUser) {
-        updateLastActive(currentUser.uid);
+        updateLastActive(currentUser.id); // Fixed: Changed from uid to id for Supabase
       }
     };
 

@@ -1,6 +1,5 @@
 // User role management utility
-import { doc, setDoc, getDoc, updateDoc, getDocs, collection, query, where } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { supabase } from '../config/supabaseConfig';
 
 export const USER_ROLES = {
   STUDENT: 'student',
@@ -51,34 +50,39 @@ export const ROLE_PERMISSIONS = {
 };
 
 /**
- * Create user profile with role in Firestore
+ * Create user profile with role in Supabase
  */
 export const createUserProfile = async (user, role = USER_ROLES.STUDENT, additionalData = {}) => {
-  if (!user || !user.uid) {
+  if (!user || !user.id) {
     throw new Error('User object is required');
   }
 
   if (!Object.values(USER_ROLES).includes(role)) {
     throw new Error(`Invalid role: ${role}`);
   }
-
-  const userDocRef = doc(db, 'users', user.uid);
   
   const userData = {
-    uid: user.uid,
+    id: user.id,
     email: user.email,
-    displayName: user.displayName || '',
-    photoURL: user.photoURL || '',
+    display_name: user.user_metadata?.display_name || '',
+    photo_url: user.user_metadata?.picture || '',
     role: role,
-    permissions: ROLE_PERMISSIONS[role],
-    createdAt: new Date().toISOString(),
-    lastLoginAt: new Date().toISOString(),
-    isActive: true,
+    permissions: JSON.stringify(ROLE_PERMISSIONS[role]),
+    created_at: new Date().toISOString(),
+    last_login_at: new Date().toISOString(),
+    is_active: true,
     ...additionalData
   };
 
   try {
-    await setDoc(userDocRef, userData, { merge: true });
+    const { data, error } = await supabase
+      .from('users')
+      .upsert(userData, { 
+        onConflict: 'id',
+        ignoreDuplicates: false 
+      });
+    if (error) throw error;
+    
     console.log(`✅ User profile created with role: ${role}`);
     return userData;
   } catch (error) {
@@ -88,7 +92,7 @@ export const createUserProfile = async (user, role = USER_ROLES.STUDENT, additio
 };
 
 /**
- * Get user profile and role from Firestore
+ * Get user profile and role from Supabase
  */
 export const getUserProfile = async (userId) => {
   if (!userId) {
@@ -96,18 +100,22 @@ export const getUserProfile = async (userId) => {
   }
 
   try {
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
     
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+    
+    if (data) {
       return {
-        ...userData,
-        permissions: ROLE_PERMISSIONS[userData.role] || ROLE_PERMISSIONS[USER_ROLES.STUDENT]
+        ...data,
+        permissions: ROLE_PERMISSIONS[data.role] || ROLE_PERMISSIONS[USER_ROLES.STUDENT]
       };
     } else {
-      // If user profile doesn't exist, create a default student profile
-      console.log('User profile not found, creating default student profile');
+      // If user profile doesn't exist, return null
+      console.log('User profile not found');
       return null;
     }
   } catch (error) {
@@ -129,21 +137,26 @@ export const updateUserRole = async (userId, newRole, updatedBy) => {
   }
 
   try {
-    const userDocRef = doc(db, 'users', userId);
     const updateData = {
       role: newRole,
-      permissions: ROLE_PERMISSIONS[newRole],
-      updatedAt: new Date().toISOString(),
-      updatedBy: updatedBy,
-      roleHistory: {
+      permissions: JSON.stringify(ROLE_PERMISSIONS[newRole]),
+      updated_at: new Date().toISOString(),
+      updated_by: updatedBy,
+      role_history: JSON.stringify({
         previousRole: '', // You can get this from current data first
         newRole: newRole,
         changedAt: new Date().toISOString(),
         changedBy: updatedBy
-      }
+      })
     };
 
-    await updateDoc(userDocRef, updateData);
+    const { error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId);
+
+    if (error) throw error;
+    
     console.log(`✅ User role updated to: ${newRole}`);
     return updateData;
   } catch (error) {
@@ -157,24 +170,20 @@ export const updateUserRole = async (userId, newRole, updatedBy) => {
  */
 export const getUsersByRole = async (role = null) => {
   try {
-    let q;
+    let query = supabase
+      .from('users')
+      .select('*')
+      .eq('is_active', true);
+
     if (role) {
-      q = query(collection(db, 'users'), where('role', '==', role), where('isActive', '==', true));
-    } else {
-      q = query(collection(db, 'users'), where('isActive', '==', true));
+      query = query.eq('role', role);
     }
 
-    const querySnapshot = await getDocs(q);
-    const users = [];
-    
-    querySnapshot.forEach((doc) => {
-      users.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
+    const { data, error } = await query;
 
-    return users;
+    if (error) throw error;
+
+    return data || [];
   } catch (error) {
     console.error('❌ Error fetching users by role:', error);
     throw error;
@@ -203,22 +212,15 @@ export const hasPermission = (userRole, permission) => {
  */
 export const getUserTestResults = async (userId) => {
   try {
-    const resultsQuery = query(
-      collection(db, 'testResults'),
-      where('userId', '==', userId)
-    );
+    const { data, error } = await supabase
+      .from('submissions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('submitted_at', { ascending: false });
 
-    const querySnapshot = await getDocs(resultsQuery);
-    const results = [];
+    if (error) throw error;
 
-    querySnapshot.forEach((doc) => {
-      results.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-
-    return results.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    return data || [];
   } catch (error) {
     console.error('❌ Error fetching user test results:', error);
     throw error;
@@ -230,18 +232,14 @@ export const getUserTestResults = async (userId) => {
  */
 export const getAllTestResults = async () => {
   try {
-    const resultsQuery = collection(db, 'testResults');
-    const querySnapshot = await getDocs(resultsQuery);
-    const results = [];
+    const { data, error } = await supabase
+      .from('submissions')
+      .select('*')
+      .order('submitted_at', { ascending: false });
 
-    querySnapshot.forEach((doc) => {
-      results.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
+    if (error) throw error;
 
-    return results.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    return data || [];
   } catch (error) {
     console.error('❌ Error fetching all test results:', error);
     throw error;
@@ -249,20 +247,26 @@ export const getAllTestResults = async () => {
 };
 
 /**
- * Save test results to Firestore
+ * Save test results to Supabase
  */
 export const saveTestResults = async (userId, testData) => {
   try {
-    const resultsRef = collection(db, 'testResults');
     const resultData = {
-      userId: userId,
+      user_id: userId,
       ...testData,
-      submittedAt: new Date().toISOString()
+      submitted_at: new Date().toISOString()
     };
 
-    await setDoc(doc(resultsRef), resultData);
+    const { data, error } = await supabase
+      .from('submissions')
+      .insert(resultData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    
     console.log('✅ Test results saved successfully');
-    return resultData;
+    return data;
   } catch (error) {
     console.error('❌ Error saving test results:', error);
     throw error;
@@ -274,10 +278,14 @@ export const saveTestResults = async (userId, testData) => {
  */
 export const updateLastLogin = async (userId) => {
   try {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, {
-      lastLoginAt: new Date().toISOString()
-    });
+    const { error } = await supabase
+      .from('users')
+      .update({ 
+        last_login_at: new Date().toISOString() 
+      })
+      .eq('id', userId);
+
+    if (error) throw error;
   } catch (error) {
     console.error('❌ Error updating last login:', error);
     // Don't throw error - this is not critical
@@ -289,12 +297,17 @@ export const updateLastLogin = async (userId) => {
  */
 export const deactivateUser = async (userId, deactivatedBy) => {
   try {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, {
-      isActive: false,
-      deactivatedAt: new Date().toISOString(),
-      deactivatedBy: deactivatedBy
-    });
+    const { error } = await supabase
+      .from('users')
+      .update({
+        is_active: false,
+        deactivated_at: new Date().toISOString(),
+        deactivated_by: deactivatedBy
+      })
+      .eq('id', userId);
+
+    if (error) throw error;
+    
     console.log('✅ User deactivated successfully');
   } catch (error) {
     console.error('❌ Error deactivating user:', error);

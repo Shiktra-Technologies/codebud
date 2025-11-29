@@ -1,18 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../config/supabaseConfig';
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import { auth } from '../firebase/config';
-import {
-  saveUserToFirestore,
-  getUserFromFirestore,
-  getAllUsersFromFirestore,
+  saveUserToSupabase,
+  getUserFromSupabase,
+  getAllUsersFromSupabase,
   updateUserActivity,
   syncPendingSubmissions
-} from '../services/firestoreService';
+} from '../services/supabaseService';
 
 const SimpleAuthContext = createContext();
 
@@ -59,16 +53,16 @@ export function SimpleAuthProvider({ children }) {
     };
   }, []);
 
-  // Helper function to get all registered users (Firestore + localStorage fallback)
+  // Helper function to get all registered users (Supabase + localStorage fallback)
   const getAllUsers = async () => {
-    const result = await getAllUsersFromFirestore();
+    const result = await getAllUsersFromSupabase();
     return result.data || [];
   };
 
-  // Helper function to save user data (Firestore + localStorage fallback)
+  // Helper function to save user data (Supabase + localStorage fallback)
   const saveUserData = async (user, role) => {
     const userData = {
-      uid: user.uid,
+      uid: user.id,
       email: user.email,
       displayName: user.displayName || user.email.split('@')[0],
       role: role,
@@ -77,68 +71,90 @@ export function SimpleAuthProvider({ children }) {
       status: 'active'
     };
 
-    // Save to Firestore (with automatic localStorage fallback)
-    await saveUserToFirestore(user.uid, userData);
+    // Save to Supabase (with automatic localStorage fallback)
+    await saveUserToSupabase(user, role);
     
     return userData;
   };
 
-  // Function to update user's last active time (Firestore + localStorage fallback)
+  // Function to update user's last active time (Supabase + localStorage fallback)
   const updateLastActive = async (userId) => {
-    await updateUserActivity(userId);
+    if (userId) {
+      await updateUserActivity(userId);
+    } else {
+      console.warn('⚠️ Cannot update last active: userId is undefined');
+    }
   };
 
   // Simple signup with email/password (defaults to student role)
   const signup = async (email, password, role = USER_ROLES.STUDENT) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    // Store role in localStorage as fallback when Firestore is blocked
-    localStorage.setItem(`user_role_${userCredential.user.uid}`, role);
-    
-    // Save user data to our user registry
-    saveUserData(userCredential.user, role);
-    
-    setUserRole(role);
-    return userCredential;
-  };
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: role
+        }
+      }
+    });
 
-  // Simple login with email/password (now accepts optional role override)
-  const login = async (email, password, roleOverride = null) => {
-    console.log('🔑 Login attempt with role override:', roleOverride);
+    if (error) throw error;
     
-    // If role override provided, set it FIRST before signing in
-    if (roleOverride) {
-      // Use a temporary flag to indicate we're setting role during login
-      sessionStorage.setItem('pending_login_role', roleOverride);
-      console.log('🔑 Login - Set pending role:', roleOverride);
+    // Store role in localStorage as fallback
+    if (data.user) {
+      localStorage.setItem(`user_role_${data.user.id}`, role);
+      
+      // Save user data to our user registry
+      await saveUserData(data.user, role);
+      
+      setUserRole(role);
     }
     
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return data;
+  };
+
+  // Simple login with email/password - validates user's registered role
+  const login = async (email, password, expectedRole = null) => {
+    console.log('🔑 Login attempt for email:', email, 'Expected role:', expectedRole);
     
-    // Get the pending role we set before signin
-    const pendingRole = sessionStorage.getItem('pending_login_role');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
     
-    // Use role override if provided, otherwise try to get from localStorage
-    const storedRole = localStorage.getItem(`user_role_${userCredential.user.uid}`) || USER_ROLES.STUDENT;
-    const finalRole = pendingRole || roleOverride || storedRole;
+    // Get user's actual role from database
+    const userResult = await getUserFromSupabase(data.user.id);
+    let actualRole = USER_ROLES.STUDENT; // default fallback
     
-    console.log('🔑 Login - Stored role:', storedRole);
-    console.log('🔑 Login - Pending role:', pendingRole);
-    console.log('🔑 Login - Final role:', finalRole);
+    if (userResult.success && userResult.data) {
+      actualRole = userResult.data.role;
+    } else {
+      // Fallback to localStorage
+      actualRole = localStorage.getItem(`user_role_${data.user.id}`) || USER_ROLES.STUDENT;
+    }
     
-    // Update role in localStorage with the final role
-    localStorage.setItem(`user_role_${userCredential.user.uid}`, finalRole);
-    console.log('🔑 Login - Updated localStorage with role:', finalRole);
+    console.log('🔑 Login - User\'s actual role:', actualRole);
+    console.log('🔑 Login - Expected role:', expectedRole);
     
-    // Clear the pending role flag
-    sessionStorage.removeItem('pending_login_role');
+    // If expectedRole is specified, validate that user can login with that role
+    if (expectedRole && actualRole !== expectedRole) {
+      // Sign out the user since they tried to access wrong role
+      await supabase.auth.signOut();
+      throw new Error(`Access denied. This account is registered as ${actualRole}, but you're trying to login as ${expectedRole}.`);
+    }
     
-    // Update user's last active time and save data with the final role
-    await saveUserData(userCredential.user, finalRole);
-    await updateLastActive(userCredential.user.uid);
+    // Update role in localStorage
+    localStorage.setItem(`user_role_${data.user.id}`, actualRole);
+    console.log('🔑 Login - Confirmed role in localStorage:', actualRole);
     
-    setUserRole(finalRole);
-    console.log('🔑 Login - Set user role in context:', finalRole);
-    return userCredential;
+    // Update user's last active time
+    await updateLastActive(data.user.id);
+    
+    setUserRole(actualRole);
+    console.log('🔑 Login - Set user role in context:', actualRole);
+    return { ...data, userRole: actualRole };
   };
 
   // Super admin login with secret code
@@ -146,14 +162,14 @@ export function SimpleAuthProvider({ children }) {
     if (secretCode === 'admin@2024') {
       // Create mock super admin user
       const mockUser = {
-        uid: 'super_admin_session',
+        id: 'super_admin_session',
         email: 'superadmin@codebud.com',
         displayName: 'Super Admin'
       };
       
       setCurrentUser(mockUser);
       setUserRole(USER_ROLES.SUPER_ADMIN);
-      localStorage.setItem(`user_role_${mockUser.uid}`, USER_ROLES.SUPER_ADMIN);
+      localStorage.setItem(`user_role_${mockUser.id}`, USER_ROLES.SUPER_ADMIN);
       
       return { user: mockUser };
     } else {
@@ -163,7 +179,7 @@ export function SimpleAuthProvider({ children }) {
 
   // Logout
   const logout = async () => {
-    if (currentUser && currentUser.uid === 'super_admin_session') {
+    if (currentUser && currentUser.id === 'super_admin_session') {
       // Handle super admin logout
       setCurrentUser(null);
       setUserRole(null);
@@ -172,47 +188,51 @@ export function SimpleAuthProvider({ children }) {
     
     // Clear stored role
     if (currentUser) {
-      localStorage.removeItem(`user_role_${currentUser.uid}`);
+      localStorage.removeItem(`user_role_${currentUser.id}`);
     }
     
     setUserRole(null);
-    return signOut(auth);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   useEffect(() => {
     console.log('SimpleAuth: Setting up auth listener');
     
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('SimpleAuth: Auth state changed:', user ? 'logged in' : 'not logged in');
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('SimpleAuth: Auth state changed:', session?.user ? 'logged in' : 'not logged in');
       
+      const user = session?.user || null;
       setCurrentUser(user);
       
       if (user) {
-        // Check if there's a pending login role (set before authentication)
-        const pendingRole = sessionStorage.getItem('pending_login_role');
+        // Get user's actual role from database or localStorage
+        const getUserRole = async () => {
+          try {
+            const userResult = await getUserFromSupabase(user.id);
+            if (userResult.success && userResult.data) {
+              const actualRole = userResult.data.role;
+              localStorage.setItem(`user_role_${user.id}`, actualRole);
+              setUserRole(actualRole);
+              console.log('SimpleAuth: Set role from database:', actualRole);
+            } else {
+              // Fallback to localStorage
+              const storedRole = localStorage.getItem(`user_role_${user.id}`) || USER_ROLES.STUDENT;
+              setUserRole(storedRole);
+              console.log('SimpleAuth: Set role from localStorage:', storedRole);
+            }
+          } catch (error) {
+            console.error('SimpleAuth: Error getting user role:', error);
+            // Fallback to localStorage
+            const storedRole = localStorage.getItem(`user_role_${user.id}`) || USER_ROLES.STUDENT;
+            setUserRole(storedRole);
+            console.log('SimpleAuth: Set fallback role:', storedRole);
+          }
+        };
         
-        // Get role from localStorage
-        const storedRole = localStorage.getItem(`user_role_${user.uid}`) || USER_ROLES.STUDENT;
-        
-        // Use pending role if available (means we're in the middle of login)
-        const roleToUse = pendingRole || storedRole;
-        
-        console.log('SimpleAuth: Pending role:', pendingRole);
-        console.log('SimpleAuth: Stored role:', storedRole);
-        console.log('SimpleAuth: Using role:', roleToUse);
-        
-        // If pending role exists, save it to localStorage and clear the pending flag
-        if (pendingRole) {
-          localStorage.setItem(`user_role_${user.uid}`, pendingRole);
-          sessionStorage.removeItem('pending_login_role');
-          console.log('SimpleAuth: Applied pending role to localStorage');
-        }
-        
-        setUserRole(roleToUse);
+        getUserRole();
       } else {
         setUserRole(null);
-        // Clear any pending role on logout
-        sessionStorage.removeItem('pending_login_role');
       }
       
       setLoading(false);
@@ -225,7 +245,7 @@ export function SimpleAuthProvider({ children }) {
     }, 3000);
 
     return () => {
-      unsubscribe();
+      authListener.subscription.unsubscribe();
       clearTimeout(timeout);
     };
   }, []);

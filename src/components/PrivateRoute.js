@@ -38,7 +38,7 @@ const PrivateRoute = ({ children, requireRole = null, requirePermission = null }
   }
 
   // Skip permission requirement for simplified auth
-  // Can be re-enabled later when Firestore is working
+  // Can be re-enabled later when Supabase is working
   
   return children;
 };

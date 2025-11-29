@@ -1,5 +1,5 @@
 /**
- * Local Storage Service - Free alternative to Firebase Storage
+ * Local Storage Service - Client-side storage alternative
  * Uses IndexedDB for client-side file storage with real-time updates
  */
 

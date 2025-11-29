@@ -1,5 +1,5 @@
 /**
- * Real-time Service - Free alternatives to Firebase real-time
+ * Real-time Service - Alternative real-time communication methods
  * Uses localStorage events, BroadcastChannel API, and polling for real-time updates
  */
 
@@ -185,7 +185,7 @@ class RealTimeService {
     
     // Add submission activities
     submissions.slice(0, 20).forEach(submission => {
-      const user = users.find(u => u.uid === submission.userId);
+      const user = users.find(u => u.id === submission.userId);
       activities.push({
         id: `submission-${submission.id}`,
         type: 'submission',
@@ -203,9 +203,9 @@ class RealTimeService {
     // Add login activities
     users.filter(u => u.lastLogin).slice(0, 10).forEach(user => {
       activities.push({
-        id: `login-${user.uid}`,
+        id: `login-${user.id}`,
         type: 'login',
-        userId: user.uid,
+        userId: user.id,
         userName: user.displayName || user.email,
         action: 'Logged in',
         timestamp: user.lastLogin
@@ -228,7 +228,7 @@ class RealTimeService {
 
     return users.filter(user => {
       // Check heartbeat first
-      const heartbeat = heartbeatData[user.uid];
+      const heartbeat = heartbeatData[user.id];
       if (heartbeat) {
         const heartbeatTime = new Date(heartbeat.timestamp);
         if (now - heartbeatTime < activeThreshold) {
@@ -246,8 +246,8 @@ class RealTimeService {
     }).map(user => ({
       ...user,
       isActive: true,
-      lastSeen: heartbeatData[user.uid]?.timestamp || user.lastLogin,
-      currentActivity: heartbeatData[user.uid]?.activity || 'browsing'
+      lastSeen: heartbeatData[user.id]?.timestamp || user.lastLogin,
+      currentActivity: heartbeatData[user.id]?.activity || 'browsing'
     }));
   }
 
@@ -278,7 +278,7 @@ class RealTimeService {
     this.heartbeatInterval = setInterval(() => {
       const currentUser = this.getCurrentUser();
       if (currentUser && this.isActive) {
-        this.trackUserActivity(currentUser.uid, this.getCurrentActivity());
+        this.trackUserActivity(currentUser.id, this.getCurrentActivity());
       }
     }, 30000);
   }
@@ -294,7 +294,7 @@ class RealTimeService {
       lastActivity = Date.now();
       const currentUser = this.getCurrentUser();
       if (currentUser) {
-        this.trackUserActivity(currentUser.uid, 'active');
+        this.trackUserActivity(currentUser.id, 'active');
       }
     };
 
@@ -324,7 +324,7 @@ class RealTimeService {
         console.log('🟢 Tab became active - resuming real-time updates');
         const currentUser = this.getCurrentUser();
         if (currentUser) {
-          this.trackUserActivity(currentUser.uid, 'active');
+          this.trackUserActivity(currentUser.id, 'active');
         }
       } else {
         console.log('🟡 Tab became inactive - reducing updates');
@@ -376,21 +376,35 @@ class RealTimeService {
   recordSubmission(submissionData) {
     console.log('📝 Recording new submission:', submissionData);
     
-    // Add to localStorage
-    const submissions = JSON.parse(localStorage.getItem('test_results') || '[]');
-    submissions.unshift({
+    // Optimize with batching and immediate emission
+    const enhancedSubmission = {
       ...submissionData,
-      id: submissionData.id || Date.now().toString(),
+      id: submissionData.id || `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       timestamp: new Date().toISOString()
-    });
+    };
     
-    // Keep only last 100 submissions
-    submissions.splice(100);
-    localStorage.setItem('test_results', JSON.stringify(submissions));
+    // Emit immediately for real-time updates (don't wait for localStorage)
+    this.emit('submissions', [enhancedSubmission]);
+    this.emit('activities', [enhancedSubmission]);
     
-    // Emit real-time update
-    this.emit('submissions', submissions);
-    this.emit('activities', submissions.slice(0, 1)); // Latest activity
+    // Update localStorage asynchronously with fallback
+    const updateStorage = () => {
+      try {
+        const submissions = JSON.parse(localStorage.getItem('test_results') || '[]');
+        submissions.unshift(enhancedSubmission);
+        submissions.splice(100); // Keep only last 100
+        localStorage.setItem('test_results', JSON.stringify(submissions));
+      } catch (error) {
+        console.error('Error updating localStorage:', error);
+      }
+    };
+
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(updateStorage, { timeout: 1000 });
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(updateStorage, 16); // Next frame
+    }
   }
 
   /**

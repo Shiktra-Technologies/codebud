@@ -280,48 +280,60 @@ export const ProctorProvider = ({ children }) => {
 
   // Complete test cleanup - exits fullscreen and stops camera
   const completeTestCleanup = useCallback(() => {
-    console.log('🧹 Starting complete test cleanup');
+    console.log('🧹 Starting optimized test cleanup');
     
-    // Exit fullscreen automatically
-    if (document.exitFullscreen) {
-      document.exitFullscreen().catch(console.error);
-    } else if (document.webkitExitFullscreen) {
-      document.webkitExitFullscreen();
-    } else if (document.mozCancelFullScreen) {
-      document.mozCancelFullScreen();
-    } else if (document.msExitFullscreen) {
-      document.msExitFullscreen();
-    }
+    // Immediate state updates first (UI responsiveness)
+    setProctorState(prev => ({ 
+      ...prev, 
+      isMonitoring: false,
+      testSubmitted: true
+    }));
     
-    // Stop all media tracks (camera and microphone)
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => {
-        track.stop();
-        console.log(`🔴 Stopped ${track.kind} track`);
-      });
-      setMediaStream(null);
-    }
-    
-    // Close audio context
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    
-    // Reset all permissions
     setPermissions({
       camera: false,
       microphone: false,
       fullscreen: false
     });
+
+    // Heavy operations run asynchronously
+    setTimeout(() => {
+      // Exit fullscreen (async, doesn't block)
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        try { document.webkitExitFullscreen(); } catch(e) {}
+      } else if (document.mozCancelFullScreen) {
+        try { document.mozCancelFullScreen(); } catch(e) {}
+      } else if (document.msExitFullscreen) {
+        try { document.msExitFullscreen(); } catch(e) {}
+      }
+    }, 0);
+
+    // Media cleanup in next tick
+    setTimeout(() => {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => {
+          try {
+            track.stop();
+          } catch (error) {
+            console.warn('Error stopping track:', error);
+          }
+        });
+        setMediaStream(null);
+      }
+      
+      // Close audio context
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        } catch (error) {
+          console.warn('Error closing audio context:', error);
+        }
+      }
+    }, 50);
     
-    // Stop monitoring
-    setProctorState(prev => ({ 
-      ...prev, 
-      isMonitoring: false 
-    }));
-    
-    console.log('✅ Complete test cleanup finished');
+    console.log('✅ Optimized cleanup initiated');
   }, [mediaStream]);
 
   // Optimized violation tracking

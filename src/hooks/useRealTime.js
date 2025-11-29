@@ -52,26 +52,30 @@ export const useRealTimeActivity = (userId) => {
  */
 export const useRealTimeSubmission = () => {
   const recordSubmission = (submissionData) => {
-    console.log('🚀 Recording real-time submission:', submissionData);
+    // Use pre-computed timestamp to avoid multiple Date() calls
+    const now = Date.now();
+    const isoTimestamp = new Date(now).toISOString();
     
-    // Enhanced submission data with real-time info
+    // Enhanced submission data with real-time info (optimized)
     const enhancedSubmission = {
       ...submissionData,
-      id: submissionData.id || `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      timestamp: new Date().toISOString(),
-      submittedAt: new Date().toISOString(),
+      id: submissionData.id || `${now}-${Math.random().toString(36).substr(2, 5)}`,
+      timestamp: isoTimestamp,
+      submittedAt: isoTimestamp,
       realTime: true,
       source: 'live-submission'
     };
 
-    // Record in real-time service
-    realTimeService.recordSubmission(enhancedSubmission);
-    
-    // Also update user activity
-    if (submissionData.userId) {
-      const activityType = submissionData.testType === 'dsa' ? 'solving DSA problem' : 'taking aptitude test';
-      realTimeService.trackUserActivity(submissionData.userId, activityType);
-    }
+    // Fire and forget - don't wait for completion
+    setTimeout(() => {
+      realTimeService.recordSubmission(enhancedSubmission);
+      
+      // Update user activity asynchronously
+      if (submissionData.userId) {
+        const activityType = submissionData.testType === 'dsa' ? 'solving DSA problem' : 'taking aptitude test';
+        realTimeService.trackUserActivity(submissionData.userId, activityType);
+      }
+    }, 0);
 
     return enhancedSubmission;
   };
