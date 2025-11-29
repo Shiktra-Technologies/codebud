@@ -5,6 +5,8 @@ import { useProctor } from '../context/ProctorContext';
 import ViolationModal from './ViolationModal';
 import ViolationWarningPopup from './ViolationWarningPopup';
 import { generateViolationAnalysis } from '../utils/violationAnalysis';
+import { useRealTimeActivity, useRealTimeSubmission } from '../hooks/useRealTime';
+import realTimeService from '../services/realTimeService';
 import './ProblemSolver.css';
 
 // Sample problem data with test cases
@@ -291,6 +293,11 @@ const ProblemSolver = () => {
   const [startTime, setStartTime] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Real-time functionality
+  const currentUser = JSON.parse(localStorage.getItem('authUser') || 'null');
+  const { recordSubmission } = useRealTimeSubmission();
+  useRealTimeActivity(currentUser?.uid);
+
   useEffect(() => {
     const problemData = problemsData[id];
     if (problemData) {
@@ -485,6 +492,31 @@ const ProblemSolver = () => {
 
       // Save results
       localStorage.setItem('testResults', JSON.stringify(results));
+
+      // Prepare submission data for real-time recording
+      const submissionData = {
+        ...results,
+        id: `dsa_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        userId: currentUser?.uid || 'anonymous-user',
+        userEmail: currentUser?.email || 'anonymous@example.com',
+        userName: currentUser?.displayName || currentUser?.email || 'Anonymous User',
+        score: percentage,
+        submittedAt: results.timing.endTime
+      };
+
+      // Record in real-time for immediate admin dashboard updates
+      if (currentUser) {
+        console.log('🚀 Recording real-time DSA submission:', submissionData);
+        recordSubmission(submissionData);
+        
+        // Track user activity
+        realTimeService.trackUserActivity(currentUser.uid, `completed DSA: ${problem.title}`);
+      }
+
+      // Store in test_results for persistence
+      const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+      existingResults.unshift(submissionData);
+      localStorage.setItem('test_results', JSON.stringify(existingResults.slice(0, 100)));
 
       // Automatically cleanup - exit fullscreen and turn off camera
       setTimeout(() => {

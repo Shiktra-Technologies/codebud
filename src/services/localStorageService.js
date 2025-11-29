@@ -1,7 +1,9 @@
 /**
  * Local Storage Service - Free alternative to Firebase Storage
- * Uses IndexedDB for client-side file storage
+ * Uses IndexedDB for client-side file storage with real-time updates
  */
+
+import realTimeService from './realTimeService';
 
 // ==================== LOCAL STORAGE CONFIGURATION ====================
 

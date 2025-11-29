@@ -1,1620 +1,786 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSimpleAuth } from '../context/SimpleAuthContext';
-import { isUserActive, formatLastSeen, getUserStats } from '../utils/userActivity';
-import { 
-  subscribeToUserActivity, 
-  subscribeToSubmissions, 
-  getAllSubmissions,
-  formatFileSize,
-  getFileIcon
-} from '../services/firestoreService';
-import { 
-  getAllSubmissionFiles, 
-  getStorageStats, 
-  testStorageConfiguration 
-} from '../services/localStorageService';
-import SubmissionFilters from './SubmissionFilters';
-import FileUpload from './FileUpload';
+import { isUserActive, formatLastSeen } from '../utils/userActivity';
+import realTimeService from '../services/realTimeService';
 import './AdminDashboard.css';
-import './ActivityStyles.css';
 
 const AdminDashboard = () => {
-  const { currentUser, userRole, isAdmin, isSuperAdmin, getAllUsers, isOnline } = useSimpleAuth();
-  const [students, setStudents] = useState([]);
-  const [testResults, setTestResults] = useState([]);
+  const { currentUser, getAllUsers } = useSimpleAuth();
+  const [activeTab, setActiveTab] = useState('students');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('students');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [realTimeEnabled, setRealTimeEnabled] = useState(true);
-  const [resultsPage, setResultsPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [autoRefreshTimer, setAutoRefreshTimer] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [connectionHealth, setConnectionHealth] = useState('unknown');
-  const [submissionsLoading, setSubmissionsLoading] = useState(false);
-  const [submissionFiles, setSubmissionFiles] = useState([]);
-  const [filteredSubmissions, setFilteredSubmissions] = useState([]);
-  const [submissionFilters, setSubmissionFilters] = useState({});
-  const [filesLoading, setFilesLoading] = useState(false);
-  const [storageStats, setStorageStats] = useState({});
+  
+  // Real-time data states
+  const [students, setStudents] = useState([]);
   const [activeUsers, setActiveUsers] = useState([]);
-  const [selectedSubmission, setSelectedSubmission] = useState(null);
-  const [showSubmissionDetails, setShowSubmissionDetails] = useState(false);
-  const [userActivity, setUserActivity] = useState([]);
-  const resultsPerPage = 20;
+  const [testResults, setTestResults] = useState([]);
+  const [realTimeStatus, setRealTimeStatus] = useState('connecting');
 
-  // Memoized helper functions to prevent unnecessary recalculations
-  const getStudentName = useCallback((userId) => {
-    const student = students.find(s => s.uid === userId);
-    return student?.displayName || student?.email || 'Unknown Student';
-  }, [students]);
-
-  const formatDate = useCallback((dateString) => {
-    return new Date(dateString).toLocaleString();
-  }, []);
-
-  const getTestTypeDisplay = useCallback((testType) => {
-    switch (testType) {
-      case 'dsa': return 'DSA Problem';
-      case 'aptitude': return 'Aptitude Test';
-      default: return testType;
-    }
-  }, []);
-
-  // Memoize stats calculation to prevent recalculation on every render
-  const stats = useMemo(() => {
-    const userStats = getUserStats(students.map(s => ({ ...s, role: 'student' })));
-    const totalSubmissions = testResults.length;
-    const passedTests = testResults.filter(result => result.passed).length;
-    const violationSubmissions = testResults.filter(result => 
-      result.violations?.submittedDueToViolation
-    ).length;
-
-    return {
-      totalStudents: students.length,
-      activeStudents: students.filter(s => s.isOnline).length,
-      totalSubmissions,
-      passedTests,
-      violationSubmissions,
-      passRate: totalSubmissions > 0 ? Math.round((passedTests / totalSubmissions) * 100) : 0
-    };
-  }, [students, testResults]);
-
-  // Memoized filtered students and results to prevent recalculation on every render
-  const filteredStudents = useMemo(() => 
-    students.filter(student =>
-      student.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    [students, searchTerm]
-  );
-
-  const filteredResults = useMemo(() => 
-    testResults.filter(result => {
-      const studentName = getStudentName(result.userId).toLowerCase();
-      const testType = getTestTypeDisplay(result.testType).toLowerCase();
-      const search = searchTerm.toLowerCase();
-      return studentName.includes(search) || testType.includes(search);
-    }),
-    [testResults, searchTerm, getStudentName, getTestTypeDisplay]
-  );
-
-  // Use filtered submissions if available, otherwise use basic filtered results
-  const displayResults = filteredSubmissions.length > 0 ? filteredSubmissions : filteredResults;
-
-  // Memoized pagination to prevent recalculation on every render
-  const { totalPages, paginatedResults } = useMemo(() => ({
-    totalPages: Math.ceil(displayResults.length / resultsPerPage),
-    paginatedResults: displayResults.slice(
-      (resultsPage - 1) * resultsPerPage,
-      resultsPage * resultsPerPage
-    )
-  }), [displayResults, resultsPage, resultsPerPage]);
-
-  const handlePageChange = useCallback((newPage) => {
-    setResultsPage(newPage);
-    // Scroll to top of results
-    document.querySelector('.results-section')?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  // Check connection health
-  const checkConnectionHealth = useCallback(async () => {
-    try {
-      const start = Date.now();
-      await getAllUsers(); // Simple test call
-      const latency = Date.now() - start;
-      
-      if (latency < 1000) {
-        setConnectionHealth('excellent');
-      } else if (latency < 3000) {
-        setConnectionHealth('good');
-      } else {
-        setConnectionHealth('slow');
-      }
-    } catch (error) {
-      setConnectionHealth('poor');
-    }
-  }, [getAllUsers]);
-
-  // Get active users with real-time status
-  const getActiveUsers = useCallback(async () => {
-    try {
-      const allUsers = await getAllUsers();
-      const now = new Date();
-      const activeThreshold = 5 * 60 * 1000; // 5 minutes
-      
-      const active = allUsers.filter(user => {
-        if (!user.lastSeen) return false;
-        const lastSeen = new Date(user.lastSeen);
-        return (now - lastSeen) < activeThreshold;
-      }).map(user => ({
-        ...user,
-        isActive: true,
-        timeSinceLastSeen: now - new Date(user.lastSeen),
-        currentActivity: user.currentActivity || 'browsing'
-      }));
-      
-      setActiveUsers(active);
-      return active;
-    } catch (error) {
-      console.error('Error getting active users:', error);
-      return [];
-    }
-  }, [getAllUsers]);
-
-  // Get detailed submission info
-  const getSubmissionDetails = useCallback((submissionId) => {
-    const submission = testResults.find(s => s.id === submissionId);
-    if (submission) {
-      setSelectedSubmission(submission);
-      setShowSubmissionDetails(true);
-    }
-  }, [testResults]);
-
-  // Track user activity in real-time
-  const trackUserActivity = useCallback(() => {
-    try {
-      const activities = [];
-      
-      // Get recent submissions
-      testResults.slice(0, 10).forEach(submission => {
-        activities.push({
-          id: `submission-${submission.id}`,
-          type: 'submission',
-          userId: submission.userId,
-          userName: getStudentName(submission.userId),
-          action: `Submitted ${getTestTypeDisplay(submission.testType)}`,
-          timestamp: submission.submittedAt,
-          details: {
-            score: submission.score,
-            passed: submission.passed,
-            testType: submission.testType
-          }
-        });
-      });
-      
-      // Get recent logins (from students array)
-      students.filter(s => s.lastLogin).slice(0, 5).forEach(student => {
-        activities.push({
-          id: `login-${student.uid}`,
-          type: 'login',
-          userId: student.uid,
-          userName: student.displayName || student.email,
-          action: 'Logged in',
-          timestamp: student.lastLogin,
-          details: {
-            role: student.role || 'student'
-          }
-        });
-      });
-      
-      // Sort by timestamp
-      activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      setUserActivity(activities.slice(0, 20));
-      
-    } catch (error) {
-      console.error('Error tracking user activity:', error);
-    }
-  }, [testResults, students, getStudentName, getTestTypeDisplay]);
-
-  // Test Firebase Storage configuration
-  const runStorageDiagnostics = async () => {
-    setFilesLoading(true);
-    setError(''); // Clear previous errors
+  console.log('AdminDashboard render - Real-time mode:', { 
+    studentsCount: students.length,
+    activeUsersCount: activeUsers.length,
+    submissionsCount: testResults.length,
+    status: realTimeStatus
+  });
+  
+  const formatLastSeen = (timestamp) => {
+    if (!timestamp) return 'Never';
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / (1000 * 60));
     
-    try {
-      console.log('🔍 Running Firebase Storage diagnostics...');
-      const diagnostics = await testStorageConfiguration();
-      
-      if (diagnostics.errors.length > 0) {
-        const errorMessage = `🔧 Storage Configuration Issues:\n${diagnostics.errors.join('\n')}\n\n💡 Recommendations:\n${diagnostics.recommendations.join('\n')}`;
-        setError(errorMessage);
-      } else {
-        setError('✅ Firebase Storage is properly configured! You can now load files.');
-      }
-      
-      console.log('📊 Diagnostics results:', diagnostics);
-      setFilesLoading(false);
-    } catch (error) {
-      console.error('❌ Diagnostic failed:', error);
-      setError('Failed to run diagnostics: ' + error.message);
-      setFilesLoading(false);
-    }
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    
+    return `${Math.floor(diffInHours / 24)} days ago`;
   };
 
-  // Load submission files from storage
-  const loadSubmissionFiles = async () => {
-    setFilesLoading(true);
-    setError(''); // Clear previous errors
-    
+  // Real-time data fetching
+  const fetchRealTimeData = useCallback(async () => {
     try {
-      console.log('📂 Loading submission files...');
-      const [files, stats] = await Promise.all([
-        getAllSubmissionFiles(),
-        getStorageStats()
-      ]);
+      console.log('🔄 Fetching real-time data...');
       
-      setSubmissionFiles(files);
-      setStorageStats(stats);
-      setFilesLoading(false);
-      
-      console.log('✅ Loaded submission files:', files.length);
-      
-      // Check if storage has configuration issues
-      if (stats.error) {
-        setError(`⚠️ Storage Configuration Issue: ${stats.error}. Files tab may not work properly until Firebase Storage is configured.`);
+      // Fetch real users
+      let realUsers = [];
+      try {
+        realUsers = await getAllUsers();
+      } catch (error) {
+        console.warn('Could not fetch users from Firebase:', error);
       }
-      
-    } catch (error) {
-      console.error('❌ Error loading submission files:', error);
-      setFilesLoading(false);
-      
-      // Handle specific error types with targeted guidance
-      if (error.message === 'STORAGE_NOT_ENABLED') {
-        setError('🚫 Firebase Storage is not enabled. Please enable Firebase Storage in your Firebase Console to use file management features.');
-      } else if (error.message === 'STORAGE_CORS_ERROR') {
-        setError('🌐 CORS error detected. Firebase Storage may not be properly configured. Please check the Firebase Storage setup guide.');
-      } else if (error.message === 'STORAGE_UNAUTHORIZED') {
-        setError('🔒 Storage access denied. Please configure Firebase Storage security rules to allow authenticated access.');
-      } else if (error.message === 'STORAGE_BUCKET_NOT_FOUND') {
-        setError('📦 Storage bucket not found. Please ensure Firebase Storage is set up with the correct bucket name.');
-      } else if (error.message === 'STORAGE_NETWORK_ERROR') {
-        setError('🌐 Network error accessing Firebase Storage. Please check your internet connection and Firebase configuration.');
-      } else if (error.message === 'STORAGE_TIMEOUT') {
-        setError('⏰ Storage request timed out. Please try again or check your internet connection.');
-      } else {
-        setError(`⚠️ Storage Error: ${error.message || 'Unknown storage error'}. Please check Firebase Storage configuration.`);
-      }
-      
-      // Set empty data so UI doesn't break
-      setSubmissionFiles([]);
-      setStorageStats({
-        totalFiles: 0,
-        totalSize: 0,
-        fileTypes: {},
-        testTypes: {},
-        userCounts: {},
-        dailyUploads: {}
-      });
-    }
-  };
 
-  // Apply filters to submissions
-  const applySubmissionFilters = useCallback((filters) => {
-    setSubmissionFilters(filters);
-    
-    let filtered = [...testResults];
-    
-    // Search filter
-    if (filters.search) {
-      const searchTerm = filters.search.toLowerCase();
-      filtered = filtered.filter(submission => 
-        getStudentName(submission.userId).toLowerCase().includes(searchTerm) ||
-        submission.id?.toLowerCase().includes(searchTerm) ||
-        submission.testType?.toLowerCase().includes(searchTerm)
-      );
-    }
-    
-    // Test type filter
-    if (filters.testType) {
-      filtered = filtered.filter(submission => submission.testType === filters.testType);
-    }
-    
-    // Status filter
-    if (filters.status) {
-      if (filters.status === 'passed') {
-        filtered = filtered.filter(submission => submission.passed === true);
-      } else if (filters.status === 'failed') {
-        filtered = filtered.filter(submission => submission.passed === false);
-      } else if (filters.status === 'flagged') {
-        filtered = filtered.filter(submission => submission.violations?.submittedDueToViolation);
-      }
-    }
-    
-    // Date range filter
-    if (filters.dateRange && filters.dateRange !== '') {
-      const now = new Date();
-      let startDate, endDate;
-      
-      switch (filters.dateRange) {
-        case 'today':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-          break;
-        case 'yesterday':
-          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
-          break;
-        case 'thisWeek':
-          const dayOfWeek = now.getDay();
-          startDate = new Date(now.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
-          startDate.setHours(0, 0, 0, 0);
-          endDate = new Date();
-          break;
-        case 'thisMonth':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          endDate = new Date();
-          break;
-        case 'custom':
-          if (filters.customDateStart) startDate = new Date(filters.customDateStart);
-          if (filters.customDateEnd) endDate = new Date(filters.customDateEnd);
-          break;
-      }
-      
-      if (startDate || endDate) {
-        filtered = filtered.filter(submission => {
-          const submissionDate = new Date(submission.submittedAt);
-          if (startDate && submissionDate < startDate) return false;
-          if (endDate && submissionDate > endDate) return false;
-          return true;
-        });
-      }
-    }
-    
-    // Score filters
-    if (filters.minScore !== '') {
-      filtered = filtered.filter(submission => 
-        (submission.score || 0) >= parseInt(filters.minScore)
-      );
-    }
-    
-    if (filters.maxScore !== '') {
-      filtered = filtered.filter(submission => 
-        (submission.score || 0) <= parseInt(filters.maxScore)
-      );
-    }
-    
-    // User ID filter
-    if (filters.userId) {
-      filtered = filtered.filter(submission => 
-        submission.userId?.includes(filters.userId)
-      );
-    }
-    
-    // Sorting
-    filtered.sort((a, b) => {
-      let aVal, bVal;
-      
-      switch (filters.sortBy) {
-        case 'score':
-          aVal = a.score || 0;
-          bVal = b.score || 0;
-          break;
-        case 'duration':
-          aVal = a.duration || 0;
-          bVal = b.duration || 0;
-          break;
-        case 'studentName':
-          aVal = getStudentName(a.userId).toLowerCase();
-          bVal = getStudentName(b.userId).toLowerCase();
-          break;
-        case 'testType':
-          aVal = a.testType || '';
-          bVal = b.testType || '';
-          break;
-        case 'submittedAt':
-        default:
-          aVal = new Date(a.submittedAt || 0);
-          bVal = new Date(b.submittedAt || 0);
-          break;
-      }
-      
-      if (filters.sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
-      }
-    });
-    
-    setFilteredSubmissions(filtered);
-  }, [testResults, getStudentName]);
-
-  // Set up real-time listeners for user activity and test submissions
-  useEffect(() => {
-    if (!isAdmin() && !isSuperAdmin() || !realTimeEnabled) {
-      return;
-    }
-
-    console.log('📡 Setting up real-time listeners...');
-
-    let unsubscribeUsers = () => {};
-    let unsubscribeSubmissions = () => {};
-
-    try {
-      // Subscribe to user activity changes
-      unsubscribeUsers = subscribeToUserActivity((users) => {
-        console.log('✅ Real-time update: Users changed', users.length);
-        const realStudents = users.filter(user => user.role === 'student');
-        
-        const studentsWithStats = realStudents.map(student => ({
-          ...student,
-          id: student.uid,
-          lastActive: student.lastLogin,
-          testsCompleted: testResults.filter(result => result.userId === student.uid).length,
-          status: student.status || 'active',
-          isOnline: isUserActive(student.lastLogin),
-          lastSeenFormatted: formatLastSeen(student.lastLogin)
-        }));
-
-        setStudents(studentsWithStats);
-      });
-
-      // Subscribe to test submissions changes
-      unsubscribeSubmissions = subscribeToSubmissions((submissions) => {
-        console.log('✅ Real-time update: Submissions changed', submissions.length);
-        setTestResults(submissions);
-        
-        // Update student test counts
-        setStudents(prev => prev.map(student => ({
-          ...student,
-          testsCompleted: submissions.filter(result => result.userId === student.uid).length
-        })));
-        
-        // Update recent activity (last 10 submissions)
-        const recent = submissions
-          .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
-          .slice(0, 10)
-          .map(submission => ({
-            ...submission,
-            type: 'submission',
-            timestamp: submission.submittedAt,
-            studentName: getStudentName(submission.userId)
+      // Process students
+      if (realUsers && realUsers.length > 0) {
+        const studentUsers = realUsers
+          .filter(user => user.role === 'student' || !user.role) // Include users without role as potential students
+          .map(student => ({
+            ...student,
+            id: student.uid || student.id,
+            testsCompleted: 0, // TODO: Calculate from submissions
+            isOnline: isUserActive(student.lastLogin || student.lastActive),
+            lastSeenFormatted: formatLastSeen(student.lastLogin || student.lastActive)
           }));
-        setRecentActivity(recent);
-      });
+        
+        setStudents(studentUsers);
+        
+        // Filter active users (online in last 5 minutes)
+        const currentlyActive = studentUsers
+          .filter(user => user.isOnline)
+          .map(user => ({
+            ...user,
+            uid: user.uid || user.id,
+            currentActivity: user.currentActivity || 'Browsing platform',
+            lastSeen: user.lastLogin || user.lastActive || new Date().toISOString()
+          }));
+          
+        setActiveUsers(currentlyActive);
+      }
+
+      // Get submissions from localStorage (real-time submissions)
+      const storedSubmissions = JSON.parse(localStorage.getItem('test_results') || '[]');
+      if (storedSubmissions.length > 0) {
+        setTestResults(storedSubmissions.slice(0, 50)); // Show last 50 submissions
+      }
+
+      // Get activity data from real-time service
+      const activityData = realTimeService.getLatestData('submissions');
+      if (activityData && activityData.length > 0) {
+        setTestResults(prev => {
+          const combined = [...activityData, ...prev];
+          const unique = combined.filter((item, index, self) => 
+            index === self.findIndex(t => t.id === item.id)
+          );
+          return unique.slice(0, 50);
+        });
+      }
+
+      setRealTimeStatus('connected');
+      setLoading(false);
+      
     } catch (error) {
-      console.warn('⚠️  Real-time listeners failed to initialize:', error);
-      // Dashboard still works without real-time updates
+      console.error('Error fetching real-time data:', error);
+      setError('Failed to fetch real-time data');
+      setRealTimeStatus('error');
+      setLoading(false);
+    }
+  }, [getAllUsers]);
+
+  // Initialize real-time subscriptions
+  useEffect(() => {
+    console.log('🚀 Initializing Real-Time Admin Dashboard');
+    
+    // Initial data fetch
+    fetchRealTimeData();
+
+    // Set up real-time subscriptions
+    const unsubscribeSubmissions = realTimeService.subscribe('submissions', (payload) => {
+      console.log('📋 Real-time submissions update:', payload);
+      const data = Array.isArray(payload) ? payload : payload.data || [];
+      if (data.length > 0) {
+        setTestResults(data.slice(0, 50));
+        setRealTimeStatus('connected');
+      }
+    }, { pollInterval: 2000 });
+
+    const unsubscribeUsers = realTimeService.subscribe('activeUsers', (payload) => {
+      console.log('👥 Real-time users update:', payload);
+      const data = Array.isArray(payload) ? payload : payload.data || [];
+      if (data.length > 0) {
+        setActiveUsers(data);
+        setRealTimeStatus('connected');
+      }
+    }, { pollInterval: 3000 });
+
+    const unsubscribeActivity = realTimeService.subscribe('activities', (payload) => {
+      console.log('📊 Real-time activity update:', payload);
+      // Update user activity status
+      fetchRealTimeData();
+    }, { pollInterval: 5000 });
+
+    // Track admin user activity
+    if (currentUser) {
+      realTimeService.trackUserActivity(currentUser.uid, 'admin dashboard');
     }
 
-    // Cleanup listeners on unmount or tab change
+    // Cleanup subscriptions
     return () => {
-      console.log('🔌 Disconnecting real-time listeners');
-      unsubscribeUsers();
+      console.log('🧹 Cleaning up real-time subscriptions');
       unsubscribeSubmissions();
+      unsubscribeUsers();
+      unsubscribeActivity();
     };
-  }, [isAdmin, isSuperAdmin, realTimeEnabled]);
+  }, [currentUser, fetchRealTimeData]);
 
-  // Auto-refresh every 60 seconds when real-time is disabled (reduced frequency)
-  useEffect(() => {
-    if (!realTimeEnabled && (isAdmin() || isSuperAdmin())) {
-      const interval = setInterval(() => {
-        console.log('⏰ Auto-refreshing data...');
-        fetchData();
-      }, 60000); // Increased to 60 seconds to reduce server load
-
-      setAutoRefreshTimer(interval);
-      return () => clearInterval(interval);
-    }
-  }, [realTimeEnabled, isAdmin, isSuperAdmin]);
-
-  // Apply filters when test results or filters change
-  useEffect(() => {
-    applySubmissionFilters(submissionFilters);
-  }, [testResults, submissionFilters, applySubmissionFilters]);
-
-  // Initial data load (fallback if real-time fails)
-  useEffect(() => {
-    if (!isAdmin() && !isSuperAdmin()) {
-      setError('Access denied. Admin privileges required.');
-      setLoading(false);
-      return;
-    }
-
-    fetchData();
-  }, [isAdmin, isSuperAdmin]);
-
-  // Auto-refresh active users and activity every 30 seconds
-  useEffect(() => {
-    if (!realTimeEnabled || (!isAdmin() && !isSuperAdmin())) return;
-    
-    const refreshInterval = setInterval(() => {
-      // Only refresh if we're on active users or activity tabs
-      if (activeTab === 'active-users' || activeTab === 'activity') {
-        console.log('🔄 Auto-refreshing user activity data...');
-        getActiveUsers();
-        trackUserActivity();
-      }
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(refreshInterval);
-  }, [realTimeEnabled, activeTab, getActiveUsers, trackUserActivity, isAdmin, isSuperAdmin]);
-
-  // Refresh function to get latest user data
-  const fetchData = async () => {
-    console.log('🔄 Fetching admin dashboard data...');
+  // Manual refresh function
+  const handleRefresh = useCallback(() => {
     setLoading(true);
-    setError(''); // Clear any previous errors
-    
-    try {
-      // Try multiple approaches to load data
-      let allUsers = [];
-      let loadedFromCache = false;
-      
-      // First, try to load from cache if available
-      const cachedUsers = sessionStorage.getItem('admin_users_cache');
-      if (cachedUsers) {
-        const { data, timestamp } = JSON.parse(cachedUsers);
-        const cacheAge = Date.now() - timestamp;
-        
-        // Use cached data if less than 2 minutes old
-        if (cacheAge < 2 * 60 * 1000) {
-          console.log('✅ Using cached users data');
-          allUsers = data;
-          loadedFromCache = true;
-        }
-      }
-      
-      // If no cache or cache is old, try to fetch fresh data with shorter timeout
-      if (!loadedFromCache) {
-        try {
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('User fetch timeout')), 5000); // Reduced to 5 seconds
-          });
-          
-          allUsers = await Promise.race([getAllUsers(), timeoutPromise]);
-          console.log('✅ Fresh users loaded:', allUsers?.length || 0);
-          
-          // Cache the fresh data
-          sessionStorage.setItem('admin_users_cache', JSON.stringify({
-            data: allUsers,
-            timestamp: Date.now()
-          }));
-        } catch (userError) {
-          console.warn('⚠️  Fresh user fetch failed, trying fallback...', userError.message);
-          
-          // Fallback: Try to get users from localStorage
-          const localUsers = JSON.parse(localStorage.getItem('all_registered_users') || '[]');
-          if (localUsers.length > 0) {
-            console.log('✅ Using localStorage fallback users:', localUsers.length);
-            allUsers = localUsers;
-          } else {
-            // If all else fails, create mock data to show the dashboard works
-            console.log('⚠️  No users available, using demo data');
-            allUsers = [{
-              uid: 'demo-student-1',
-              email: 'demo@student.com',
-              displayName: 'Demo Student',
-              role: 'student',
-              createdAt: new Date().toISOString(),
-              lastLogin: new Date().toISOString(),
-              status: 'active'
-            }];
-          }
-        }
-      }
-      
-      const realStudents = (allUsers || []).filter(user => user.role === 'student');
-      
-      // Process students with basic stats (submissions will be loaded separately)
-      const studentsWithStats = realStudents.map(student => ({
-        ...student,
-        id: student.uid,
-        lastActive: student.lastLogin,
-        testsCompleted: 0, // Will be updated after submissions load
-        status: student.status || 'active',
-        isOnline: isUserActive(student.lastLogin),
-        lastSeenFormatted: formatLastSeen(student.lastLogin)
-      }));
-      
-      setStudents(studentsWithStats);
-      setLoading(false); // Show dashboard with users first
-      setLastUpdated(new Date());
-      
-      // Load submissions in background with aggressive fallback strategy
-      const loadSubmissions = async () => {
-        setSubmissionsLoading(true);
-        
-        // First, try cached submissions
-        const cachedSubmissions = sessionStorage.getItem('admin_submissions_cache');
-        if (cachedSubmissions) {
-          const { data, timestamp } = JSON.parse(cachedSubmissions);
-          const cacheAge = Date.now() - timestamp;
-          
-          // Use cached data if less than 1 minute old
-          if (cacheAge < 60 * 1000) {
-            console.log('✅ Using cached submissions');
-            setTestResults(data);
-            updateStudentStats(data);
-            updateRecentActivity(data);
-            setSubmissionsLoading(false);
-            return;
-          }
-        }
-        
-        // Try fresh fetch with very short timeout
-        try {
-          const submissionsResult = await Promise.race([
-            getAllSubmissions(null, 20), // Further reduced to 20
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Fast timeout')), 2000)) // 2 second timeout
-          ]);
-          
-          const testResultsData = submissionsResult?.data || [];
-          console.log('✅ Fresh submissions loaded:', testResultsData.length);
-          
-          // Cache successful results
-          sessionStorage.setItem('admin_submissions_cache', JSON.stringify({
-            data: testResultsData,
-            timestamp: Date.now()
-          }));
-          
-          setTestResults(testResultsData);
-          updateStudentStats(testResultsData);
-          updateRecentActivity(testResultsData);
-          setSubmissionsLoading(false);
-          
-        } catch (fetchError) {
-          console.warn('⚠️  Fresh submissions fetch failed:', fetchError.message);
-          
-          // Try localStorage fallback
-          const localResults = JSON.parse(localStorage.getItem('test_results') || '[]');
-          if (localResults.length > 0) {
-            console.log('✅ Using localStorage submissions:', localResults.length);
-            const fallbackData = localResults.slice(0, 20);
-            setTestResults(fallbackData);
-            updateStudentStats(fallbackData);
-            updateRecentActivity(fallbackData);
-            
-            // Cache fallback data too
-            sessionStorage.setItem('admin_submissions_cache', JSON.stringify({
-              data: fallbackData,
-              timestamp: Date.now() - 30000 // Mark as 30s old so it refreshes sooner
-            }));
-          } else {
-            console.log('⚠️  No submission data available');
-            // Set empty data but don't show error since dashboard still works
-            setTestResults([]);
-            setRecentActivity([]);
-          }
-          setSubmissionsLoading(false);
-        }
-      };
-      
-      // Helper function to update student stats
-      const updateStudentStats = (submissionData) => {
-        const updatedStudents = studentsWithStats.map(student => ({
-          ...student,
-          testsCompleted: submissionData.filter(result => result.userId === student.uid).length,
-        }));
-        setStudents(updatedStudents);
-      };
-      
-      // Helper function to update recent activity
-      const updateRecentActivity = (submissionData) => {
-        if (submissionData.length > 0) {
-          const recent = submissionData
-            .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
-            .slice(0, 8) // Reduced to 8 for faster processing
-            .map(submission => ({
-              ...submission,
-              type: 'submission',
-              timestamp: submission.submittedAt,
-              studentName: getStudentName(submission.userId) || 'Unknown Student'
-            }));
-          setRecentActivity(recent);
-        }
-      };
-      
-      // Load submissions asynchronously (don't block dashboard)
-      setTimeout(loadSubmissions, 100); // Small delay to ensure dashboard renders first
-      
-      // Load active users and activity tracking
-      setTimeout(() => {
-        getActiveUsers();
-        trackUserActivity();
-      }, 150);
-      
-      // Load storage files if on files tab
-      if (activeTab === 'files') {
-        setTimeout(loadSubmissionFiles, 200);
-      }
-      
-    } catch (error) {
-      console.error('❌ Critical error in admin dashboard:', error);
-      // Even if everything fails, show something useful
-      setError('⚠️ Data loading issues detected. Using cached/demo data. Try refreshing.');
-      setLoading(false);
-      
-      // Set minimal demo data so dashboard isn't completely broken
-      setStudents([{
-        uid: 'demo-1',
-        email: 'demo@example.com',
-        displayName: 'Demo User',
-        role: 'student',
-        id: 'demo-1',
-        lastActive: new Date().toISOString(),
-        testsCompleted: 0,
-        status: 'active',
-        isOnline: false,
-        lastSeenFormatted: 'Just now'
-      }]);
-      setTestResults([]);
-      setRecentActivity([]);
-    }
-  };
+    setRealTimeStatus('refreshing');
+    fetchRealTimeData();
+  }, [fetchRealTimeData]);
 
-  if (loading) {
+  // Show loading state while fetching initial data
+  if (loading && students.length === 0) {
     return (
       <div className="admin-dashboard">
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Loading admin dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && students.length === 0) {
-    return (
-      <div className="admin-dashboard">
-        <div className="error-container">
-          <div className="error-icon">⚠️</div>
-          <h2>Dashboard Loading Issues</h2>
-          <p>{error}</p>
-          <div className="error-actions">
-            <button className="retry-btn" onClick={fetchData}>
-              🔄 Try Again
-            </button>
-            <button className="cache-clear-btn" onClick={() => {
-              sessionStorage.clear();
-              localStorage.clear();
-              window.location.reload();
-            }}>
-              🗑️ Clear Cache & Reload
-            </button>
-          </div>
-          <div className="error-details">
-            <details>
-              <summary>Troubleshooting Tips</summary>
-              <ul>
-                <li>Check your internet connection</li>
-                <li>Try clearing browser cache and cookies</li>
-                <li>Disable ad blockers temporarily</li>
-                <li>Try refreshing the page</li>
-                <li>Contact support if the issue persists</li>
-              </ul>
-            </details>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>🔄</div>
+          <h2>Connecting to Real-Time Data...</h2>
+          <p style={{ color: '#666' }}>Fetching live student activity and submissions</p>
+          <div style={{
+            width: '200px',
+            height: '4px',
+            backgroundColor: '#e0e0e0',
+            borderRadius: '2px',
+            margin: '20px auto',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#007bff',
+              borderRadius: '2px',
+              animation: 'loading 1.5s ease-in-out infinite'
+            }}></div>
           </div>
         </div>
       </div>
     );
   }
-
-  const handleRefresh = async () => {
-    // Clear cache
-    sessionStorage.clear();
-    console.log('🔄 Cache cleared, refreshing data...');
-    await fetchData();
-  };
 
   return (
     <div className="admin-dashboard">
-      {/* Warning banner for partial data loading issues */}
-      {error && students.length > 0 && (
+      {error && (
         <div className="warning-banner">
           <div className="warning-content">
             <span className="warning-icon">⚠️</span>
             <span className="warning-text">{error}</span>
-            <button className="warning-dismiss" onClick={() => setError('')}>
-              ✕
-            </button>
+            <button className="warning-dismiss" onClick={() => setError('')}>✕</button>
           </div>
         </div>
       )}
-      
-      <div className="admin-header">
-        <div className="admin-header-content">
+
+      {/* Header */}
+      <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <div>
-            <h1>Admin Dashboard</h1>
-            <div className="admin-header-info">
-              <p>Welcome back, {currentUser?.displayName || currentUser?.email || 'Admin'}</p>
-            </div>
+            <h1 style={{ margin: '0 0 5px 0' }}>Real-Time Admin Dashboard</h1>
+            <p style={{ margin: '0', color: '#666' }}>Welcome, {currentUser?.displayName || currentUser?.email || 'Admin'}</p>
           </div>
-          <div className="admin-controls">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: realTimeStatus === 'connected' ? '#28a745' : 
+                               realTimeStatus === 'connecting' ? '#ffc107' : '#dc3545'
+              }}></div>
+              <span style={{ fontSize: '14px', color: '#666' }}>
+                {realTimeStatus === 'connected' ? '🔄 Live Data' : 
+                 realTimeStatus === 'connecting' ? '🔄 Connecting...' : 
+                 realTimeStatus === 'refreshing' ? '🔄 Refreshing...' : '❌ Connection Error'}
+              </span>
+            </div>
             <button 
-              className={`realtime-toggle ${realTimeEnabled ? 'active' : ''}`}
-              onClick={() => setRealTimeEnabled(!realTimeEnabled)}
-              title={realTimeEnabled ? 'Disable real-time updates' : 'Enable real-time updates'}
-            >
-              {realTimeEnabled ? '🔄 Real-time ON' : '⏸️ Real-time OFF'}
-            </button>
-            <button 
-              className="submissions-refresh-btn"
-              onClick={() => {
-                sessionStorage.removeItem('admin_submissions_cache');
-                window.location.reload();
+              onClick={handleRefresh}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                marginRight: '8px'
               }}
-              title="Refresh submissions data"
-              disabled={submissionsLoading}
             >
-              {submissionsLoading ? '⏳' : '📝'} Submissions
+              🔄 Refresh
             </button>
-            <button className="refresh-btn" onClick={handleRefresh} title="Refresh all data and clear cache">
-              🔄 Refresh All
+            <button 
+              onClick={() => {
+                // Simulate a live submission for testing
+                const testSubmission = {
+                  id: `test-${Date.now()}`,
+                  userId: 'test-user-' + Math.random().toString(36).substring(2, 9),
+                  userName: `Test Student ${Math.floor(Math.random() * 100)}`,
+                  problemTitle: ['Two Sum', 'Binary Search', 'Merge Sort', 'Quick Sort'][Math.floor(Math.random() * 4)],
+                  score: Math.floor(Math.random() * 40) + 60, // 60-100
+                  passed: true,
+                  submittedAt: new Date().toISOString()
+                };
+                
+                // Add to localStorage
+                const existing = JSON.parse(localStorage.getItem('test_results') || '[]');
+                existing.unshift(testSubmission);
+                localStorage.setItem('test_results', JSON.stringify(existing.slice(0, 50)));
+                
+                // Trigger real-time update
+                realTimeService.broadcastUpdate('submissions', [testSubmission, ...existing.slice(0, 50)]);
+                
+                console.log('🧪 Generated test submission:', testSubmission);
+              }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px'
+              }}
+            >
+              🧪 Test Submission
             </button>
           </div>
         </div>
-        <div className="connection-status">
-          <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
-          <span className="status-text">{isOnline ? '🌐 Online' : '📡 Offline'}</span>
-          {connectionHealth !== 'unknown' && (
-            <span className={`connection-health ${connectionHealth}`}>
-              {connectionHealth === 'excellent' && '⚡ Fast'}
-              {connectionHealth === 'good' && '🟡 Normal'}
-              {connectionHealth === 'slow' && '🟠 Slow'}
-              {connectionHealth === 'poor' && '🔴 Issues'}
-            </span>
-          )}
-          {realTimeEnabled && isOnline && <span className="realtime-badge">🔄 Real-time</span>}
-          <div className="last-updated">
-            <span className="update-label">Last updated:</span>
-            <span className="update-time">{lastUpdated.toLocaleTimeString()}</span>
-          </div>
-        </div>
+        <p style={{ color: '#28a745', fontSize: '14px', margin: '0' }}>
+          📡 Real-time updates every 2-5 seconds • {students.length} students • {activeUsers.length} active • {testResults.length} submissions
+        </p>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">👥</div>
-          <div className="stat-content">
-            <h3>{stats.totalStudents}</h3>
-            <p>Total Students</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">🟢</div>
-          <div className="stat-content">
-            <h3>{stats.activeStudents}</h3>
-            <p>Active Now</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">📝</div>
-          <div className="stat-content">
-            <h3>
-              {submissionsLoading ? (
-                <span className="loading-spinner">⏳</span>
-              ) : (
-                stats.totalSubmissions
-              )}
-            </h3>
-            <p>Total Submissions</p>
-            {submissionsLoading && (
-              <div className="loading-text">Loading...</div>
-            )}
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">✅</div>
-          <div className="stat-content">
-            <h3>{stats.passedTests}</h3>
-            <p>Passed Tests</p>
-          </div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon">🚨</div>
-          <div className="stat-content">
-            <h3>{stats.violationSubmissions}</h3>
-            <p>Violation Submissions</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Real-time Activity Feed */}
-      {(recentActivity.length > 0 || submissionsLoading) && (
-        <div className="activity-feed">
-          <div className="activity-header">
-            <h3>📡 Recent Activity</h3>
-            <div className="activity-count">
-              {submissionsLoading ? (
-                <span className="loading-spinner">⏳ Loading...</span>
-              ) : (
-                `${recentActivity.length} recent events`
-              )}
-            </div>
-          </div>
-          <div className="activity-list">
-            {recentActivity.slice(0, 5).map((activity, index) => (
-              <div key={`${activity.id}-${index}`} className="activity-item">
-                <div className="activity-icon">
-                  {activity.type === 'submission' ? '📝' : '👤'}
-                </div>
-                <div className="activity-content">
-                  <div className="activity-text">
-                    <strong>{activity.studentName}</strong> submitted {activity.testType} test
-                    {activity.passed ? ' ✅' : ' ❌'}
-                  </div>
-                  <div className="activity-time">
-                    {formatDate(activity.timestamp)}
-                  </div>
-                </div>
-                <div className={`activity-status ${activity.passed ? 'passed' : 'failed'}`}>
-                  {activity.passed ? 'PASSED' : 'FAILED'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Search Bar */}
-      <div className="search-container">
-        <input
-          type="text"
-          placeholder="Search students or results..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
-        <button
-          className={`tab-button ${activeTab === 'students' ? 'active' : ''}`}
+      {/* Navigation Tabs */}
+      <div style={{ padding: '0 20px', borderBottom: '1px solid #eee' }}>
+        <button 
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'students' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'students' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
+          }}
           onClick={() => setActiveTab('students')}
         >
-          <span className="tab-icon">👥</span>
-          All Students ({filteredStudents.length})
+          Students ({students.length})
         </button>
-        <button
-          className={`tab-button ${activeTab === 'active-users' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('active-users');
-            getActiveUsers(); // Refresh active users when switching to this tab
+        <button 
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'active-users' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'active-users' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
           }}
+          onClick={() => setActiveTab('active-users')}
         >
-          <span className="tab-icon">🟢</span>
           Active Users ({activeUsers.length})
         </button>
-        <button
-          className={`tab-button ${activeTab === 'results' ? 'active' : ''}`}
-          onClick={() => setActiveTab('results')}
-        >
-          <span className="tab-icon">📊</span>
-          All Submissions ({filteredSubmissions.length > 0 ? filteredSubmissions.length : filteredResults.length})
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('activity');
-            trackUserActivity(); // Refresh activity when switching to this tab
+        <button 
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'submissions' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'submissions' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
           }}
+          onClick={() => setActiveTab('submissions')}
         >
-          <span className="tab-icon">📈</span>
-          User Activity ({userActivity.length})
+          Submissions ({testResults.length})
         </button>
-        <button
-          className={`tab-button ${activeTab === 'files' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('files');
-            if (submissionFiles.length === 0 && !filesLoading) {
-              loadSubmissionFiles();
-            }
+        <button 
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'live-activity' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'live-activity' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
           }}
+          onClick={() => setActiveTab('live-activity')}
         >
-          <span className="tab-icon">📁</span>
-          Files ({submissionFiles.length})
+          🔴 Live Activity
         </button>
       </div>
 
-      {/* Content */}
-      <div className="tab-content">
+      {/* Content Area */}
+      <div style={{ padding: '20px' }}>
         {activeTab === 'students' && (
-          <div className="students-section">
-            <h2>Active Students</h2>
-            {filteredStudents.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">👥</div>
-                <h3>No students found</h3>
-                <p>No students match your search criteria.</p>
+          <div>
+            <h2>All Students ({students.length})</h2>
+            {students.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px', 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: '8px',
+                border: '2px dashed #dee2e6'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>👥</div>
+                <h3 style={{ color: '#6c757d' }}>No Students Found</h3>
+                <p style={{ color: '#6c757d', margin: '0' }}>
+                  Students will appear here when they sign up and log in to the platform
+                </p>
               </div>
             ) : (
-              <div className="students-grid">
-                {filteredStudents.map(student => (
-                  <div key={student.uid} className="student-card">
-                    <div className="student-info">
-                      <div className="student-avatar">
-                        {student.photoURL ? (
-                          <img src={student.photoURL} alt="Avatar" />
-                        ) : (
-                          <div className="avatar-placeholder">
-                            {(student.displayName || student.email).charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div className="student-details">
-                        <div className="student-header">
-                          <h3>{student.displayName || 'No name'}</h3>
-                          <div className={`activity-indicator ${student.isOnline ? 'online' : 'offline'}`}>
-                            <span className={`status-dot ${student.isOnline ? 'pulse' : ''}`}></span>
-                            <span className="status-text">
-                              {student.isOnline ? '🟢 Online' : '⚫ Offline'}
-                            </span>
-                            {student.isOnline && (
-                              <span className="live-badge">LIVE</span>
-                            )}
-                          </div>
-                        </div>
-                        <p className="student-email">{student.email}</p>
-                        <div className="student-meta">
-                          <span className="join-date">
-                            Joined: {formatDate(student.createdAt)}
-                          </span>
-                          <span className="last-login">
-                            Last seen: {student.lastSeenFormatted}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="student-stats">
-                      <div className="stat-item">
-                        <span className="stat-value">
-                          {testResults.filter(r => r.userId === student.uid).length}
-                        </span>
-                        <span className="stat-label">Tests Taken</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="stat-value">
-                          {testResults.filter(r => r.userId === student.uid && r.passed).length}
-                        </span>
-                        <span className="stat-label">Passed</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div style={{ display: 'grid', gap: '15px', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+                {students.map(student => (
+                <div key={student.id} style={{ 
+                  border: '1px solid #dee2e6', 
+                  borderRadius: '8px', 
+                  padding: '15px',
+                  backgroundColor: 'white'
+                }}>
+                  <h3>{student.displayName}</h3>
+                  <p style={{ color: '#666', fontSize: '14px' }}>{student.email}</p>
+                  <p style={{ color: student.isOnline ? 'green' : 'gray' }}>
+                    🟢 {student.isOnline ? 'Online' : 'Offline'} • {student.lastSeenFormatted}
+                  </p>
+                  <p>Tests Completed: {student.testsCompleted}</p>
+                </div>
+              ))}
               </div>
             )}
           </div>
         )}
 
         {activeTab === 'active-users' && (
-          <div className="active-users-section">
-            <div className="section-header">
-              <h2>🟢 Active Users ({activeUsers.length})</h2>
-              <p>Users active in the last 5 minutes</p>
-            </div>
+          <div>
+            <h2>Active Users & Their Submissions ({activeUsers.length})</h2>
             {activeUsers.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">💤</div>
-                <h3>No active users</h3>
-                <p>No users are currently active. Check back later!</p>
-                <button onClick={getActiveUsers} className="retry-btn">
-                  🔄 Refresh Active Users
-                </button>
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px', 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: '8px',
+                border: '2px dashed #dee2e6'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🟢</div>
+                <h3 style={{ color: '#6c757d' }}>No Active Users</h3>
+                <p style={{ color: '#6c757d', margin: '0' }}>
+                  Users who are currently online will appear here with their recent submissions
+                </p>
               </div>
             ) : (
-              <div className="active-users-grid">
-                {activeUsers.map(user => (
-                  <div key={user.uid} className="active-user-card">
-                    <div className="user-status">
-                      <div className="status-indicator online"></div>
-                      <span className="status-text">Online</span>
-                    </div>
-                    <div className="user-info">
-                      <div className="user-avatar">
-                        {user.photoURL ? (
-                          <img src={user.photoURL} alt="Avatar" />
-                        ) : (
-                          <div className="avatar-placeholder">
-                            {(user.displayName || user.email).charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div className="user-details">
-                        <h3>{user.displayName || 'No name'}</h3>
-                        <p>{user.email}</p>
-                        <span className="user-activity">{user.currentActivity}</span>
-                      </div>
-                    </div>
-                    <div className="activity-info">
-                      <div className="last-seen">
-                        <span className="label">Last seen:</span>
-                        <span className="time">
-                          {Math.floor(user.timeSinceLastSeen / 1000 / 60)}m ago
-                        </span>
-                      </div>
-                      <div className="session-info">
-                        <span className="label">Role:</span>
-                        <span className="role">{user.role || 'student'}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {activeUsers.map(user => {
+                  // Get user's recent submissions
+                  const userSubmissions = testResults.filter(submission => 
+                    submission.userId === user.uid || submission.studentEmail === user.email
+                  ).slice(0, 5); // Show last 5 submissions
 
-        {activeTab === 'activity' && (
-          <div className="user-activity-section">
-            <div className="section-header">
-              <h2>📈 User Activity Feed</h2>
-              <p>Real-time activity from all users</p>
-            </div>
-            {userActivity.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📊</div>
-                <h3>No recent activity</h3>
-                <p>No user activity to display. Users will appear here when they submit tests or log in.</p>
-                <button onClick={trackUserActivity} className="retry-btn">
-                  🔄 Refresh Activity
-                </button>
-              </div>
-            ) : (
-              <div className="activity-feed">
-                {userActivity.map(activity => (
-                  <div key={activity.id} className={`activity-item ${activity.type}`}>
-                    <div className="activity-icon">
-                      {activity.type === 'submission' ? '📝' : '🔐'}
-                    </div>
-                    <div className="activity-content">
-                      <div className="activity-main">
-                        <span className="user-name">{activity.userName}</span>
-                        <span className="activity-action">{activity.action}</span>
+                  return (
+                    <div key={user.uid} style={{ 
+                      border: '1px solid #dee2e6', 
+                      borderRadius: '12px', 
+                      padding: '0',
+                      backgroundColor: 'white',
+                      overflow: 'hidden',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      {/* User Header */}
+                      <div style={{
+                        background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                        color: 'white',
+                        padding: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '15px'
+                      }}>
+                        <div style={{
+                          width: '60px',
+                          height: '60px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '24px',
+                          fontWeight: 'bold',
+                          border: '3px solid rgba(255,255,255,0.3)'
+                        }}>
+                          {user.displayName?.charAt(0) || 'U'}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>{user.displayName}</h3>
+                          <p style={{ margin: '0 0 4px 0', opacity: 0.9, fontSize: '14px' }}>{user.email}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <span style={{ 
+                              backgroundColor: 'rgba(40, 167, 69, 0.9)', 
+                              padding: '4px 12px', 
+                              borderRadius: '20px', 
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              🟢 {user.currentActivity || 'Active'}
+                            </span>
+                            <span style={{ fontSize: '12px', opacity: 0.8 }}>
+                              {formatLastSeen(user.lastSeen)}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{userSubmissions.length}</div>
+                          <div style={{ fontSize: '12px', opacity: 0.8 }}>Submissions</div>
+                        </div>
                       </div>
-                      <div className="activity-details">
-                        {activity.type === 'submission' && (
+
+                      {/* User Submissions */}
+                      <div style={{ padding: '20px' }}>
+                        {userSubmissions.length === 0 ? (
+                          <div style={{ 
+                            textAlign: 'center', 
+                            padding: '30px',
+                            color: '#6c757d',
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '8px',
+                            border: '2px dashed #dee2e6'
+                          }}>
+                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>📝</div>
+                            <p style={{ margin: '0', fontSize: '14px' }}>No submissions yet</p>
+                          </div>
+                        ) : (
                           <>
-                            <span className={`activity-score ${activity.details.passed ? 'passed' : 'failed'}`}>
-                              Score: {activity.details.score || 'N/A'}
-                            </span>
-                            <span className="activity-status">
-                              {activity.details.passed ? '✅ Passed' : '❌ Failed'}
-                            </span>
+                            <h4 style={{ 
+                              margin: '0 0 15px 0', 
+                              color: '#495057',
+                              fontSize: '16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              📊 Recent Submissions ({userSubmissions.length})
+                            </h4>
+                            <div style={{ 
+                              display: 'grid', 
+                              gap: '12px'
+                            }}>
+                              {userSubmissions.map((submission, index) => (
+                                <div key={submission.id || index} style={{
+                                  border: '1px solid #e9ecef',
+                                  borderRadius: '8px',
+                                  padding: '15px',
+                                  backgroundColor: submission.passed ? '#d4edda' : '#f8d7da',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center'
+                                }}>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ 
+                                      fontWeight: '600', 
+                                      marginBottom: '4px',
+                                      color: submission.passed ? '#155724' : '#721c24'
+                                    }}>
+                                      {submission.testType || 'Test'} - {submission.problemTitle || 'Problem'}
+                                    </div>
+                                    <div style={{ 
+                                      fontSize: '12px', 
+                                      color: submission.passed ? '#155724' : '#721c24',
+                                      opacity: 0.8
+                                    }}>
+                                      {new Date(submission.submittedAt || submission.timestamp).toLocaleString()}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{
+                                      padding: '4px 12px',
+                                      borderRadius: '20px',
+                                      fontSize: '12px',
+                                      fontWeight: '600',
+                                      backgroundColor: submission.passed ? '#28a745' : '#dc3545',
+                                      color: 'white'
+                                    }}>
+                                      {submission.passed ? '✅ Passed' : '❌ Failed'}
+                                    </span>
+                                    <span style={{
+                                      fontSize: '18px',
+                                      fontWeight: 'bold',
+                                      color: submission.passed ? '#28a745' : '#dc3545'
+                                    }}>
+                                      {submission.score}%
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </>
                         )}
-                        {activity.type === 'login' && (
-                          <span className="activity-role">
-                            Role: {activity.details.role}
-                          </span>
-                        )}
-                      </div>
-                      <div className="activity-timestamp">
-                        {new Date(activity.timestamp).toLocaleString()}
                       </div>
                     </div>
-                    {activity.type === 'submission' && (
-                      <button 
-                        className="view-details-btn"
-                        onClick={() => getSubmissionDetails(activity.id.replace('submission-', ''))}
-                      >
-                        👁️ View Details
-                      </button>
-                    )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'submissions' && (
+          <div>
+            <h2>Recent Submissions ({testResults.length})</h2>
+            {testResults.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px', 
+                backgroundColor: '#f8f9fa', 
+                borderRadius: '8px',
+                border: '2px dashed #dee2e6'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                <h3 style={{ color: '#6c757d' }}>No Submissions Yet</h3>
+                <p style={{ color: '#6c757d', margin: '0' }}>
+                  Test submissions will appear here in real-time as students complete tests
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #dee2e6' }}>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Student</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Test</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Score</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
+                      <th style={{ padding: '12px', textAlign: 'left' }}>Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {testResults.map(result => (
+                    <tr key={result.id} style={{ borderBottom: '1px solid #dee2e6' }}>
+                      <td style={{ padding: '12px' }}>{result.userName}</td>
+                      <td style={{ padding: '12px' }}>{result.problemTitle}</td>
+                      <td style={{ padding: '12px' }}>{result.score}%</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ 
+                          padding: '4px 8px', 
+                          borderRadius: '4px', 
+                          backgroundColor: result.passed ? '#d4edda' : '#f8d7da',
+                          color: result.passed ? '#155724' : '#721c24',
+                          fontSize: '12px'
+                        }}>
+                          {result.passed ? 'Passed' : 'Failed'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px' }}>{formatLastSeen(result.submittedAt)}</td>
+                    </tr>
+                  ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'live-activity' && (
+          <div>
+            <h2>🔴 Live Activity Monitor</h2>
+            <p style={{ color: '#666', marginBottom: '20px' }}>
+              Real-time view of active users and their latest submissions as they happen
+            </p>
+            
+            {/* Live Stats Bar */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '15px',
+              marginBottom: '25px'
+            }}>
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#e8f5e8',
+                borderRadius: '10px',
+                textAlign: 'center',
+                border: '2px solid #28a745'
+              }}>
+                <div style={{ fontSize: '32px', color: '#28a745', fontWeight: 'bold' }}>
+                  {activeUsers.length}
+                </div>
+                <div style={{ color: '#155724', fontWeight: '600' }}>Active Users</div>
+              </div>
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#fff3cd',
+                borderRadius: '10px',
+                textAlign: 'center',
+                border: '2px solid #ffc107'
+              }}>
+                <div style={{ fontSize: '32px', color: '#e09900', fontWeight: 'bold' }}>
+                  {testResults.filter(s => {
+                    const submissionTime = new Date(s.submittedAt || s.timestamp);
+                    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+                    return submissionTime > fiveMinutesAgo;
+                  }).length}
+                </div>
+                <div style={{ color: '#856404', fontWeight: '600' }}>Recent Submissions</div>
+              </div>
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#d1ecf1',
+                borderRadius: '10px',
+                textAlign: 'center',
+                border: '2px solid #17a2b8'
+              }}>
+                <div style={{ fontSize: '32px', color: '#138496', fontWeight: 'bold' }}>
+                  {Math.round((testResults.filter(s => s.passed).length / Math.max(testResults.length, 1)) * 100)}%
+                </div>
+                <div style={{ color: '#0c5460', fontWeight: '600' }}>Pass Rate</div>
+              </div>
+            </div>
+
+            {/* Real-time Activity Stream */}
+            <div style={{
+              border: '2px solid #007bff',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              backgroundColor: 'white'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                color: 'white',
+                padding: '15px 20px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <span style={{ 
+                  width: '12px', 
+                  height: '12px', 
+                  backgroundColor: '#28a745', 
+                  borderRadius: '50%',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                }}></span>
+                Live Activity Stream
+              </div>
+              
+              <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                {/* Combine active users and recent submissions */}
+                {[...activeUsers.map(user => ({
+                  type: 'user_active',
+                  timestamp: user.lastSeen || Date.now(),
+                  user,
+                  id: `active_${user.uid}`
+                })), ...testResults.slice(0, 10).map(submission => ({
+                  type: 'submission',
+                  timestamp: submission.submittedAt || submission.timestamp,
+                  submission,
+                  user: students.find(s => s.uid === submission.userId || s.email === submission.studentEmail),
+                  id: submission.id || `sub_${Math.random()}`
+                }))].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 20).map((activity, index) => (
+                  <div key={activity.id} style={{
+                    padding: '15px 20px',
+                    borderBottom: '1px solid #e9ecef',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '15px',
+                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa'
+                  }}>
+                    {/* Activity Icon */}
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      backgroundColor: activity.type === 'user_active' ? '#28a745' : activity.submission?.passed ? '#007bff' : '#dc3545',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px',
+                      flexShrink: 0
+                    }}>
+                      {activity.type === 'user_active' ? '👤' : activity.submission?.passed ? '✅' : '❌'}
+                    </div>
+                    
+                    {/* Activity Details */}
+                    <div style={{ flex: 1 }}>
+                      {activity.type === 'user_active' ? (
+                        <>
+                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                            {activity.user.displayName || activity.user.email} is active
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>
+                            Current activity: {activity.user.currentActivity || 'browsing'} • {formatLastSeen(activity.timestamp)}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                            {activity.user?.displayName || activity.submission?.studentName || 'Unknown User'} submitted {activity.submission?.testType || 'test'}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#666', display: 'flex', gap: '15px' }}>
+                            <span>Score: {activity.submission?.score || 0}%</span>
+                            <span>Status: {activity.submission?.passed ? 'Passed' : 'Failed'}</span>
+                            <span>{formatLastSeen(activity.timestamp)}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    
+                    {/* Activity Badge */}
+                    <div style={{
+                      padding: '4px 12px',
+                      borderRadius: '20px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      backgroundColor: activity.type === 'user_active' ? '#d4edda' : activity.submission?.passed ? '#cce7ff' : '#f8d7da',
+                      color: activity.type === 'user_active' ? '#155724' : activity.submission?.passed ? '#004085' : '#721c24'
+                    }}>
+                      {activity.type === 'user_active' ? 'ACTIVE' : activity.submission?.passed ? 'PASSED' : 'FAILED'}
+                    </div>
                   </div>
                 ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'results' && (
-          <div className="results-section">
-            {/* Advanced Submission Filters */}
-            <SubmissionFilters
-              onFiltersChange={applySubmissionFilters}
-              totalCount={testResults.length}
-              filteredCount={filteredSubmissions.length > 0 ? filteredSubmissions.length : filteredResults.length}
-            />
-            
-            <div className="results-header">
-              <h2>Test Results</h2>
-              <div className="results-count">
-                Showing {paginatedResults.length} of {filteredSubmissions.length > 0 ? filteredSubmissions.length : filteredResults.length} results
-              </div>
-            </div>
-            {filteredResults.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📊</div>
-                <h3>No test results found</h3>
-                <p>No test results match your search criteria.</p>
-              </div>
-            ) : (
-              <>
-                <div className="results-table-container">
-                  <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>Student</th>
-                        <th>Test Type</th>
-                        <th>Score</th>
-                        <th>Status</th>
-                        <th>Violations</th>
-                        <th>Submitted</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedResults.map(result => (
-                        <tr key={result.id} className={result.passed ? 'passed' : 'failed'}>
-                          <td>
-                            <div className="student-info-compact">
-                              <strong>{getStudentName(result.userId)}</strong>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="test-type-badge">
-                              {getTestTypeDisplay(result.testType)}
-                            </span>
-                          </td>
-                          <td>
-                            <span className="score">
-                              {result.testType === 'aptitude' 
-                                ? `${result.score}/${result.totalQuestions} (${result.percentage}%)`
-                                : result.solved ? 'Solved' : 'Not Solved'
-                              }
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`status-badge ${result.passed ? 'passed' : 'failed'}`}>
-                              {result.passed ? 'Passed' : 'Failed'}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="violations-info">
-                              <span className={`violation-count ${result.violations?.count > 0 ? 'has-violations' : ''}`}>
-                                {result.violations?.count || 0}
-                              </span>
-                              {result.violations?.submittedDueToViolation && (
-                                <span className="auto-submit-badge">Auto-Submitted</span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <span className="submit-date">
-                              {formatDate(result.submittedAt)}
-                            </span>
-                          </td>
-                          <td>
-                            <button 
-                              className="view-details-btn small"
-                              onClick={() => getSubmissionDetails(result.id)}
-                            >
-                              👁️ Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
                 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="pagination">
-                    <button
-                      className="pagination-btn"
-                      onClick={() => handlePageChange(resultsPage - 1)}
-                      disabled={resultsPage === 1}
-                    >
-                      ← Previous
-                    </button>
-                    <div className="pagination-info">
-                      Page {resultsPage} of {totalPages}
-                    </div>
-                    <button
-                      className="pagination-btn"
-                      onClick={() => handlePageChange(resultsPage + 1)}
-                      disabled={resultsPage === totalPages}
-                    >
-                      Next →
-                    </button>
+                {activeUsers.length === 0 && testResults.length === 0 && (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '60px 20px',
+                    color: '#6c757d'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📡</div>
+                    <h3>Waiting for Live Activity...</h3>
+                    <p style={{ margin: '0' }}>
+                      User activity and submissions will appear here in real-time
+                    </p>
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'files' && (
-          <div className="files-section">
-            <div className="files-header">
-              <h2>📁 Submission Files</h2>
-              <div className="files-stats">
-                {!filesLoading && (
-                  <>
-                    <span className="stat-item">
-                      📊 {submissionFiles.length} files
-                    </span>
-                    <span className="stat-item">
-                      💾 {formatFileSize(storageStats.totalSize || 0)}
-                    </span>
-                    <button 
-                      className="refresh-files-btn"
-                      onClick={loadSubmissionFiles}
-                      disabled={filesLoading}
-                    >
-                      {filesLoading ? '⏳' : '🔄'} Refresh Files
-                    </button>
-                  </>
                 )}
               </div>
             </div>
-
-            {filesLoading ? (
-              <div className="loading-container">
-                <div className="spinner"></div>
-                <p>Loading submission files...</p>
-              </div>
-            ) : submissionFiles.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📁</div>
-                <h3>No files found in local storage</h3>
-                <div className="local-storage-info">
-                  <p><strong>🆓 Using Free Local Storage</strong></p>
-                  <div className="storage-benefits">
-                    <p>✅ No Firebase Storage subscription required</p>
-                    <p>✅ Files stored securely in your browser</p>
-                    <p>✅ No upload limits or costs</p>
-                    <p>⚠️ Files are device-specific (not synced across devices)</p>
-                  </div>
-                  <p>Use the upload section above to add test files, or try uploading some sample files to test the functionality.</p>
-                </div>
-                <div className="empty-actions">
-                  <button className="diagnostic-btn" onClick={runStorageDiagnostics}>
-                    🔍 Test Local Storage
-                  </button>
-                  <button className="retry-btn" onClick={loadSubmissionFiles}>
-                    🔄 Try Loading Again
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Storage Statistics */}
-                <div className="storage-stats">
-                  <div className="stats-grid">
-                    <div className="stat-card small">
-                      <div className="stat-icon">📁</div>
-                      <div className="stat-content">
-                        <h4>{storageStats.totalFiles || 0}</h4>
-                        <p>Total Files</p>
-                      </div>
-                    </div>
-                    <div className="stat-card small">
-                      <div className="stat-icon">💾</div>
-                      <div className="stat-content">
-                        <h4>{formatFileSize(storageStats.totalSize || 0)}</h4>
-                        <p>Total Size</p>
-                      </div>
-                    </div>
-                    <div className="stat-card small">
-                      <div className="stat-icon">📊</div>
-                      <div className="stat-content">
-                        <h4>{Object.keys(storageStats.testTypes || {}).length}</h4>
-                        <p>Test Types</p>
-                      </div>
-                    </div>
-                    <div className="stat-card small">
-                      <div className="stat-icon">👥</div>
-                      <div className="stat-content">
-                        <h4>{Object.keys(storageStats.userCounts || {}).length}</h4>
-                        <p>Users with Files</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* File Upload Section */}
-                <div className="upload-section">
-                  <h3>📤 Upload Test Files</h3>
-                  <FileUpload 
-                    onUploadSuccess={(results) => {
-                      console.log('Upload successful:', results);
-                      loadSubmissionFiles(); // Refresh the file list
-                    }}
-                    testType="manual"
-                    submissionId={`upload-${Date.now()}`}
-                  />
-                </div>
-
-                {/* Files Grid */}
-                <div className="files-grid">
-                  {submissionFiles.slice(0, 50).map((file, index) => (
-                    <div key={`${file.fullPath}-${index}`} className="file-card">
-                      <div className="file-icon">
-                        {getFileIcon(file.contentType)}
-                      </div>
-                      <div className="file-info">
-                        <div className="file-name" title={file.name}>
-                          {file.name.length > 30 ? `${file.name.substring(0, 30)}...` : file.name}
-                        </div>
-                        <div className="file-meta">
-                          <span className="file-size">{formatFileSize(file.size)}</span>
-                          <span className="file-date">
-                            {new Date(file.timeCreated).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="file-details">
-                          <span className="file-user">User: {file.userId.substring(0, 8)}...</span>
-                          <span className="file-test-type">Type: {file.testType}</span>
-                        </div>
-                      </div>
-                      <div className="file-actions">
-                        <a 
-                          href={file.downloadURL} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="download-btn"
-                          title="Download file"
-                        >
-                          📥
-                        </a>
-                        <button 
-                          className="view-btn"
-                          onClick={() => window.open(file.downloadURL, '_blank')}
-                          title="View file"
-                        >
-                          👁️
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {submissionFiles.length > 50 && (
-                  <div className="load-more">
-                    <p>Showing first 50 files. Total: {submissionFiles.length} files</p>
-                    <button className="load-more-btn" onClick={() => {
-                      // TODO: Implement pagination for files
-                      console.log('Load more files functionality to be implemented');
-                    }}>
-                      📁 Load More Files
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         )}
       </div>
-
-      {/* Refresh Button */}
-      <div className="dashboard-actions">
-        <button onClick={fetchData} className="refresh-button" disabled={loading}>
-          🔄 Refresh Data
-        </button>
-      </div>
-
-      {/* Submission Details Modal */}
-      {showSubmissionDetails && selectedSubmission && (
-        <div className="modal-overlay" onClick={() => setShowSubmissionDetails(false)}>
-          <div className="submission-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>📝 Submission Details</h2>
-              <button 
-                className="close-btn"
-                onClick={() => setShowSubmissionDetails(false)}
-              >
-                ✖️
-              </button>
-            </div>
-            <div className="modal-content">
-              <div className="submission-info-grid">
-                <div className="info-section">
-                  <h3>👤 Student Information</h3>
-                  <div className="info-item">
-                    <span className="label">Name:</span>
-                    <span className="value">{getStudentName(selectedSubmission.userId)}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">User ID:</span>
-                    <span className="value">{selectedSubmission.userId}</span>
-                  </div>
-                </div>
-
-                <div className="info-section">
-                  <h3>📊 Test Results</h3>
-                  <div className="info-item">
-                    <span className="label">Test Type:</span>
-                    <span className="value">{getTestTypeDisplay(selectedSubmission.testType)}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">Score:</span>
-                    <span className="value score">{selectedSubmission.score || 'N/A'}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">Status:</span>
-                    <span className={`value status ${selectedSubmission.passed ? 'passed' : 'failed'}`}>
-                      {selectedSubmission.passed ? '✅ Passed' : '❌ Failed'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="info-section">
-                  <h3>⏰ Timing Information</h3>
-                  <div className="info-item">
-                    <span className="label">Submitted At:</span>
-                    <span className="value">{new Date(selectedSubmission.submittedAt).toLocaleString()}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">Duration:</span>
-                    <span className="value">{selectedSubmission.timeTaken || 'N/A'}</span>
-                  </div>
-                </div>
-
-                <div className="info-section">
-                  <h3>🚨 Violations & Monitoring</h3>
-                  <div className="info-item">
-                    <span className="label">Tab Switches:</span>
-                    <span className="value">{selectedSubmission.tabSwitches || 0}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">Copy/Paste:</span>
-                    <span className="value">{selectedSubmission.copyPasteCount || 0}</span>
-                  </div>
-                  <div className="info-item">
-                    <span className="label">Face Detection:</span>
-                    <span className={`value ${selectedSubmission.faceDetected ? 'detected' : 'not-detected'}`}>
-                      {selectedSubmission.faceDetected ? '✅ Detected' : '❌ Not Detected'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {selectedSubmission.answers && (
-                <div className="submission-answers">
-                  <h3>📝 Submitted Answers</h3>
-                  <div className="answers-content">
-                    <pre>{JSON.stringify(selectedSubmission.answers, null, 2)}</pre>
-                  </div>
-                </div>
-              )}
-
-              {selectedSubmission.code && (
-                <div className="submission-code">
-                  <h3>💻 Submitted Code</h3>
-                  <div className="code-content">
-                    <pre><code>{selectedSubmission.code}</code></pre>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setShowSubmissionDetails(false)}>
-                Close
-              </button>
-              <button 
-                className="btn-primary"
-                onClick={() => {
-                  // Could implement download functionality here
-                  console.log('Download submission data:', selectedSubmission);
-                }}
-              >
-                📥 Download Data
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

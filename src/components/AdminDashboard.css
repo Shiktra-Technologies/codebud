@@ -1687,6 +1687,31 @@
   font-size: 1rem;
 }
 
+.refresh-btn-small {
+  background: rgba(124, 58, 237, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.refresh-btn-small:hover {
+  background: rgba(124, 58, 237, 0.3);
+  border-color: rgba(124, 58, 237, 0.5);
+  transform: translateY(-1px);
+}
+
+.refresh-btn-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .active-users-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -2196,4 +2221,103 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ==================== DEMO MODE INDICATOR ==================== */
+
+.demo-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  border: 1px solid #2196f3;
+  border-radius: 16px;
+  font-size: var(--text-xs);
+  animation: demoGlow 2s ease-in-out infinite;
+}
+
+.demo-badge {
+  font-weight: 600;
+  color: #1565c0;
+}
+
+.demo-text {
+  color: #1976d2;
+  font-style: italic;
+}
+
+@keyframes demoGlow {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+/* ==================== REAL-TIME STATUS ==================== */
+
+.realtime-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-size: var(--text-sm);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-indicator.connected .status-dot {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.status-indicator.disconnected .status-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+  animation: none;
+}
+
+.status-text {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.status-indicator.connected .status-text {
+  color: #10b981;
+}
+
+.status-indicator.disconnected .status-text {
+  color: #ef4444;
+}
+
+.last-update {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Real-time indicators in admin header */
+.admin-header .realtime-status {
+  margin-left: auto;
+}
+
+.admin-header .realtime-status .status-indicator {
+  background: var(--surface-2);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
 }

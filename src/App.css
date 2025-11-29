@@ -24,6 +24,14 @@ body {
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+  padding-top: 64px; /* Space for fixed navbar */
+}
+
+/* Responsive navbar spacing */
+@media (max-width: 768px) {
+  .App {
+    padding-top: 56px;
+  }
 }
 
 /* Professional Scrollbar */
