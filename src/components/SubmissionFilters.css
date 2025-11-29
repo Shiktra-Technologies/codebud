@@ -1,0 +1,401 @@
+/* ==================== SUBMISSION FILTERS ==================== */
+/* Modern, comprehensive filtering system for admin dashboard */
+
+.submission-filters {
+  background: white;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+  border: 1px solid var(--gray-200);
+}
+
+/* ==================== FILTER HEADER ==================== */
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.filter-title h3 {
+  margin: 0;
+  color: var(--gray-800);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.filter-count {
+  margin-top: var(--spacing-1);
+}
+
+.filtered-count {
+  color: var(--primary-600);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.total-count {
+  color: var(--gray-600);
+  font-size: var(--text-sm);
+}
+
+.filter-actions {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+.advanced-toggle {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.advanced-toggle:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-400);
+}
+
+.clear-filters {
+  background: var(--red-500);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-filters:hover {
+  background: var(--red-600);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ==================== QUICK FILTERS ==================== */
+
+.quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-5);
+  padding: var(--spacing-3);
+  background: var(--gray-50);
+  border-radius: var(--radius-xl);
+}
+
+.quick-filter-btn {
+  background: white;
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.quick-filter-btn:hover {
+  background: var(--primary-50);
+  border-color: var(--primary-300);
+  color: var(--primary-700);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-filter-btn:active {
+  transform: translateY(0);
+  background: var(--primary-100);
+}
+
+/* ==================== MAIN FILTERS ==================== */
+
+.main-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.filter-group label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: var(--spacing-1);
+}
+
+.filter-group input,
+.filter-group select {
+  padding: var(--spacing-3);
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.search-input {
+  min-width: 250px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.sort-controls select {
+  flex: 1;
+  margin: 0;
+}
+
+.sort-order {
+  background: var(--gray-100);
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-3);
+  font-size: var(--text-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sort-order:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-400);
+}
+
+.sort-order.asc {
+  background: var(--blue-100);
+  border-color: var(--blue-300);
+  color: var(--blue-700);
+}
+
+.sort-order.desc {
+  background: var(--orange-100);
+  border-color: var(--orange-300);
+  color: var(--orange-700);
+}
+
+/* ==================== ADVANCED FILTERS ==================== */
+
+.advanced-filters {
+  border-top: 2px solid var(--gray-200);
+  padding-top: var(--spacing-4);
+  margin-top: var(--spacing-4);
+  animation: slideDown 0.3s ease-out;
+}
+
+.advanced-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-4);
+}
+
+/* ==================== ACTIVE FILTERS ==================== */
+
+.active-filters {
+  border-top: 2px solid var(--primary-200);
+  padding-top: var(--spacing-4);
+  margin-top: var(--spacing-4);
+  background: var(--primary-50);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-4);
+}
+
+.active-filters-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--primary-800);
+  margin-bottom: var(--spacing-2);
+  display: block;
+}
+
+.active-filters-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.filter-tag {
+  background: var(--primary-100);
+  border: 1px solid var(--primary-300);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--primary-800);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  max-width: 200px;
+}
+
+.filter-tag button {
+  background: var(--primary-200);
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  color: var(--primary-800);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.filter-tag button:hover {
+  background: var(--primary-300);
+  transform: scale(1.1);
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+@media (max-width: 1024px) {
+  .main-filters {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spacing-3);
+  }
+  
+  .search-input {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .submission-filters {
+    padding: var(--spacing-4);
+  }
+  
+  .filter-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .main-filters {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+  
+  .advanced-filters-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quick-filters {
+    justify-content: center;
+  }
+  
+  .search-input {
+    min-width: unset;
+    width: 100%;
+  }
+  
+  .active-filters-tags {
+    justify-content: center;
+  }
+  
+  .filter-tag {
+    max-width: unset;
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-filter-btn {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--text-xs);
+  }
+  
+  .filter-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .advanced-toggle,
+  .clear-filters {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ==================== ANIMATIONS ==================== */
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+
+.filter-group input:focus-visible,
+.filter-group select:focus-visible,
+.quick-filter-btn:focus-visible,
+.advanced-toggle:focus-visible,
+.clear-filters:focus-visible,
+.sort-order:focus-visible,
+.filter-tag button:focus-visible {
+  outline: 3px solid var(--primary-400);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .submission-filters {
+    border: 3px solid var(--gray-900);
+  }
+  
+  .filter-group input,
+  .filter-group select {
+    border: 3px solid var(--gray-900);
+  }
+  
+  .quick-filter-btn {
+    border: 3px solid var(--gray-900);
+  }
+}

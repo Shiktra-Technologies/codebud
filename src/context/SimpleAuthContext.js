@@ -238,6 +238,7 @@ export function SimpleAuthProvider({ children }) {
   const value = {
     currentUser,
     userRole,
+    loading,
     signup,
     login,
     superAdminLogin,

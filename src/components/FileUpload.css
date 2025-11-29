@@ -1,0 +1,162 @@
+/* File Upload Component Styles */
+.file-upload-container {
+  margin: 1.5rem 0;
+}
+
+.file-upload-zone {
+  border: 2px dashed rgba(124, 58, 237, 0.25);
+  border-radius: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  background: rgba(26, 26, 32, 0.8);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.file-upload-zone:hover {
+  border-color: #b366ff;
+  background: rgba(30, 30, 38, 0.9);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(138, 43, 226, 0.1);
+}
+
+.file-upload-zone.drag-active {
+  border-color: #c89eff;
+  background: #faf7ff;
+  box-shadow: 0 0 0 4px rgba(138, 43, 226, 0.1);
+  transform: scale(1.02);
+}
+
+.file-upload-zone.uploading {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  cursor: not-allowed;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.file-upload-zone h3 {
+  color: #ffffff;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.file-upload-zone p {
+  color: #a1a1aa;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.file-input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+}
+
+.upload-button {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(138, 43, 226, 0.3);
+}
+
+.upload-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(138, 43, 226, 0.4);
+}
+
+.upload-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.upload-status .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--success-200);
+  border-top: 3px solid var(--success-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.upload-status p {
+  margin: 0;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.upload-info {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(26, 26, 32, 0.8);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #a1a1aa;
+  font-size: 0.9rem;
+}
+
+.info-value {
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .file-upload-zone {
+    padding: 1.5rem;
+  }
+  
+  .upload-icon {
+    font-size: 2.5rem;
+  }
+  
+  .file-upload-zone h3 {
+    font-size: 1.1rem;
+  }
+  
+  .info-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

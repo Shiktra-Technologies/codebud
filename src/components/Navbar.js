@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSimpleAuth } from '../context/SimpleAuthContext';
 import './Navbar.css';
 
 const Navbar = () => {
-  const { currentUser, userRole, logout, isStudent, isAdmin, isSuperAdmin } = useSimpleAuth();
+  const { currentUser, userRole, loading, logout, isStudent, isAdmin, isSuperAdmin } = useSimpleAuth();
   const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef(null);
 
   const handleLogout = async () => {
     try {
@@ -17,7 +18,22 @@ const Navbar = () => {
     }
   };
 
-  if (!currentUser) return null;
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Don't render navbar during authentication loading or when not logged in
+  if (loading || !currentUser) return null;
 
   const isActive = (path) => location.pathname === path;
 
@@ -69,8 +85,11 @@ const Navbar = () => {
           )}
         </div>
         
-        <div className="navbar-user">
-          <div className="user-profile" onClick={() => setIsProfileOpen(!isProfileOpen)}>
+        <div className="navbar-user" ref={profileRef}>
+          <div 
+            className="user-profile" 
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+          >
             <div className="user-avatar">
               {currentUser.photoURL ? (
                 <img src={currentUser.photoURL} alt="Profile" />
@@ -99,7 +118,10 @@ const Navbar = () => {
                 <span className="dropdown-icon">👤</span>
                 Profile
               </Link>
-              <button onClick={handleLogout} className="dropdown-item logout-btn">
+              <button 
+                onClick={handleLogout}
+                className="dropdown-item logout-btn"
+              >
                 <span className="dropdown-icon">🚪</span>
                 Sign Out
               </button>

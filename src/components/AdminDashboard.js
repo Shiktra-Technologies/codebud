@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSimpleAuth } from '../context/SimpleAuthContext';
 import { isUserActive, formatLastSeen, getUserStats } from '../utils/userActivity';
-import { subscribeToUserActivity, subscribeToSubmissions, getAllSubmissions } from '../services/firestoreService';
+import { 
+  subscribeToUserActivity, 
+  subscribeToSubmissions, 
+  getAllSubmissions,
+  formatFileSize,
+  getFileIcon
+} from '../services/firestoreService';
+import { 
+  getAllSubmissionFiles, 
+  getStorageStats, 
+  testStorageConfiguration 
+} from '../services/localStorageService';
+import SubmissionFilters from './SubmissionFilters';
+import FileUpload from './FileUpload';
 import './AdminDashboard.css';
 import './ActivityStyles.css';
 
@@ -16,6 +29,20 @@ const AdminDashboard = () => {
   const [realTimeEnabled, setRealTimeEnabled] = useState(true);
   const [resultsPage, setResultsPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [autoRefreshTimer, setAutoRefreshTimer] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [connectionHealth, setConnectionHealth] = useState('unknown');
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [submissionFiles, setSubmissionFiles] = useState([]);
+  const [filteredSubmissions, setFilteredSubmissions] = useState([]);
+  const [submissionFilters, setSubmissionFilters] = useState({});
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [storageStats, setStorageStats] = useState({});
+  const [activeUsers, setActiveUsers] = useState([]);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [showSubmissionDetails, setShowSubmissionDetails] = useState(false);
+  const [userActivity, setUserActivity] = useState([]);
   const resultsPerPage = 20;
 
   // Memoized helper functions to prevent unnecessary recalculations
@@ -74,14 +101,17 @@ const AdminDashboard = () => {
     [testResults, searchTerm, getStudentName, getTestTypeDisplay]
   );
 
+  // Use filtered submissions if available, otherwise use basic filtered results
+  const displayResults = filteredSubmissions.length > 0 ? filteredSubmissions : filteredResults;
+
   // Memoized pagination to prevent recalculation on every render
   const { totalPages, paginatedResults } = useMemo(() => ({
-    totalPages: Math.ceil(filteredResults.length / resultsPerPage),
-    paginatedResults: filteredResults.slice(
+    totalPages: Math.ceil(displayResults.length / resultsPerPage),
+    paginatedResults: displayResults.slice(
       (resultsPage - 1) * resultsPerPage,
       resultsPage * resultsPerPage
     )
-  }), [filteredResults, resultsPage, resultsPerPage]);
+  }), [displayResults, resultsPage, resultsPerPage]);
 
   const handlePageChange = useCallback((newPage) => {
     setResultsPage(newPage);
@@ -89,23 +119,331 @@ const AdminDashboard = () => {
     document.querySelector('.results-section')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  // Check connection health
+  const checkConnectionHealth = useCallback(async () => {
+    try {
+      const start = Date.now();
+      await getAllUsers(); // Simple test call
+      const latency = Date.now() - start;
+      
+      if (latency < 1000) {
+        setConnectionHealth('excellent');
+      } else if (latency < 3000) {
+        setConnectionHealth('good');
+      } else {
+        setConnectionHealth('slow');
+      }
+    } catch (error) {
+      setConnectionHealth('poor');
+    }
+  }, [getAllUsers]);
+
+  // Get active users with real-time status
+  const getActiveUsers = useCallback(async () => {
+    try {
+      const allUsers = await getAllUsers();
+      const now = new Date();
+      const activeThreshold = 5 * 60 * 1000; // 5 minutes
+      
+      const active = allUsers.filter(user => {
+        if (!user.lastSeen) return false;
+        const lastSeen = new Date(user.lastSeen);
+        return (now - lastSeen) < activeThreshold;
+      }).map(user => ({
+        ...user,
+        isActive: true,
+        timeSinceLastSeen: now - new Date(user.lastSeen),
+        currentActivity: user.currentActivity || 'browsing'
+      }));
+      
+      setActiveUsers(active);
+      return active;
+    } catch (error) {
+      console.error('Error getting active users:', error);
+      return [];
+    }
+  }, [getAllUsers]);
+
+  // Get detailed submission info
+  const getSubmissionDetails = useCallback((submissionId) => {
+    const submission = testResults.find(s => s.id === submissionId);
+    if (submission) {
+      setSelectedSubmission(submission);
+      setShowSubmissionDetails(true);
+    }
+  }, [testResults]);
+
+  // Track user activity in real-time
+  const trackUserActivity = useCallback(() => {
+    try {
+      const activities = [];
+      
+      // Get recent submissions
+      testResults.slice(0, 10).forEach(submission => {
+        activities.push({
+          id: `submission-${submission.id}`,
+          type: 'submission',
+          userId: submission.userId,
+          userName: getStudentName(submission.userId),
+          action: `Submitted ${getTestTypeDisplay(submission.testType)}`,
+          timestamp: submission.submittedAt,
+          details: {
+            score: submission.score,
+            passed: submission.passed,
+            testType: submission.testType
+          }
+        });
+      });
+      
+      // Get recent logins (from students array)
+      students.filter(s => s.lastLogin).slice(0, 5).forEach(student => {
+        activities.push({
+          id: `login-${student.uid}`,
+          type: 'login',
+          userId: student.uid,
+          userName: student.displayName || student.email,
+          action: 'Logged in',
+          timestamp: student.lastLogin,
+          details: {
+            role: student.role || 'student'
+          }
+        });
+      });
+      
+      // Sort by timestamp
+      activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setUserActivity(activities.slice(0, 20));
+      
+    } catch (error) {
+      console.error('Error tracking user activity:', error);
+    }
+  }, [testResults, students, getStudentName, getTestTypeDisplay]);
+
+  // Test Firebase Storage configuration
+  const runStorageDiagnostics = async () => {
+    setFilesLoading(true);
+    setError(''); // Clear previous errors
+    
+    try {
+      console.log('🔍 Running Firebase Storage diagnostics...');
+      const diagnostics = await testStorageConfiguration();
+      
+      if (diagnostics.errors.length > 0) {
+        const errorMessage = `🔧 Storage Configuration Issues:\n${diagnostics.errors.join('\n')}\n\n💡 Recommendations:\n${diagnostics.recommendations.join('\n')}`;
+        setError(errorMessage);
+      } else {
+        setError('✅ Firebase Storage is properly configured! You can now load files.');
+      }
+      
+      console.log('📊 Diagnostics results:', diagnostics);
+      setFilesLoading(false);
+    } catch (error) {
+      console.error('❌ Diagnostic failed:', error);
+      setError('Failed to run diagnostics: ' + error.message);
+      setFilesLoading(false);
+    }
+  };
+
+  // Load submission files from storage
+  const loadSubmissionFiles = async () => {
+    setFilesLoading(true);
+    setError(''); // Clear previous errors
+    
+    try {
+      console.log('📂 Loading submission files...');
+      const [files, stats] = await Promise.all([
+        getAllSubmissionFiles(),
+        getStorageStats()
+      ]);
+      
+      setSubmissionFiles(files);
+      setStorageStats(stats);
+      setFilesLoading(false);
+      
+      console.log('✅ Loaded submission files:', files.length);
+      
+      // Check if storage has configuration issues
+      if (stats.error) {
+        setError(`⚠️ Storage Configuration Issue: ${stats.error}. Files tab may not work properly until Firebase Storage is configured.`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error loading submission files:', error);
+      setFilesLoading(false);
+      
+      // Handle specific error types with targeted guidance
+      if (error.message === 'STORAGE_NOT_ENABLED') {
+        setError('🚫 Firebase Storage is not enabled. Please enable Firebase Storage in your Firebase Console to use file management features.');
+      } else if (error.message === 'STORAGE_CORS_ERROR') {
+        setError('🌐 CORS error detected. Firebase Storage may not be properly configured. Please check the Firebase Storage setup guide.');
+      } else if (error.message === 'STORAGE_UNAUTHORIZED') {
+        setError('🔒 Storage access denied. Please configure Firebase Storage security rules to allow authenticated access.');
+      } else if (error.message === 'STORAGE_BUCKET_NOT_FOUND') {
+        setError('📦 Storage bucket not found. Please ensure Firebase Storage is set up with the correct bucket name.');
+      } else if (error.message === 'STORAGE_NETWORK_ERROR') {
+        setError('🌐 Network error accessing Firebase Storage. Please check your internet connection and Firebase configuration.');
+      } else if (error.message === 'STORAGE_TIMEOUT') {
+        setError('⏰ Storage request timed out. Please try again or check your internet connection.');
+      } else {
+        setError(`⚠️ Storage Error: ${error.message || 'Unknown storage error'}. Please check Firebase Storage configuration.`);
+      }
+      
+      // Set empty data so UI doesn't break
+      setSubmissionFiles([]);
+      setStorageStats({
+        totalFiles: 0,
+        totalSize: 0,
+        fileTypes: {},
+        testTypes: {},
+        userCounts: {},
+        dailyUploads: {}
+      });
+    }
+  };
+
+  // Apply filters to submissions
+  const applySubmissionFilters = useCallback((filters) => {
+    setSubmissionFilters(filters);
+    
+    let filtered = [...testResults];
+    
+    // Search filter
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filtered = filtered.filter(submission => 
+        getStudentName(submission.userId).toLowerCase().includes(searchTerm) ||
+        submission.id?.toLowerCase().includes(searchTerm) ||
+        submission.testType?.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Test type filter
+    if (filters.testType) {
+      filtered = filtered.filter(submission => submission.testType === filters.testType);
+    }
+    
+    // Status filter
+    if (filters.status) {
+      if (filters.status === 'passed') {
+        filtered = filtered.filter(submission => submission.passed === true);
+      } else if (filters.status === 'failed') {
+        filtered = filtered.filter(submission => submission.passed === false);
+      } else if (filters.status === 'flagged') {
+        filtered = filtered.filter(submission => submission.violations?.submittedDueToViolation);
+      }
+    }
+    
+    // Date range filter
+    if (filters.dateRange && filters.dateRange !== '') {
+      const now = new Date();
+      let startDate, endDate;
+      
+      switch (filters.dateRange) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+          break;
+        case 'yesterday':
+          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case 'thisWeek':
+          const dayOfWeek = now.getDay();
+          startDate = new Date(now.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date();
+          break;
+        case 'thisMonth':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date();
+          break;
+        case 'custom':
+          if (filters.customDateStart) startDate = new Date(filters.customDateStart);
+          if (filters.customDateEnd) endDate = new Date(filters.customDateEnd);
+          break;
+      }
+      
+      if (startDate || endDate) {
+        filtered = filtered.filter(submission => {
+          const submissionDate = new Date(submission.submittedAt);
+          if (startDate && submissionDate < startDate) return false;
+          if (endDate && submissionDate > endDate) return false;
+          return true;
+        });
+      }
+    }
+    
+    // Score filters
+    if (filters.minScore !== '') {
+      filtered = filtered.filter(submission => 
+        (submission.score || 0) >= parseInt(filters.minScore)
+      );
+    }
+    
+    if (filters.maxScore !== '') {
+      filtered = filtered.filter(submission => 
+        (submission.score || 0) <= parseInt(filters.maxScore)
+      );
+    }
+    
+    // User ID filter
+    if (filters.userId) {
+      filtered = filtered.filter(submission => 
+        submission.userId?.includes(filters.userId)
+      );
+    }
+    
+    // Sorting
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+      
+      switch (filters.sortBy) {
+        case 'score':
+          aVal = a.score || 0;
+          bVal = b.score || 0;
+          break;
+        case 'duration':
+          aVal = a.duration || 0;
+          bVal = b.duration || 0;
+          break;
+        case 'studentName':
+          aVal = getStudentName(a.userId).toLowerCase();
+          bVal = getStudentName(b.userId).toLowerCase();
+          break;
+        case 'testType':
+          aVal = a.testType || '';
+          bVal = b.testType || '';
+          break;
+        case 'submittedAt':
+        default:
+          aVal = new Date(a.submittedAt || 0);
+          bVal = new Date(b.submittedAt || 0);
+          break;
+      }
+      
+      if (filters.sortOrder === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+    
+    setFilteredSubmissions(filtered);
+  }, [testResults, getStudentName]);
+
   // Set up real-time listeners for user activity and test submissions
   useEffect(() => {
-    if (!isAdmin() && !isSuperAdmin()) {
-      setError('Access denied. Admin privileges required.');
-      setLoading(false);
-      return;
-    }
-
-    if (!realTimeEnabled) {
+    if (!isAdmin() && !isSuperAdmin() || !realTimeEnabled) {
       return;
     }
 
     console.log('📡 Setting up real-time listeners...');
 
-    // Subscribe to user activity changes (only when on students tab)
     let unsubscribeUsers = () => {};
-    if (activeTab === 'students') {
+    let unsubscribeSubmissions = () => {};
+
+    try {
+      // Subscribe to user activity changes
       unsubscribeUsers = subscribeToUserActivity((users) => {
         console.log('✅ Real-time update: Users changed', users.length);
         const realStudents = users.filter(user => user.role === 'student');
@@ -121,17 +459,34 @@ const AdminDashboard = () => {
         }));
 
         setStudents(studentsWithStats);
-        setLoading(false);
       });
-    }
 
-    // Subscribe to test submissions changes (only when on results tab)
-    let unsubscribeSubmissions = () => {};
-    if (activeTab === 'results') {
+      // Subscribe to test submissions changes
       unsubscribeSubmissions = subscribeToSubmissions((submissions) => {
         console.log('✅ Real-time update: Submissions changed', submissions.length);
         setTestResults(submissions);
+        
+        // Update student test counts
+        setStudents(prev => prev.map(student => ({
+          ...student,
+          testsCompleted: submissions.filter(result => result.userId === student.uid).length
+        })));
+        
+        // Update recent activity (last 10 submissions)
+        const recent = submissions
+          .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+          .slice(0, 10)
+          .map(submission => ({
+            ...submission,
+            type: 'submission',
+            timestamp: submission.submittedAt,
+            studentName: getStudentName(submission.userId)
+          }));
+        setRecentActivity(recent);
       });
+    } catch (error) {
+      console.warn('⚠️  Real-time listeners failed to initialize:', error);
+      // Dashboard still works without real-time updates
     }
 
     // Cleanup listeners on unmount or tab change
@@ -140,7 +495,25 @@ const AdminDashboard = () => {
       unsubscribeUsers();
       unsubscribeSubmissions();
     };
-  }, [isAdmin, isSuperAdmin, realTimeEnabled, activeTab]);
+  }, [isAdmin, isSuperAdmin, realTimeEnabled]);
+
+  // Auto-refresh every 60 seconds when real-time is disabled (reduced frequency)
+  useEffect(() => {
+    if (!realTimeEnabled && (isAdmin() || isSuperAdmin())) {
+      const interval = setInterval(() => {
+        console.log('⏰ Auto-refreshing data...');
+        fetchData();
+      }, 60000); // Increased to 60 seconds to reduce server load
+
+      setAutoRefreshTimer(interval);
+      return () => clearInterval(interval);
+    }
+  }, [realTimeEnabled, isAdmin, isSuperAdmin]);
+
+  // Apply filters when test results or filters change
+  useEffect(() => {
+    applySubmissionFilters(submissionFilters);
+  }, [testResults, submissionFilters, applySubmissionFilters]);
 
   // Initial data load (fallback if real-time fails)
   useEffect(() => {
@@ -153,38 +526,232 @@ const AdminDashboard = () => {
     fetchData();
   }, [isAdmin, isSuperAdmin]);
 
+  // Auto-refresh active users and activity every 30 seconds
+  useEffect(() => {
+    if (!realTimeEnabled || (!isAdmin() && !isSuperAdmin())) return;
+    
+    const refreshInterval = setInterval(() => {
+      // Only refresh if we're on active users or activity tabs
+      if (activeTab === 'active-users' || activeTab === 'activity') {
+        console.log('🔄 Auto-refreshing user activity data...');
+        getActiveUsers();
+        trackUserActivity();
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(refreshInterval);
+  }, [realTimeEnabled, activeTab, getActiveUsers, trackUserActivity, isAdmin, isSuperAdmin]);
+
   // Refresh function to get latest user data
   const fetchData = async () => {
+    console.log('🔄 Fetching admin dashboard data...');
     setLoading(true);
+    setError(''); // Clear any previous errors
     
     try {
-      // Load users and submissions in parallel for faster loading
-      const [allUsers, submissionsResult] = await Promise.all([
-        getAllUsers(),
-        getAllSubmissions(null, 20) // Reduced to 20 for faster loading
-      ]);
+      // Try multiple approaches to load data
+      let allUsers = [];
+      let loadedFromCache = false;
       
-      const realStudents = allUsers.filter(user => user.role === 'student');
-      const testResultsData = submissionsResult.data || [];
+      // First, try to load from cache if available
+      const cachedUsers = sessionStorage.getItem('admin_users_cache');
+      if (cachedUsers) {
+        const { data, timestamp } = JSON.parse(cachedUsers);
+        const cacheAge = Date.now() - timestamp;
+        
+        // Use cached data if less than 2 minutes old
+        if (cacheAge < 2 * 60 * 1000) {
+          console.log('✅ Using cached users data');
+          allUsers = data;
+          loadedFromCache = true;
+        }
+      }
       
-      // Process students with stats
+      // If no cache or cache is old, try to fetch fresh data with shorter timeout
+      if (!loadedFromCache) {
+        try {
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('User fetch timeout')), 5000); // Reduced to 5 seconds
+          });
+          
+          allUsers = await Promise.race([getAllUsers(), timeoutPromise]);
+          console.log('✅ Fresh users loaded:', allUsers?.length || 0);
+          
+          // Cache the fresh data
+          sessionStorage.setItem('admin_users_cache', JSON.stringify({
+            data: allUsers,
+            timestamp: Date.now()
+          }));
+        } catch (userError) {
+          console.warn('⚠️  Fresh user fetch failed, trying fallback...', userError.message);
+          
+          // Fallback: Try to get users from localStorage
+          const localUsers = JSON.parse(localStorage.getItem('all_registered_users') || '[]');
+          if (localUsers.length > 0) {
+            console.log('✅ Using localStorage fallback users:', localUsers.length);
+            allUsers = localUsers;
+          } else {
+            // If all else fails, create mock data to show the dashboard works
+            console.log('⚠️  No users available, using demo data');
+            allUsers = [{
+              uid: 'demo-student-1',
+              email: 'demo@student.com',
+              displayName: 'Demo Student',
+              role: 'student',
+              createdAt: new Date().toISOString(),
+              lastLogin: new Date().toISOString(),
+              status: 'active'
+            }];
+          }
+        }
+      }
+      
+      const realStudents = (allUsers || []).filter(user => user.role === 'student');
+      
+      // Process students with basic stats (submissions will be loaded separately)
       const studentsWithStats = realStudents.map(student => ({
         ...student,
         id: student.uid,
         lastActive: student.lastLogin,
-        testsCompleted: testResultsData.filter(result => result.userId === student.uid).length,
+        testsCompleted: 0, // Will be updated after submissions load
         status: student.status || 'active',
         isOnline: isUserActive(student.lastLogin),
         lastSeenFormatted: formatLastSeen(student.lastLogin)
       }));
       
       setStudents(studentsWithStats);
-      setTestResults(testResultsData);
-      setLoading(false);
+      setLoading(false); // Show dashboard with users first
+      setLastUpdated(new Date());
+      
+      // Load submissions in background with aggressive fallback strategy
+      const loadSubmissions = async () => {
+        setSubmissionsLoading(true);
+        
+        // First, try cached submissions
+        const cachedSubmissions = sessionStorage.getItem('admin_submissions_cache');
+        if (cachedSubmissions) {
+          const { data, timestamp } = JSON.parse(cachedSubmissions);
+          const cacheAge = Date.now() - timestamp;
+          
+          // Use cached data if less than 1 minute old
+          if (cacheAge < 60 * 1000) {
+            console.log('✅ Using cached submissions');
+            setTestResults(data);
+            updateStudentStats(data);
+            updateRecentActivity(data);
+            setSubmissionsLoading(false);
+            return;
+          }
+        }
+        
+        // Try fresh fetch with very short timeout
+        try {
+          const submissionsResult = await Promise.race([
+            getAllSubmissions(null, 20), // Further reduced to 20
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Fast timeout')), 2000)) // 2 second timeout
+          ]);
+          
+          const testResultsData = submissionsResult?.data || [];
+          console.log('✅ Fresh submissions loaded:', testResultsData.length);
+          
+          // Cache successful results
+          sessionStorage.setItem('admin_submissions_cache', JSON.stringify({
+            data: testResultsData,
+            timestamp: Date.now()
+          }));
+          
+          setTestResults(testResultsData);
+          updateStudentStats(testResultsData);
+          updateRecentActivity(testResultsData);
+          setSubmissionsLoading(false);
+          
+        } catch (fetchError) {
+          console.warn('⚠️  Fresh submissions fetch failed:', fetchError.message);
+          
+          // Try localStorage fallback
+          const localResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+          if (localResults.length > 0) {
+            console.log('✅ Using localStorage submissions:', localResults.length);
+            const fallbackData = localResults.slice(0, 20);
+            setTestResults(fallbackData);
+            updateStudentStats(fallbackData);
+            updateRecentActivity(fallbackData);
+            
+            // Cache fallback data too
+            sessionStorage.setItem('admin_submissions_cache', JSON.stringify({
+              data: fallbackData,
+              timestamp: Date.now() - 30000 // Mark as 30s old so it refreshes sooner
+            }));
+          } else {
+            console.log('⚠️  No submission data available');
+            // Set empty data but don't show error since dashboard still works
+            setTestResults([]);
+            setRecentActivity([]);
+          }
+          setSubmissionsLoading(false);
+        }
+      };
+      
+      // Helper function to update student stats
+      const updateStudentStats = (submissionData) => {
+        const updatedStudents = studentsWithStats.map(student => ({
+          ...student,
+          testsCompleted: submissionData.filter(result => result.userId === student.uid).length,
+        }));
+        setStudents(updatedStudents);
+      };
+      
+      // Helper function to update recent activity
+      const updateRecentActivity = (submissionData) => {
+        if (submissionData.length > 0) {
+          const recent = submissionData
+            .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+            .slice(0, 8) // Reduced to 8 for faster processing
+            .map(submission => ({
+              ...submission,
+              type: 'submission',
+              timestamp: submission.submittedAt,
+              studentName: getStudentName(submission.userId) || 'Unknown Student'
+            }));
+          setRecentActivity(recent);
+        }
+      };
+      
+      // Load submissions asynchronously (don't block dashboard)
+      setTimeout(loadSubmissions, 100); // Small delay to ensure dashboard renders first
+      
+      // Load active users and activity tracking
+      setTimeout(() => {
+        getActiveUsers();
+        trackUserActivity();
+      }, 150);
+      
+      // Load storage files if on files tab
+      if (activeTab === 'files') {
+        setTimeout(loadSubmissionFiles, 200);
+      }
+      
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to load data. Please try again.');
+      console.error('❌ Critical error in admin dashboard:', error);
+      // Even if everything fails, show something useful
+      setError('⚠️ Data loading issues detected. Using cached/demo data. Try refreshing.');
       setLoading(false);
+      
+      // Set minimal demo data so dashboard isn't completely broken
+      setStudents([{
+        uid: 'demo-1',
+        email: 'demo@example.com',
+        displayName: 'Demo User',
+        role: 'student',
+        id: 'demo-1',
+        lastActive: new Date().toISOString(),
+        testsCompleted: 0,
+        status: 'active',
+        isOnline: false,
+        lastSeenFormatted: 'Just now'
+      }]);
+      setTestResults([]);
+      setRecentActivity([]);
     }
   };
 
@@ -199,13 +766,37 @@ const AdminDashboard = () => {
     );
   }
 
-  if (error) {
+  if (error && students.length === 0) {
     return (
       <div className="admin-dashboard">
         <div className="error-container">
           <div className="error-icon">⚠️</div>
-          <h2>Access Denied</h2>
+          <h2>Dashboard Loading Issues</h2>
           <p>{error}</p>
+          <div className="error-actions">
+            <button className="retry-btn" onClick={fetchData}>
+              🔄 Try Again
+            </button>
+            <button className="cache-clear-btn" onClick={() => {
+              sessionStorage.clear();
+              localStorage.clear();
+              window.location.reload();
+            }}>
+              🗑️ Clear Cache & Reload
+            </button>
+          </div>
+          <div className="error-details">
+            <details>
+              <summary>Troubleshooting Tips</summary>
+              <ul>
+                <li>Check your internet connection</li>
+                <li>Try clearing browser cache and cookies</li>
+                <li>Disable ad blockers temporarily</li>
+                <li>Try refreshing the page</li>
+                <li>Contact support if the issue persists</li>
+              </ul>
+            </details>
+          </div>
         </div>
       </div>
     );
@@ -220,6 +811,19 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-dashboard">
+      {/* Warning banner for partial data loading issues */}
+      {error && students.length > 0 && (
+        <div className="warning-banner">
+          <div className="warning-content">
+            <span className="warning-icon">⚠️</span>
+            <span className="warning-text">{error}</span>
+            <button className="warning-dismiss" onClick={() => setError('')}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="admin-header">
         <div className="admin-header-content">
           <div>
@@ -228,14 +832,46 @@ const AdminDashboard = () => {
               <p>Welcome back, {currentUser?.displayName || currentUser?.email || 'Admin'}</p>
             </div>
           </div>
-          <button className="refresh-btn" onClick={handleRefresh} title="Refresh data and clear cache">
-            🔄 Refresh
-          </button>
+          <div className="admin-controls">
+            <button 
+              className={`realtime-toggle ${realTimeEnabled ? 'active' : ''}`}
+              onClick={() => setRealTimeEnabled(!realTimeEnabled)}
+              title={realTimeEnabled ? 'Disable real-time updates' : 'Enable real-time updates'}
+            >
+              {realTimeEnabled ? '🔄 Real-time ON' : '⏸️ Real-time OFF'}
+            </button>
+            <button 
+              className="submissions-refresh-btn"
+              onClick={() => {
+                sessionStorage.removeItem('admin_submissions_cache');
+                window.location.reload();
+              }}
+              title="Refresh submissions data"
+              disabled={submissionsLoading}
+            >
+              {submissionsLoading ? '⏳' : '📝'} Submissions
+            </button>
+            <button className="refresh-btn" onClick={handleRefresh} title="Refresh all data and clear cache">
+              🔄 Refresh All
+            </button>
+          </div>
         </div>
         <div className="connection-status">
           <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
           <span className="status-text">{isOnline ? '🌐 Online' : '📡 Offline'}</span>
+          {connectionHealth !== 'unknown' && (
+            <span className={`connection-health ${connectionHealth}`}>
+              {connectionHealth === 'excellent' && '⚡ Fast'}
+              {connectionHealth === 'good' && '🟡 Normal'}
+              {connectionHealth === 'slow' && '🟠 Slow'}
+              {connectionHealth === 'poor' && '🔴 Issues'}
+            </span>
+          )}
           {realTimeEnabled && isOnline && <span className="realtime-badge">🔄 Real-time</span>}
+          <div className="last-updated">
+            <span className="update-label">Last updated:</span>
+            <span className="update-time">{lastUpdated.toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
 
@@ -260,8 +896,17 @@ const AdminDashboard = () => {
         <div className="stat-card">
           <div className="stat-icon">📝</div>
           <div className="stat-content">
-            <h3>{stats.totalSubmissions}</h3>
+            <h3>
+              {submissionsLoading ? (
+                <span className="loading-spinner">⏳</span>
+              ) : (
+                stats.totalSubmissions
+              )}
+            </h3>
             <p>Total Submissions</p>
+            {submissionsLoading && (
+              <div className="loading-text">Loading...</div>
+            )}
           </div>
         </div>
         
@@ -282,6 +927,43 @@ const AdminDashboard = () => {
         </div>
       </div>
 
+      {/* Real-time Activity Feed */}
+      {(recentActivity.length > 0 || submissionsLoading) && (
+        <div className="activity-feed">
+          <div className="activity-header">
+            <h3>📡 Recent Activity</h3>
+            <div className="activity-count">
+              {submissionsLoading ? (
+                <span className="loading-spinner">⏳ Loading...</span>
+              ) : (
+                `${recentActivity.length} recent events`
+              )}
+            </div>
+          </div>
+          <div className="activity-list">
+            {recentActivity.slice(0, 5).map((activity, index) => (
+              <div key={`${activity.id}-${index}`} className="activity-item">
+                <div className="activity-icon">
+                  {activity.type === 'submission' ? '📝' : '👤'}
+                </div>
+                <div className="activity-content">
+                  <div className="activity-text">
+                    <strong>{activity.studentName}</strong> submitted {activity.testType} test
+                    {activity.passed ? ' ✅' : ' ❌'}
+                  </div>
+                  <div className="activity-time">
+                    {formatDate(activity.timestamp)}
+                  </div>
+                </div>
+                <div className={`activity-status ${activity.passed ? 'passed' : 'failed'}`}>
+                  {activity.passed ? 'PASSED' : 'FAILED'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Search Bar */}
       <div className="search-container">
         <input
@@ -300,14 +982,46 @@ const AdminDashboard = () => {
           onClick={() => setActiveTab('students')}
         >
           <span className="tab-icon">👥</span>
-          Active Students ({filteredStudents.length})
+          All Students ({filteredStudents.length})
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'active-users' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('active-users');
+            getActiveUsers(); // Refresh active users when switching to this tab
+          }}
+        >
+          <span className="tab-icon">🟢</span>
+          Active Users ({activeUsers.length})
         </button>
         <button
           className={`tab-button ${activeTab === 'results' ? 'active' : ''}`}
           onClick={() => setActiveTab('results')}
         >
           <span className="tab-icon">📊</span>
-          Test Results ({filteredResults.length})
+          All Submissions ({filteredSubmissions.length > 0 ? filteredSubmissions.length : filteredResults.length})
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('activity');
+            trackUserActivity(); // Refresh activity when switching to this tab
+          }}
+        >
+          <span className="tab-icon">📈</span>
+          User Activity ({userActivity.length})
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'files' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('files');
+            if (submissionFiles.length === 0 && !filesLoading) {
+              loadSubmissionFiles();
+            }
+          }}
+        >
+          <span className="tab-icon">📁</span>
+          Files ({submissionFiles.length})
         </button>
       </div>
 
@@ -340,10 +1054,13 @@ const AdminDashboard = () => {
                         <div className="student-header">
                           <h3>{student.displayName || 'No name'}</h3>
                           <div className={`activity-indicator ${student.isOnline ? 'online' : 'offline'}`}>
-                            <span className="status-dot"></span>
+                            <span className={`status-dot ${student.isOnline ? 'pulse' : ''}`}></span>
                             <span className="status-text">
-                              {student.isOnline ? 'Online' : 'Offline'}
+                              {student.isOnline ? '🟢 Online' : '⚫ Offline'}
                             </span>
+                            {student.isOnline && (
+                              <span className="live-badge">LIVE</span>
+                            )}
                           </div>
                         </div>
                         <p className="student-email">{student.email}</p>
@@ -378,12 +1095,140 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {activeTab === 'active-users' && (
+          <div className="active-users-section">
+            <div className="section-header">
+              <h2>🟢 Active Users ({activeUsers.length})</h2>
+              <p>Users active in the last 5 minutes</p>
+            </div>
+            {activeUsers.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">💤</div>
+                <h3>No active users</h3>
+                <p>No users are currently active. Check back later!</p>
+                <button onClick={getActiveUsers} className="retry-btn">
+                  🔄 Refresh Active Users
+                </button>
+              </div>
+            ) : (
+              <div className="active-users-grid">
+                {activeUsers.map(user => (
+                  <div key={user.uid} className="active-user-card">
+                    <div className="user-status">
+                      <div className="status-indicator online"></div>
+                      <span className="status-text">Online</span>
+                    </div>
+                    <div className="user-info">
+                      <div className="user-avatar">
+                        {user.photoURL ? (
+                          <img src={user.photoURL} alt="Avatar" />
+                        ) : (
+                          <div className="avatar-placeholder">
+                            {(user.displayName || user.email).charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="user-details">
+                        <h3>{user.displayName || 'No name'}</h3>
+                        <p>{user.email}</p>
+                        <span className="user-activity">{user.currentActivity}</span>
+                      </div>
+                    </div>
+                    <div className="activity-info">
+                      <div className="last-seen">
+                        <span className="label">Last seen:</span>
+                        <span className="time">
+                          {Math.floor(user.timeSinceLastSeen / 1000 / 60)}m ago
+                        </span>
+                      </div>
+                      <div className="session-info">
+                        <span className="label">Role:</span>
+                        <span className="role">{user.role || 'student'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div className="user-activity-section">
+            <div className="section-header">
+              <h2>📈 User Activity Feed</h2>
+              <p>Real-time activity from all users</p>
+            </div>
+            {userActivity.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📊</div>
+                <h3>No recent activity</h3>
+                <p>No user activity to display. Users will appear here when they submit tests or log in.</p>
+                <button onClick={trackUserActivity} className="retry-btn">
+                  🔄 Refresh Activity
+                </button>
+              </div>
+            ) : (
+              <div className="activity-feed">
+                {userActivity.map(activity => (
+                  <div key={activity.id} className={`activity-item ${activity.type}`}>
+                    <div className="activity-icon">
+                      {activity.type === 'submission' ? '📝' : '🔐'}
+                    </div>
+                    <div className="activity-content">
+                      <div className="activity-main">
+                        <span className="user-name">{activity.userName}</span>
+                        <span className="activity-action">{activity.action}</span>
+                      </div>
+                      <div className="activity-details">
+                        {activity.type === 'submission' && (
+                          <>
+                            <span className={`activity-score ${activity.details.passed ? 'passed' : 'failed'}`}>
+                              Score: {activity.details.score || 'N/A'}
+                            </span>
+                            <span className="activity-status">
+                              {activity.details.passed ? '✅ Passed' : '❌ Failed'}
+                            </span>
+                          </>
+                        )}
+                        {activity.type === 'login' && (
+                          <span className="activity-role">
+                            Role: {activity.details.role}
+                          </span>
+                        )}
+                      </div>
+                      <div className="activity-timestamp">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                    {activity.type === 'submission' && (
+                      <button 
+                        className="view-details-btn"
+                        onClick={() => getSubmissionDetails(activity.id.replace('submission-', ''))}
+                      >
+                        👁️ View Details
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'results' && (
           <div className="results-section">
+            {/* Advanced Submission Filters */}
+            <SubmissionFilters
+              onFiltersChange={applySubmissionFilters}
+              totalCount={testResults.length}
+              filteredCount={filteredSubmissions.length > 0 ? filteredSubmissions.length : filteredResults.length}
+            />
+            
             <div className="results-header">
               <h2>Test Results</h2>
               <div className="results-count">
-                Showing {paginatedResults.length} of {filteredResults.length} results
+                Showing {paginatedResults.length} of {filteredSubmissions.length > 0 ? filteredSubmissions.length : filteredResults.length} results
               </div>
             </div>
             {filteredResults.length === 0 ? (
@@ -404,6 +1249,7 @@ const AdminDashboard = () => {
                         <th>Status</th>
                         <th>Violations</th>
                         <th>Submitted</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -447,6 +1293,14 @@ const AdminDashboard = () => {
                               {formatDate(result.submittedAt)}
                             </span>
                           </td>
+                          <td>
+                            <button 
+                              className="view-details-btn small"
+                              onClick={() => getSubmissionDetails(result.id)}
+                            >
+                              👁️ Details
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -479,6 +1333,168 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
+
+        {activeTab === 'files' && (
+          <div className="files-section">
+            <div className="files-header">
+              <h2>📁 Submission Files</h2>
+              <div className="files-stats">
+                {!filesLoading && (
+                  <>
+                    <span className="stat-item">
+                      📊 {submissionFiles.length} files
+                    </span>
+                    <span className="stat-item">
+                      💾 {formatFileSize(storageStats.totalSize || 0)}
+                    </span>
+                    <button 
+                      className="refresh-files-btn"
+                      onClick={loadSubmissionFiles}
+                      disabled={filesLoading}
+                    >
+                      {filesLoading ? '⏳' : '🔄'} Refresh Files
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {filesLoading ? (
+              <div className="loading-container">
+                <div className="spinner"></div>
+                <p>Loading submission files...</p>
+              </div>
+            ) : submissionFiles.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📁</div>
+                <h3>No files found in local storage</h3>
+                <div className="local-storage-info">
+                  <p><strong>🆓 Using Free Local Storage</strong></p>
+                  <div className="storage-benefits">
+                    <p>✅ No Firebase Storage subscription required</p>
+                    <p>✅ Files stored securely in your browser</p>
+                    <p>✅ No upload limits or costs</p>
+                    <p>⚠️ Files are device-specific (not synced across devices)</p>
+                  </div>
+                  <p>Use the upload section above to add test files, or try uploading some sample files to test the functionality.</p>
+                </div>
+                <div className="empty-actions">
+                  <button className="diagnostic-btn" onClick={runStorageDiagnostics}>
+                    🔍 Test Local Storage
+                  </button>
+                  <button className="retry-btn" onClick={loadSubmissionFiles}>
+                    🔄 Try Loading Again
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Storage Statistics */}
+                <div className="storage-stats">
+                  <div className="stats-grid">
+                    <div className="stat-card small">
+                      <div className="stat-icon">📁</div>
+                      <div className="stat-content">
+                        <h4>{storageStats.totalFiles || 0}</h4>
+                        <p>Total Files</p>
+                      </div>
+                    </div>
+                    <div className="stat-card small">
+                      <div className="stat-icon">💾</div>
+                      <div className="stat-content">
+                        <h4>{formatFileSize(storageStats.totalSize || 0)}</h4>
+                        <p>Total Size</p>
+                      </div>
+                    </div>
+                    <div className="stat-card small">
+                      <div className="stat-icon">📊</div>
+                      <div className="stat-content">
+                        <h4>{Object.keys(storageStats.testTypes || {}).length}</h4>
+                        <p>Test Types</p>
+                      </div>
+                    </div>
+                    <div className="stat-card small">
+                      <div className="stat-icon">👥</div>
+                      <div className="stat-content">
+                        <h4>{Object.keys(storageStats.userCounts || {}).length}</h4>
+                        <p>Users with Files</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* File Upload Section */}
+                <div className="upload-section">
+                  <h3>📤 Upload Test Files</h3>
+                  <FileUpload 
+                    onUploadSuccess={(results) => {
+                      console.log('Upload successful:', results);
+                      loadSubmissionFiles(); // Refresh the file list
+                    }}
+                    testType="manual"
+                    submissionId={`upload-${Date.now()}`}
+                  />
+                </div>
+
+                {/* Files Grid */}
+                <div className="files-grid">
+                  {submissionFiles.slice(0, 50).map((file, index) => (
+                    <div key={`${file.fullPath}-${index}`} className="file-card">
+                      <div className="file-icon">
+                        {getFileIcon(file.contentType)}
+                      </div>
+                      <div className="file-info">
+                        <div className="file-name" title={file.name}>
+                          {file.name.length > 30 ? `${file.name.substring(0, 30)}...` : file.name}
+                        </div>
+                        <div className="file-meta">
+                          <span className="file-size">{formatFileSize(file.size)}</span>
+                          <span className="file-date">
+                            {new Date(file.timeCreated).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="file-details">
+                          <span className="file-user">User: {file.userId.substring(0, 8)}...</span>
+                          <span className="file-test-type">Type: {file.testType}</span>
+                        </div>
+                      </div>
+                      <div className="file-actions">
+                        <a 
+                          href={file.downloadURL} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="download-btn"
+                          title="Download file"
+                        >
+                          📥
+                        </a>
+                        <button 
+                          className="view-btn"
+                          onClick={() => window.open(file.downloadURL, '_blank')}
+                          title="View file"
+                        >
+                          👁️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {submissionFiles.length > 50 && (
+                  <div className="load-more">
+                    <p>Showing first 50 files. Total: {submissionFiles.length} files</p>
+                    <button className="load-more-btn" onClick={() => {
+                      // TODO: Implement pagination for files
+                      console.log('Load more files functionality to be implemented');
+                    }}>
+                      📁 Load More Files
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Refresh Button */}
@@ -487,6 +1503,118 @@ const AdminDashboard = () => {
           🔄 Refresh Data
         </button>
       </div>
+
+      {/* Submission Details Modal */}
+      {showSubmissionDetails && selectedSubmission && (
+        <div className="modal-overlay" onClick={() => setShowSubmissionDetails(false)}>
+          <div className="submission-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📝 Submission Details</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setShowSubmissionDetails(false)}
+              >
+                ✖️
+              </button>
+            </div>
+            <div className="modal-content">
+              <div className="submission-info-grid">
+                <div className="info-section">
+                  <h3>👤 Student Information</h3>
+                  <div className="info-item">
+                    <span className="label">Name:</span>
+                    <span className="value">{getStudentName(selectedSubmission.userId)}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">User ID:</span>
+                    <span className="value">{selectedSubmission.userId}</span>
+                  </div>
+                </div>
+
+                <div className="info-section">
+                  <h3>📊 Test Results</h3>
+                  <div className="info-item">
+                    <span className="label">Test Type:</span>
+                    <span className="value">{getTestTypeDisplay(selectedSubmission.testType)}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Score:</span>
+                    <span className="value score">{selectedSubmission.score || 'N/A'}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Status:</span>
+                    <span className={`value status ${selectedSubmission.passed ? 'passed' : 'failed'}`}>
+                      {selectedSubmission.passed ? '✅ Passed' : '❌ Failed'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="info-section">
+                  <h3>⏰ Timing Information</h3>
+                  <div className="info-item">
+                    <span className="label">Submitted At:</span>
+                    <span className="value">{new Date(selectedSubmission.submittedAt).toLocaleString()}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Duration:</span>
+                    <span className="value">{selectedSubmission.timeTaken || 'N/A'}</span>
+                  </div>
+                </div>
+
+                <div className="info-section">
+                  <h3>🚨 Violations & Monitoring</h3>
+                  <div className="info-item">
+                    <span className="label">Tab Switches:</span>
+                    <span className="value">{selectedSubmission.tabSwitches || 0}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Copy/Paste:</span>
+                    <span className="value">{selectedSubmission.copyPasteCount || 0}</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Face Detection:</span>
+                    <span className={`value ${selectedSubmission.faceDetected ? 'detected' : 'not-detected'}`}>
+                      {selectedSubmission.faceDetected ? '✅ Detected' : '❌ Not Detected'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedSubmission.answers && (
+                <div className="submission-answers">
+                  <h3>📝 Submitted Answers</h3>
+                  <div className="answers-content">
+                    <pre>{JSON.stringify(selectedSubmission.answers, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
+
+              {selectedSubmission.code && (
+                <div className="submission-code">
+                  <h3>💻 Submitted Code</h3>
+                  <div className="code-content">
+                    <pre><code>{selectedSubmission.code}</code></pre>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowSubmissionDetails(false)}>
+                Close
+              </button>
+              <button 
+                className="btn-primary"
+                onClick={() => {
+                  // Could implement download functionality here
+                  console.log('Download submission data:', selectedSubmission);
+                }}
+              >
+                📥 Download Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

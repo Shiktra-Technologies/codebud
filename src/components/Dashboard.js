@@ -9,18 +9,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { currentUser, userRole, isStudent, isAdmin, isSuperAdmin } = useSimpleAuth();
 
-  // Redirect to appropriate dashboard based on user role
-  React.useEffect(() => {
-    if (userRole) {
-      if (isSuperAdmin()) {
-        navigate('/super-admin', { replace: true });
-      } else if (isAdmin()) {
-        navigate('/admin', { replace: true });
-      } else if (isStudent()) {
-        navigate('/student', { replace: true });
-      }
-    }
-  }, [userRole, navigate, isStudent, isAdmin, isSuperAdmin]);
+  // Note: This component now serves as a fallback/generic dashboard
+  // Direct routing is handled by the Home component
 
   // Show loading while determining role
   if (!userRole) {

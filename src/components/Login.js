@@ -33,15 +33,19 @@ const Login = ({ onToggle }) => {
           return;
         }
         await superAdminLogin(secretCode);
-        // Redirect to dashboard, which will handle the routing
-        navigate('/dashboard', { replace: true });
+        // Set flag to indicate this is a post-login redirect
+        sessionStorage.setItem('post_login_redirect', 'true');
+        // Navigate immediately - Home component will handle the state checking
+        navigate('/', { replace: true });
       } else {
         // Pass the selected role to login function
         const selectedRole = loginType === 'admin' ? USER_ROLES.ADMIN : USER_ROLES.STUDENT;
         await login(email, password, selectedRole);
         
-        // Always redirect to dashboard, which will handle role-based routing
-        navigate('/dashboard', { replace: true });
+        // Set flag to indicate this is a post-login redirect
+        sessionStorage.setItem('post_login_redirect', 'true');
+        // Navigate immediately - Home component will handle the state checking
+        navigate('/', { replace: true });
       }
     } catch (error) {
       let errorMessage = 'Failed to sign in: ';

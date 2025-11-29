@@ -546,3 +546,15 @@ export default {
   syncPendingSubmissions,
   getDashboardStats
 };
+
+// Re-export storage service functions for convenient importing
+export {
+  uploadSubmissionFile,
+  uploadSubmissionFiles,
+  getUserSubmissionFiles,
+  getAllSubmissionFiles,
+  deleteSubmissionFile,
+  getStorageStats,
+  formatFileSize,
+  getFileIcon
+} from './storageService';
