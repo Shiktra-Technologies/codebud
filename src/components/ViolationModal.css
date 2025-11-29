@@ -47,7 +47,7 @@
 
 .violation-header.warning {
   background: linear-gradient(135deg, #ffc107, #e0a800);
-  color: #333;
+  color: var(--text-primary);
 }
 
 .violation-icon {
@@ -70,7 +70,7 @@
 }
 
 .critical-message p, .warning-message p {
-  color: #555;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   line-height: 1.6;
 }
@@ -98,7 +98,7 @@
 
 .violation-time {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
   font-family: 'Courier New', monospace;
 }
 

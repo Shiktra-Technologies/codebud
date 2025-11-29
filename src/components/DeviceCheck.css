@@ -30,11 +30,11 @@
 
 .device-check-loading h2 {
   margin: 20px 0 10px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .device-check-loading p {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .device-check-header {
@@ -44,13 +44,13 @@
 
 .device-check-header h2 {
   margin: 0 0 10px;
-  color: #333;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
 .device-score {
   font-size: 18px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .device-score .score {
@@ -138,14 +138,14 @@
 .req-details strong {
   display: block;
   margin-bottom: 4px;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .req-details p {
   margin: 0;
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
@@ -194,7 +194,7 @@
 
 .device-details h3 {
   margin: 0 0 15px;
-  color: #333;
+  color: var(--text-primary);
   font-size: 16px;
 }
 

@@ -185,6 +185,8 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     const submission = {
       id: `${userId}_${Date.now()}`,
       user_id: userId,
+      user_name: submissionData.userName || submissionData.student_name || 'Unknown Student',
+      user_email: submissionData.userEmail || submissionData.student_email || '',
       test_type: submissionData.testType || 'general',
       score: submissionData.score || 0,
       total_questions: submissionData.totalQuestions || 0,
@@ -208,6 +210,14 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     existingSubmissions.push(submission);
     localStorage.setItem('all_submissions', JSON.stringify(existingSubmissions));
     
+    // Trigger leaderboard refresh
+    try {
+      const { default: leaderboardService } = await import('./leaderboardService');
+      leaderboardService.refreshLeaderboard();
+    } catch (err) {
+      console.warn('Could not refresh leaderboard:', err);
+    }
+    
     return { success: true, data: submission };
   } catch (error) {
     console.error('❌ Error submitting test to Supabase:', error);
@@ -216,6 +226,8 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     const submission = {
       id: `${userId}_${Date.now()}`,
       user_id: userId,
+      user_name: submissionData.userName || submissionData.student_name || 'Unknown Student',
+      user_email: submissionData.userEmail || submissionData.student_email || '',
       test_type: submissionData.testType || 'general',
       score: submissionData.score || 0,
       total_questions: submissionData.totalQuestions || 0,
@@ -229,6 +241,14 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     const existingSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
     existingSubmissions.push(submission);
     localStorage.setItem('all_submissions', JSON.stringify(existingSubmissions));
+    
+    // Trigger leaderboard refresh even on fallback
+    try {
+      const { default: leaderboardService } = await import('./leaderboardService');
+      leaderboardService.refreshLeaderboard();
+    } catch (err) {
+      console.warn('Could not refresh leaderboard:', err);
+    }
     
     return { success: true, data: submission, fallback: true };
   }

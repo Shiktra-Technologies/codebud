@@ -23,7 +23,7 @@
 }
 
 .error-content p {
-  color: #666;
+  color: var(--text-secondary);
   margin-bottom: 1.5rem;
   line-height: 1.6;
 }
@@ -81,7 +81,7 @@
 
 .instructions li {
   margin-bottom: 0.75rem;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .instructions ul {
@@ -106,7 +106,7 @@
 
 .technical-info summary {
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
   margin-bottom: 0.5rem;
 }

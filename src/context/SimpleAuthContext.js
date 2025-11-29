@@ -152,6 +152,20 @@ export function SimpleAuthProvider({ children }) {
     // Update user's last active time
     await updateLastActive(data.user.id);
     
+    // Store user for real-time tracking
+    localStorage.setItem('authUser', JSON.stringify({
+      id: data.user.id,
+      email: data.user.email,
+      displayName: data.user.user_metadata?.displayName || data.user.email?.split('@')[0]
+    }));
+    
+    // Import and initialize real-time tracking for this user
+    import('../services/realTimeService').then(({ default: realTimeService }) => {
+      realTimeService.trackUserActivity(data.user.id, 'logged in');
+      // Force refresh active users list
+      setTimeout(() => realTimeService.refreshActiveUsers(), 1000);
+    });
+    
     setUserRole(actualRole);
     console.log('🔑 Login - Set user role in context:', actualRole);
     return { ...data, userRole: actualRole };
@@ -171,6 +185,16 @@ export function SimpleAuthProvider({ children }) {
       setUserRole(USER_ROLES.SUPER_ADMIN);
       localStorage.setItem(`user_role_${mockUser.id}`, USER_ROLES.SUPER_ADMIN);
       
+      // Store user for real-time tracking
+      localStorage.setItem('authUser', JSON.stringify(mockUser));
+      
+      // Initialize real-time tracking for super admin
+      import('../services/realTimeService').then(({ default: realTimeService }) => {
+        realTimeService.trackUserActivity(mockUser.id, 'super admin login');
+        // Force refresh active users list
+        setTimeout(() => realTimeService.refreshActiveUsers(), 1000);
+      });
+      
       return { user: mockUser };
     } else {
       throw new Error('Invalid secret code');
@@ -179,21 +203,51 @@ export function SimpleAuthProvider({ children }) {
 
   // Logout
   const logout = async () => {
-    if (currentUser && currentUser.id === 'super_admin_session') {
-      // Handle super admin logout
+    try {
+      // Handle super admin logout (no Supabase auth)
+      if (currentUser && currentUser.id === 'super_admin_session') {
+        // Clean up super admin data
+        localStorage.removeItem(`user_role_${currentUser.id}`);
+        localStorage.removeItem('authUser');
+        
+        // Clean up heartbeat tracking synchronously
+        const heartbeatData = JSON.parse(localStorage.getItem('user_heartbeats') || '{}');
+        delete heartbeatData[currentUser.id];
+        localStorage.setItem('user_heartbeats', JSON.stringify(heartbeatData));
+        
+        setCurrentUser(null);
+        setUserRole(null);
+        return;
+      }
+      
+      // Regular user logout
+      // Clean up localStorage first (synchronously)
+      if (currentUser) {
+        localStorage.removeItem(`user_role_${currentUser.id}`);
+        localStorage.removeItem('authUser');
+        
+        // Clean up heartbeat tracking synchronously  
+        const heartbeatData = JSON.parse(localStorage.getItem('user_heartbeats') || '{}');
+        delete heartbeatData[currentUser.id];
+        localStorage.setItem('user_heartbeats', JSON.stringify(heartbeatData));
+      }
+      
+      // Clear state first to prevent UI issues
       setCurrentUser(null);
       setUserRole(null);
-      return Promise.resolve();
+      
+      // Then sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Supabase signOut error:', error);
+        // Don't throw error - user is already signed out locally
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Ensure user is logged out locally even if Supabase fails
+      setCurrentUser(null);
+      setUserRole(null);
     }
-    
-    // Clear stored role
-    if (currentUser) {
-      localStorage.removeItem(`user_role_${currentUser.id}`);
-    }
-    
-    setUserRole(null);
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
   };
 
   useEffect(() => {
@@ -204,6 +258,17 @@ export function SimpleAuthProvider({ children }) {
       
       const user = session?.user || null;
       setCurrentUser(user);
+      
+      // Store user in localStorage for real-time service
+      if (user) {
+        localStorage.setItem('authUser', JSON.stringify({
+          id: user.id,
+          email: user.email,
+          displayName: user.user_metadata?.displayName || user.email?.split('@')[0]
+        }));
+      } else {
+        localStorage.removeItem('authUser');
+      }
       
       if (user) {
         // Get user's actual role from database or localStorage

@@ -296,7 +296,7 @@
 
 .feature-tag {
   padding: var(--spacing-2) var(--spacing-4);
-  background: var(--gray-100);
+  background: var(--bg-secondary);
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-lg);
   font-size: var(--text-sm);

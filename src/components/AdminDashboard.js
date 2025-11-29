@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSimpleAuth } from '../context/SimpleAuthContext';
 import { isUserActive, formatLastSeen } from '../utils/userActivity';
 import realTimeService from '../services/realTimeService';
+import jobService from '../services/jobService';
+import leaderboardService from '../services/leaderboardService';
+import sampleDataService from '../services/sampleDataService';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -15,6 +18,20 @@ const AdminDashboard = () => {
   const [activeUsers, setActiveUsers] = useState([]);
   const [testResults, setTestResults] = useState([]);
   const [realTimeStatus, setRealTimeStatus] = useState('connecting');
+  
+  // Job posting states
+  const [jobPostings, setJobPostings] = useState([]);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [showJobModal, setShowJobModal] = useState(false);
+  const [newJobForm, setNewJobForm] = useState({
+    company: '',
+    position: '',
+    location: '',
+    type: 'Full-time',
+    salary: '',
+    description: '',
+    requirements: ''
+  });
 
   console.log('AdminDashboard render - Real-time mode:', { 
     studentsCount: students.length,
@@ -36,6 +53,89 @@ const AdminDashboard = () => {
     if (diffInHours < 24) return `${diffInHours} hours ago`;
     
     return `${Math.floor(diffInHours / 24)} days ago`;
+  };
+
+  // Job posting functions
+  const loadJobPostings = () => {
+    const jobs = jobService.getJobPostings();
+    setJobPostings(jobs);
+  };
+
+  const loadLeaderboard = () => {
+    const leaderboard = leaderboardService.getTopUsers(10);
+    setLeaderboardData(leaderboard);
+  };
+
+  const handleJobSubmit = (e) => {
+    e.preventDefault();
+    try {
+      const newJobData = {
+        ...newJobForm,
+        postedBy: currentUser?.displayName || currentUser?.email || 'Admin'
+      };
+      
+      const newJob = jobService.addJobPosting(newJobData);
+      setJobPostings([newJob, ...jobPostings]);
+      setShowJobModal(false);
+      
+      // Reset form
+      setNewJobForm({
+        company: '',
+        position: '',
+        location: '',
+        type: 'Full-time',
+        salary: '',
+        description: '',
+        requirements: ''
+      });
+      
+      alert('Job posted successfully!');
+    } catch (error) {
+      console.error('Error posting job:', error);
+      alert('Failed to post job. Please try again.');
+    }
+  };
+
+  const handleJobInputChange = (field, value) => {
+    setNewJobForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const deleteJobPosting = (jobId) => {
+    if (window.confirm('Are you sure you want to delete this job posting?')) {
+      try {
+        jobService.deleteJobPosting(jobId);
+        const updatedJobs = jobPostings.filter(job => job.id !== jobId);
+        setJobPostings(updatedJobs);
+        alert('Job posting deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting job:', error);
+        alert('Failed to delete job posting. Please try again.');
+      }
+    }
+  };
+
+  const calculateLeaderboard = () => {
+    // Use service data if available, otherwise create mock data
+    if (leaderboardData.length > 0) {
+      return leaderboardData.map(user => ({
+        id: user.userId,
+        name: user.userName,
+        email: user.userEmail || 'N/A',
+        score: user.totalScore,
+        testsCompleted: user.testsCompleted,
+        avatar: user.userName?.charAt(0) || 'S'
+      }));
+    }
+    
+    // Fallback to students data with mock scores
+    return students.map(student => ({
+      id: student.id,
+      name: student.displayName || 'Unknown Student',
+      email: student.email,
+      score: Math.floor(Math.random() * 2000) + 1000, // Mock scores
+      testsCompleted: student.testsCompleted || 0,
+      avatar: student.displayName?.charAt(0) || 'S'
+    })).sort((a, b) => b.score - a.score).slice(0, 10);
   };
 
   // Real-time data fetching
@@ -114,8 +214,22 @@ const AdminDashboard = () => {
   useEffect(() => {
     console.log('🚀 Initializing Real-Time Admin Dashboard');
     
+    // Initialize services and load data
+    jobService.initializeSampleData();
+    sampleDataService.addSampleSubmissionsToLocalStorage(); // Add sample test submissions for leaderboard
+    
     // Initial data fetch
     fetchRealTimeData();
+    loadJobPostings();
+    loadLeaderboard();
+
+    // Register for real-time leaderboard updates
+    const handleLeaderboardUpdate = (updatedLeaderboard) => {
+      console.log('📊 Admin dashboard received leaderboard update');
+      setLeaderboardData(updatedLeaderboard);
+    };
+
+    leaderboardService.onLeaderboardUpdate(handleLeaderboardUpdate);
 
     // Set up real-time subscriptions
     const unsubscribeSubmissions = realTimeService.subscribe('submissions', (payload) => {
@@ -157,6 +271,7 @@ const AdminDashboard = () => {
       unsubscribeSubmissions();
       unsubscribeUsers();
       unsubscribeActivity();
+      leaderboardService.offLeaderboardUpdate(handleLeaderboardUpdate);
     };
   }, [currentUser, fetchRealTimeData]);
 
@@ -340,6 +455,32 @@ const AdminDashboard = () => {
           onClick={() => setActiveTab('live-activity')}
         >
           🔴 Live Activity
+        </button>
+        <button 
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'leaderboard' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'leaderboard' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
+          }}
+          onClick={() => setActiveTab('leaderboard')}
+        >
+          🏆 Leaderboard
+        </button>
+        <button 
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'job-posting' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'job-posting' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
+          }}
+          onClick={() => setActiveTab('job-posting')}
+        >
+          💼 Job Posting
         </button>
       </div>
 
@@ -781,6 +922,366 @@ const AdminDashboard = () => {
                     <p style={{ margin: '0' }}>
                       User activity and submissions will appear here in real-time
                     </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'leaderboard' && (
+          <div>
+            <h2>🏆 Student Leaderboard</h2>
+            <p style={{ color: '#666', marginBottom: '20px' }}>
+              Top performing students based on assessment scores and completion rates
+            </p>
+            
+            <div style={{
+              background: 'white',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                color: 'white',
+                padding: '15px 20px',
+                fontWeight: 'bold'
+              }}>
+                Student Rankings
+              </div>
+              
+              <div style={{ padding: '0' }}>
+                {calculateLeaderboard().length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '40px', 
+                    color: '#6c757d'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
+                    <h3>No Rankings Available</h3>
+                    <p style={{ margin: '0' }}>
+                      Student rankings will appear here once assessments are completed
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #dee2e6', backgroundColor: '#f8f9fa' }}>
+                          <th style={{ padding: '12px', textAlign: 'left' }}>Rank</th>
+                          <th style={{ padding: '12px', textAlign: 'left' }}>Student</th>
+                          <th style={{ padding: '12px', textAlign: 'center' }}>Score</th>
+                          <th style={{ padding: '12px', textAlign: 'center' }}>Tests Completed</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {calculateLeaderboard().map((student, index) => (
+                          <tr key={student.id} style={{ 
+                            borderBottom: '1px solid #dee2e6',
+                            backgroundColor: index < 3 ? '#fff3cd' : 'white'
+                          }}>
+                            <td style={{ padding: '12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 'bold' }}>#{index + 1}</span>
+                                {index === 0 && <span>🥇</span>}
+                                {index === 1 && <span>🥈</span>}
+                                {index === 2 && <span>🥉</span>}
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#007bff',
+                                  color: 'white',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '14px',
+                                  fontWeight: 'bold'
+                                }}>
+                                  {student.avatar}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: '500' }}>{student.name}</div>
+                                  <div style={{ fontSize: '12px', color: '#666' }}>{student.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              <span style={{
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                backgroundColor: '#e3f2fd',
+                                color: '#1976d2',
+                                fontSize: '14px',
+                                fontWeight: 'bold'
+                              }}>
+                                {student.score}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              {student.testsCompleted}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'job-posting' && (
+          <div>
+            <h2>💼 Job Posting Management</h2>
+            <p style={{ color: '#666', marginBottom: '20px' }}>
+              Post job opportunities for students and manage existing postings
+            </p>
+            
+            {/* New Job Form */}
+            <div style={{
+              background: 'white',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                color: 'white',
+                padding: '15px 20px',
+                fontWeight: 'bold'
+              }}>
+                Post New Job Opportunity
+              </div>
+              
+              <form onSubmit={handleJobSubmit} style={{ padding: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '15px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Company Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newJobForm.company}
+                      onChange={(e) => handleJobInputChange('company', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Position Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newJobForm.position}
+                      onChange={(e) => handleJobInputChange('position', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                      placeholder="Enter position title"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '15px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Location *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newJobForm.location}
+                      onChange={(e) => handleJobInputChange('location', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                      placeholder="Enter location"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Job Type *</label>
+                    <select
+                      required
+                      value={newJobForm.type}
+                      onChange={(e) => handleJobInputChange('type', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Internship">Internship</option>
+                      <option value="Contract">Contract</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Salary Range *</label>
+                    <input
+                      type="text"
+                      required
+                      value={newJobForm.salary}
+                      onChange={(e) => handleJobInputChange('salary', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px'
+                      }}
+                      placeholder="e.g. $50,000 - $70,000"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Job Description *</label>
+                  <textarea
+                    required
+                    value={newJobForm.description}
+                    onChange={(e) => handleJobInputChange('description', e.target.value)}
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      resize: 'vertical'
+                    }}
+                    placeholder="Describe the role, responsibilities, and company culture"
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Requirements *</label>
+                  <textarea
+                    required
+                    value={newJobForm.requirements}
+                    onChange={(e) => handleJobInputChange('requirements', e.target.value)}
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      resize: 'vertical'
+                    }}
+                    placeholder="List required skills, experience, and qualifications"
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                >
+                  📝 Post Job
+                </button>
+              </form>
+            </div>
+
+            {/* Existing Job Postings */}
+            <div style={{
+              background: 'white',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                color: 'white',
+                padding: '15px 20px',
+                fontWeight: 'bold'
+              }}>
+                Current Job Postings ({jobPostings.length})
+              </div>
+              
+              <div style={{ padding: jobPostings.length === 0 ? '40px' : '0' }}>
+                {jobPostings.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    color: '#6c757d'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>💼</div>
+                    <h3>No Job Postings Yet</h3>
+                    <p style={{ margin: '0' }}>
+                      Create your first job posting using the form above
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gap: '15px', padding: '20px' }}>
+                    {jobPostings.map((job) => (
+                      <div key={job.id} style={{
+                        border: '1px solid #e9ecef',
+                        borderRadius: '6px',
+                        padding: '15px',
+                        backgroundColor: '#f8f9fa'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ margin: '0 0 5px 0', color: '#007bff' }}>{job.position}</h4>
+                            <p style={{ margin: '0 0 5px 0', fontWeight: '500' }}>{job.company}</p>
+                            <div style={{ display: 'flex', gap: '15px', fontSize: '14px', color: '#666' }}>
+                              <span>📍 {job.location}</span>
+                              <span>💰 {job.salary}</span>
+                              <span>🕒 {job.type}</span>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => deleteJobPosting(job.id)}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                        <p style={{ margin: '10px 0', fontSize: '14px', lineHeight: '1.4' }}>
+                          {job.description.substring(0, 200)}{job.description.length > 200 ? '...' : ''}
+                        </p>
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                          Posted by {job.postedBy} on {new Date(job.postedDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

@@ -105,7 +105,7 @@
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--gray-100);
+  background: var(--bg-secondary);
 }
 
 .btn-link {
@@ -248,7 +248,7 @@
 }
 
 .badge-gray {
-  background: var(--gray-100);
+  background: var(--bg-secondary);
   color: var(--gray-700);
 }
 
@@ -343,7 +343,7 @@
 }
 
 .input:disabled {
-  background: var(--gray-100);
+  background: var(--bg-secondary);
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -544,7 +544,7 @@
 .progress {
   width: 100%;
   height: 8px;
-  background: var(--gray-200);
+  background: var(--bg-secondary);
   border-radius: var(--radius-full);
   overflow: hidden;
 }

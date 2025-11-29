@@ -307,7 +307,7 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: var(--gray-200);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   border-radius: var(--radius-full);
   font-weight: var(--font-bold);
@@ -436,7 +436,7 @@
 
 .progress-bar {
   height: 12px;
-  background: var(--gray-200);
+  background: var(--bg-secondary);
   border-radius: var(--radius-full);
   overflow: hidden;
   position: relative;
@@ -492,7 +492,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gray-200);
+  background: var(--bg-secondary);
   border: 2px solid transparent;
   border-radius: var(--radius-lg);
   font-weight: var(--font-bold);

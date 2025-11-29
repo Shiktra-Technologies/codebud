@@ -225,7 +225,7 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--gray-100);
+  background: var(--bg-secondary);
   border-radius: var(--radius-full);
 }
 

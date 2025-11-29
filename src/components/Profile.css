@@ -14,7 +14,7 @@
 .profile-card h2 {
   text-align: center;
   margin-bottom: 2rem;
-  color: #333;
+  color: var(--text-primary);
   font-size: 2rem;
 }
 
@@ -27,11 +27,11 @@
 
 .profile-info p {
   margin: 0.5rem 0;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .profile-info strong {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .form-group {
@@ -41,7 +41,7 @@
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -121,7 +121,7 @@
 
 .success-message {
   background: #efe;
-  color: #363;
+  color: var(--text-secondary);
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 1rem;

@@ -221,7 +221,7 @@ class RealTimeService {
   async fetchActiveUsers() {
     const users = await this.fetchUsers();
     const now = new Date();
-    const activeThreshold = 5 * 60 * 1000; // 5 minutes
+    const activeThreshold = 2 * 60 * 1000; // 2 minutes (more sensitive)
 
     // Check heartbeat data
     const heartbeatData = JSON.parse(localStorage.getItem('user_heartbeats') || '{}');
@@ -236,10 +236,12 @@ class RealTimeService {
         }
       }
 
-      // Fallback to lastLogin
+      // Fallback to lastLogin (more generous threshold)
       if (user.lastLogin) {
         const loginTime = new Date(user.lastLogin);
-        return now - loginTime < activeThreshold;
+        if (now - loginTime < 10 * 60 * 1000) { // 10 minutes for recent logins
+          return true;
+        }
       }
 
       return false;
@@ -266,21 +268,39 @@ class RealTimeService {
 
     localStorage.setItem('user_heartbeats', JSON.stringify(heartbeatData));
     
-    // Emit to other tabs
+    // Emit to other tabs immediately for real-time updates
     this.emit('activeUsers', heartbeatData);
+    
+    console.log(`👤 Tracked activity for user ${userId}:`, activity);
+  }
+
+  /**
+   * Force refresh active users (useful after login)
+   */
+  async refreshActiveUsers() {
+    const activeUsers = await this.fetchActiveUsers();
+    this.emit('activeUsers', activeUsers);
+    console.log(`🔄 Refreshed active users: ${activeUsers.length} active`);
+    return activeUsers;
   }
 
   /**
    * Initialize heartbeat system
    */
   initializeHeartbeat() {
-    // Send heartbeat every 30 seconds
+    // Send heartbeat every 15 seconds for faster detection
     this.heartbeatInterval = setInterval(() => {
       const currentUser = this.getCurrentUser();
       if (currentUser && this.isActive) {
         this.trackUserActivity(currentUser.id, this.getCurrentActivity());
       }
-    }, 30000);
+    }, 15000);
+    
+    // Initial heartbeat
+    const currentUser = this.getCurrentUser();
+    if (currentUser) {
+      this.trackUserActivity(currentUser.id, this.getCurrentActivity());
+    }
   }
 
   /**

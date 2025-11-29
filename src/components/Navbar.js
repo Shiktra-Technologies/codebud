@@ -7,14 +7,22 @@ const Navbar = () => {
   const { currentUser, userRole, loading, logout, isStudent, isAdmin, isSuperAdmin } = useSimpleAuth();
   const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const profileRef = useRef(null);
 
   const handleLogout = async () => {
+    if (isLoggingOut) return; // Prevent multiple logout attempts
+    
     try {
-      await logout();
+      setIsLoggingOut(true);
       setIsProfileOpen(false);
+      console.log('🚪 Starting logout process...');
+      await logout();
+      console.log('✅ Logout successful');
     } catch (error) {
-      console.error('Failed to logout:', error);
+      console.error('❌ Failed to logout:', error);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -128,10 +136,11 @@ const Navbar = () => {
               </Link>
               <button 
                 onClick={handleLogout}
+                disabled={isLoggingOut}
                 className="dropdown-item logout"
               >
-                <span className="item-icon">🚪</span>
-                <span>Sign Out</span>
+                <span className="item-icon">{isLoggingOut ? '⏳' : '🚪'}</span>
+                <span>{isLoggingOut ? 'Signing Out...' : 'Sign Out'}</span>
               </button>
             </div>
           )}
