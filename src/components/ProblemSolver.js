@@ -275,7 +275,7 @@ public:
 const ProblemSolver = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { proctorState, mediaStream, startMonitoring, pauseMonitoring, stopMonitoring } = useProctor();
+  const { proctorState, mediaStream, startMonitoring, pauseMonitoring, stopMonitoring, completeTestCleanup } = useProctor();
   
   const [problem, setProblem] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
@@ -322,9 +322,13 @@ const ProblemSolver = () => {
   // Check if test was submitted due to violation
   useEffect(() => {
     if (proctorState.testSubmitted && !isSubmitting) {
+      // Automatically cleanup when test is submitted due to violation
+      setTimeout(() => {
+        completeTestCleanup();
+      }, 500);
       navigate('/submitted');
     }
-  }, [proctorState.testSubmitted, navigate, isSubmitting]);
+  }, [proctorState.testSubmitted, navigate, isSubmitting, completeTestCleanup]);
 
   // Monitor for violations
   useEffect(() => {
@@ -375,8 +379,10 @@ const ProblemSolver = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     
-    // Stop monitoring immediately when submitted due to violations
-    stopMonitoring();
+    // Automatically cleanup - exit fullscreen and turn off camera
+    setTimeout(() => {
+      completeTestCleanup();
+    }, 500); // Quick cleanup for violation submission
     
     setShowViolationModal(false);
     navigate('/submitted');
@@ -479,6 +485,12 @@ const ProblemSolver = () => {
 
       // Save results
       localStorage.setItem('testResults', JSON.stringify(results));
+
+      // Automatically cleanup - exit fullscreen and turn off camera
+      setTimeout(() => {
+        completeTestCleanup();
+      }, 1000); // Small delay to ensure results are saved
+
       navigate('/submitted');
     }
   };

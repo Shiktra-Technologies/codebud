@@ -33,16 +33,15 @@ const Login = ({ onToggle }) => {
           return;
         }
         await superAdminLogin(secretCode);
-        // Direct navigation to super admin dashboard
-        navigate('/super-admin', { replace: true });
+        // Redirect to dashboard, which will handle the routing
+        navigate('/dashboard', { replace: true });
       } else {
         // Pass the selected role to login function
         const selectedRole = loginType === 'admin' ? USER_ROLES.ADMIN : USER_ROLES.STUDENT;
         await login(email, password, selectedRole);
         
-        // Navigate directly to the appropriate dashboard based on selected role
-        const dashboardPath = selectedRole === USER_ROLES.ADMIN ? '/admin' : '/student';
-        navigate(dashboardPath, { replace: true });
+        // Always redirect to dashboard, which will handle role-based routing
+        navigate('/dashboard', { replace: true });
       }
     } catch (error) {
       let errorMessage = 'Failed to sign in: ';
@@ -163,7 +162,6 @@ const Login = ({ onToggle }) => {
                 required
                 className="secret-input"
               />
-              <small className="input-hint">No email or password required</small>
             </div>
           )}
           
@@ -208,12 +206,6 @@ const Login = ({ onToggle }) => {
               Sign up
             </button>
           </p>
-
-          {!showSecretField && (
-            <p className="secret-access-hint">
-              <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> for admin access
-            </p>
-          )}
         </div>
       </div>
     </div>

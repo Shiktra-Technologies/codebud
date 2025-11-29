@@ -304,21 +304,16 @@ const SubmissionPage = () => {
           </button>
         </div>
 
-        {/* Fullscreen Exit Section */}
-        {permissions.fullscreen && (
-          <div className="fullscreen-exit-section">
-            <div className="fullscreen-notice">
-              <h4>🖥️ Still in Fullscreen Mode</h4>
-              <p>You can now safely exit fullscreen mode if you wish to continue using your browser normally.</p>
-              <button 
-                onClick={exitFullscreen}
-                className="exit-fullscreen-btn"
-              >
-                Exit Fullscreen
-              </button>
-            </div>
+        {/* Test Completion Notice */}
+        <div className="completion-notice">
+          <div className="notice-content">
+            <h4>✅ Test Session Complete</h4>
+            <p>
+              Your test has been successfully submitted. The monitoring system has been automatically disabled, 
+              fullscreen mode has been exited, and camera permissions have been turned off.
+            </p>
           </div>
-        )}
+        </div>
 
         <div className="footer-note">
           <p>

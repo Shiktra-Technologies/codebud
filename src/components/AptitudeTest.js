@@ -8,7 +8,7 @@ import './AptitudeTest.css';
 
 const AptitudeTest = () => {
   const navigate = useNavigate();
-  const { startMonitoring, pauseMonitoring, stopMonitoring, proctorState } = useProctor();
+  const { startMonitoring, pauseMonitoring, stopMonitoring, proctorState, completeTestCleanup } = useProctor();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(3600); // 60 minutes
@@ -83,6 +83,10 @@ const AptitudeTest = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (proctorState.testSubmitted && !isSubmitting) {
+      // Automatically cleanup when test is submitted due to violation
+      setTimeout(() => {
+        completeTestCleanup();
+      }, 500);
       handleSubmitTest();
       return;
     }
@@ -253,8 +257,13 @@ const AptitudeTest = () => {
     // Save results
     localStorage.setItem('testResults', JSON.stringify(results));
 
+    // Automatically cleanup - exit fullscreen and turn off camera
+    setTimeout(() => {
+      completeTestCleanup();
+    }, 1000); // Small delay to ensure results are saved
+
     navigate('/submitted');
-  }, [isSubmitting, pauseMonitoring, startTime, setStartTime, questionStartTimes, currentQuestion, answers, questions, timeRemaining, proctorState.violationCount, proctorState.maxViolations, proctorState.violations, proctorState.testSubmitted, proctorState.autoSubmitted, navigate]);
+  }, [isSubmitting, pauseMonitoring, completeTestCleanup, startTime, setStartTime, questionStartTimes, currentQuestion, answers, questions, timeRemaining, proctorState.violationCount, proctorState.maxViolations, proctorState.violations, proctorState.testSubmitted, proctorState.autoSubmitted, navigate]);
 
   const handleViolationAcknowledge = () => {
     setShowViolationModal(false);

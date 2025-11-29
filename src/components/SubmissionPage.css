@@ -449,52 +449,33 @@
   font-weight: 600;
 }
 
-/* Fullscreen Exit Section */
-.fullscreen-exit-section {
+/* Test Completion Notice */
+.completion-notice {
   margin: 30px 0;
   padding: 0;
 }
 
-.fullscreen-notice {
-  background: linear-gradient(135deg, #e6f3ff, #f0f8ff);
-  border: 2px solid #4299e1;
+.notice-content {
+  background: linear-gradient(135deg, #e6ffed, #f0fff4);
+  border: 2px solid #48bb78;
   border-radius: 12px;
   padding: 24px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.1);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.1);
 }
 
-.fullscreen-notice h4 {
-  color: #2b6cb0;
+.notice-content h4 {
+  color: #2f855a;
   font-size: 1.3rem;
   font-weight: 600;
   margin-bottom: 12px;
 }
 
-.fullscreen-notice p {
+.notice-content p {
   color: #4a5568;
   font-size: 1rem;
-  margin-bottom: 20px;
+  margin: 0;
   line-height: 1.5;
-}
-
-.exit-fullscreen-btn {
-  background: linear-gradient(135deg, #4299e1, #3182ce);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.exit-fullscreen-btn:hover {
-  background: linear-gradient(135deg, #3182ce, #2c5aa0);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.1);
 }
 
 /* Comprehensive Violation Analysis Styles */

@@ -44,19 +44,9 @@ const Home = () => {
     return <Loading />;
   }
   
-  // If authenticated with role, redirect to appropriate dashboard
+  // If authenticated with role, redirect to dashboard which handles role routing
   console.log('Home: User with role, redirecting to dashboard');
-  switch (userRole) {
-    case 'student':
-      return <Navigate to="/student" replace />;
-    case 'admin':
-      return <Navigate to="/admin" replace />;
-    case 'super_admin':
-      return <Navigate to="/super-admin" replace />;
-    default:
-      console.error('Unknown user role:', userRole);
-      return <Navigate to="/auth" replace />;
-  }
+  return <Navigate to="/dashboard" replace />;
 };
 
 export default Home;

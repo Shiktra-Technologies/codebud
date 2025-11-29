@@ -278,6 +278,52 @@ export const ProctorProvider = ({ children }) => {
     setPermissions(prev => ({ ...prev, fullscreen: false }));
   }, []);
 
+  // Complete test cleanup - exits fullscreen and stops camera
+  const completeTestCleanup = useCallback(() => {
+    console.log('🧹 Starting complete test cleanup');
+    
+    // Exit fullscreen automatically
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(console.error);
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+    
+    // Stop all media tracks (camera and microphone)
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => {
+        track.stop();
+        console.log(`🔴 Stopped ${track.kind} track`);
+      });
+      setMediaStream(null);
+    }
+    
+    // Close audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    // Reset all permissions
+    setPermissions({
+      camera: false,
+      microphone: false,
+      fullscreen: false
+    });
+    
+    // Stop monitoring
+    setProctorState(prev => ({ 
+      ...prev, 
+      isMonitoring: false 
+    }));
+    
+    console.log('✅ Complete test cleanup finished');
+  }, [mediaStream]);
+
   // Optimized violation tracking
   const addViolation = useCallback((type, description) => {
     if (proctorState.testSubmitted) return;
@@ -496,6 +542,7 @@ export const ProctorProvider = ({ children }) => {
     pauseMonitoring,
     stopMonitoring,
     exitFullscreen,
+    completeTestCleanup,
     addViolation,
     submitTestDueToViolation,
     videoRef,

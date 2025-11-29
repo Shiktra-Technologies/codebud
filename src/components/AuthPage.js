@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Login from './Login';
 import Signup from './Signup';
-import AuthNotice from './AuthNotice';
 
 const AuthPage = () => {
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -12,7 +11,6 @@ const AuthPage = () => {
 
   return (
     <div style={{ padding: '2rem 0' }}>
-      <AuthNotice />
       {isLoginMode ? (
         <Login onToggle={toggleMode} />
       ) : (
