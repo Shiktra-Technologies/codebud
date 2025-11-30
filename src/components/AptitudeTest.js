@@ -11,7 +11,7 @@ const AptitudeTest = () => {
   const { startMonitoring, pauseMonitoring, stopMonitoring, proctorState, completeTestCleanup } = useProctor();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeRemaining, setTimeRemaining] = useState(3600); // 60 minutes
+  const [timeRemaining, setTimeRemaining] = useState(5400); // 90 minutes (30 questions * 3 minutes each)
   const [testStarted, setTestStarted] = useState(false);
   const [showViolationModal, setShowViolationModal] = useState(false);
   const [unacknowledgedViolations, setUnacknowledgedViolations] = useState([]);
@@ -21,7 +21,7 @@ const AptitudeTest = () => {
   const [questionStartTimes, setQuestionStartTimes] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sample aptitude questions - replace with your actual questions
+  // Comprehensive aptitude test questions covering multiple domains
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const questions = [
     {
@@ -41,6 +41,168 @@ const AptitudeTest = () => {
       question: "If all Bloops are Razzles and all Razzles are Lazzles, then all Bloops are definitely Lazzles.",
       options: ["True", "False", "Cannot be determined", "Sometimes true"],
       correct: 0
+    },
+    {
+      id: 4,
+      question: "A shirt originally costs $80. If it's on sale for 25% off, what is the sale price?",
+      options: ["$55", "$60", "$65", "$70"],
+      correct: 1
+    },
+    {
+      id: 5,
+      question: "Which word is the odd one out?",
+      options: ["Apple", "Orange", "Banana", "Carrot"],
+      correct: 3
+    },
+    {
+      id: 6,
+      question: "If 3x + 7 = 22, what is the value of x?",
+      options: ["3", "5", "7", "9"],
+      correct: 1
+    },
+    {
+      id: 7,
+      question: "Complete the analogy: Book is to Reading as Fork is to ?",
+      options: ["Cooking", "Eating", "Kitchen", "Spoon"],
+      correct: 1
+    },
+    {
+      id: 8,
+      question: "What is 15% of 200?",
+      options: ["25", "30", "35", "40"],
+      correct: 1
+    },
+    {
+      id: 9,
+      question: "Which number should come next: 1, 4, 9, 16, 25, ?",
+      options: ["30", "35", "36", "49"],
+      correct: 2
+    },
+    {
+      id: 10,
+      question: "If it takes 5 machines 5 minutes to make 5 widgets, how long would it take 100 machines to make 100 widgets?",
+      options: ["5 minutes", "20 minutes", "100 minutes", "500 minutes"],
+      correct: 0
+    },
+    {
+      id: 11,
+      question: "What is the next letter in this sequence: A, E, I, M, ?",
+      options: ["O", "P", "Q", "R"],
+      correct: 2
+    },
+    {
+      id: 12,
+      question: "A cube has how many faces?",
+      options: ["4", "6", "8", "12"],
+      correct: 1
+    },
+    {
+      id: 13,
+      question: "If today is Wednesday, what day will it be 100 days from now?",
+      options: ["Monday", "Tuesday", "Wednesday", "Friday"],
+      correct: 3
+    },
+    {
+      id: 14,
+      question: "What is the missing number: 2, 6, 12, 20, 30, ?",
+      options: ["40", "42", "44", "48"],
+      correct: 1
+    },
+    {
+      id: 15,
+      question: "Which of these is NOT a prime number?",
+      options: ["17", "19", "21", "23"],
+      correct: 2
+    },
+    {
+      id: 16,
+      question: "Complete the pattern: Triangle, Square, Pentagon, ?",
+      options: ["Circle", "Hexagon", "Octagon", "Rectangle"],
+      correct: 1
+    },
+    {
+      id: 17,
+      question: "If you rearrange the letters 'CIFAIPC', you would have the name of a(n):",
+      options: ["City", "Animal", "Ocean", "Country"],
+      correct: 2
+    },
+    {
+      id: 18,
+      question: "What is 7² + 3² ?",
+      options: ["49", "52", "58", "100"],
+      correct: 2
+    },
+    {
+      id: 19,
+      question: "In a certain code, MOUSE is written as NLFPD. How is CHAIR written?",
+      options: ["DIBJS", "BGZHQ", "DGJCS", "BFGHO"],
+      correct: 0
+    },
+    {
+      id: 20,
+      question: "If the time is 3:15, what is the angle between the hour and minute hands?",
+      options: ["0°", "7.5°", "15°", "90°"],
+      correct: 1
+    },
+    {
+      id: 21,
+      question: "Which comes next in the series: Z, Y, X, W, V, ?",
+      options: ["T", "U", "S", "R"],
+      correct: 1
+    },
+    {
+      id: 22,
+      question: "A man is 24 years old. His brother is half his age. When the man is 100, how old will his brother be?",
+      options: ["50", "76", "88", "100"],
+      correct: 2
+    },
+    {
+      id: 23,
+      question: "What is the area of a rectangle with length 8 cm and width 5 cm?",
+      options: ["26 cm²", "40 cm²", "13 cm²", "80 cm²"],
+      correct: 1
+    },
+    {
+      id: 24,
+      question: "Which word means the opposite of 'abundant'?",
+      options: ["Plenty", "Scarce", "Ample", "Rich"],
+      correct: 1
+    },
+    {
+      id: 25,
+      question: "If A = 1, B = 2, C = 3, what does 'CAB' equal?",
+      options: ["6", "312", "321", "123"],
+      correct: 0
+    },
+    {
+      id: 26,
+      question: "What percentage is 45 out of 180?",
+      options: ["20%", "25%", "30%", "35%"],
+      correct: 1
+    },
+    {
+      id: 27,
+      question: "Complete the sequence: 3, 7, 15, 31, ?",
+      options: ["47", "63", "79", "95"],
+      correct: 1
+    },
+    {
+      id: 28,
+      question: "If you fold a piece of paper in half 3 times and then make one cut, how many pieces will you have when you unfold it?",
+      options: ["4", "6", "8", "9"],
+      correct: 3
+    },
+    {
+      id: 29,
+      question: "What is the next number in the Fibonacci sequence: 1, 1, 2, 3, 5, 8, ?",
+      options: ["11", "13", "15", "21"],
+      correct: 1
+    },
+    {
+      id: 30,
+      question: "A clock shows 3:00. What will be the time when the minute hand moves 210°?",
+      options: ["6:30", "7:00", "8:30", "9:00"],
+      correct: 2
     }
   ];
 
@@ -365,11 +527,34 @@ const AptitudeTest = () => {
         </div>
       </div>
 
-      <div className="progress-bar">
-        <div 
-          className="progress-fill" 
-          style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-        ></div>
+      {/* Minimalistic Progress Bar */}
+      <div className="progress-container">
+        <div className="progress-info">
+          <span className="progress-text">Question {currentQuestion + 1} of {questions.length}</span>
+          <span className="progress-percentage">{Math.round(((currentQuestion + 1) / questions.length) * 100)}%</span>
+        </div>
+        <div className="progress-bar">
+          <div 
+            className="progress-fill" 
+            style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+          ></div>
+          {/* Progress dots for visual feedback */}
+          <div className="progress-dots">
+            {Array.from({ length: Math.min(questions.length, 10) }, (_, i) => {
+              const questionIndex = Math.floor((i / 9) * (questions.length - 1));
+              const isCompleted = questionIndex <= currentQuestion;
+              const isAnswered = answers[questions[questionIndex]?.id] !== undefined;
+              return (
+                <div 
+                  key={i}
+                  className={`progress-dot ${isCompleted ? 'completed' : ''} ${isAnswered ? 'answered' : ''}`}
+                  style={{ left: `${(questionIndex / (questions.length - 1)) * 100}%` }}
+                  title={`Question ${questionIndex + 1}${isAnswered ? ' (Answered)' : ''}`}
+                />
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

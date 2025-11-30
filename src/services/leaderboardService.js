@@ -6,6 +6,12 @@ const LEADERBOARD_STORAGE_KEY = 'leaderboard_data';
 const USER_SCORES_KEY = 'user_scores';
 
 export const leaderboardService = {
+  // Initialize listeners when service is created
+  init() {
+    this.startListeningForUpdates();
+    return this;
+  },
+
   /**
    * Get current leaderboard data
    */
@@ -272,6 +278,9 @@ export const leaderboardService = {
       console.log('🔄 Refreshing leaderboard after new submission');
       const updatedLeaderboard = this.buildLeaderboardFromSubmissions();
       
+      // Broadcast update to other tabs/devices
+      this.broadcastLeaderboardUpdate(updatedLeaderboard);
+      
       // Trigger any listeners or callbacks
       if (typeof window !== 'undefined' && window.leaderboardUpdateCallbacks) {
         window.leaderboardUpdateCallbacks.forEach(callback => callback(updatedLeaderboard));
@@ -281,6 +290,129 @@ export const leaderboardService = {
     } catch (error) {
       console.error('Error refreshing leaderboard:', error);
       return [];
+    }
+  },
+
+  /**
+   * Broadcast leaderboard update across devices/tabs
+   */
+  broadcastLeaderboardUpdate(leaderboardData) {
+    try {
+      const updatePayload = {
+        type: 'leaderboard_update',
+        timestamp: new Date().toISOString(),
+        data: leaderboardData
+      };
+
+      // BroadcastChannel for cross-tab communication
+      if (typeof BroadcastChannel !== 'undefined') {
+        if (!this.broadcastChannel) {
+          this.broadcastChannel = new BroadcastChannel('leaderboard_updates');
+        }
+        this.broadcastChannel.postMessage(updatePayload);
+      }
+
+      // localStorage event for cross-device sync (when multiple browsers/devices)
+      localStorage.setItem('leaderboard_last_update', JSON.stringify(updatePayload));
+      
+      // Custom event for same-tab components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('leaderboard_updated', { 
+          detail: updatePayload 
+        }));
+      }
+      
+      console.log('📡 Leaderboard update broadcasted to all devices/tabs');
+    } catch (error) {
+      console.error('Error broadcasting leaderboard update:', error);
+    }
+  },
+
+  /**
+   * Listen for leaderboard updates from other devices/tabs
+   */
+  startListeningForUpdates() {
+    try {
+      // BroadcastChannel listener
+      if (typeof BroadcastChannel !== 'undefined') {
+        if (!this.broadcastChannel) {
+          this.broadcastChannel = new BroadcastChannel('leaderboard_updates');
+        }
+        
+        this.broadcastChannel.onmessage = (event) => {
+          console.log('📨 Received leaderboard update from another tab');
+          this.handleIncomingUpdate(event.data);
+        };
+      }
+
+      // localStorage listener for cross-device updates
+      const handleStorageChange = (event) => {
+        if (event.key === 'leaderboard_last_update' && event.newValue) {
+          try {
+            const updateData = JSON.parse(event.newValue);
+            console.log('📨 Received leaderboard update from another device');
+            this.handleIncomingUpdate(updateData);
+          } catch (error) {
+            console.error('Error parsing leaderboard update:', error);
+          }
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      
+      // Store reference for cleanup
+      this._storageListener = handleStorageChange;
+      
+      console.log('👂 Started listening for leaderboard updates');
+    } catch (error) {
+      console.error('Error setting up leaderboard listeners:', error);
+    }
+  },
+
+  /**
+   * Handle incoming leaderboard updates
+   */
+  handleIncomingUpdate(updateData) {
+    try {
+      if (updateData.type === 'leaderboard_update' && updateData.data) {
+        // Update local storage
+        localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(updateData.data));
+        
+        // Trigger callbacks
+        if (typeof window !== 'undefined' && window.leaderboardUpdateCallbacks) {
+          window.leaderboardUpdateCallbacks.forEach(callback => callback(updateData.data));
+        }
+        
+        // Trigger custom event
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('leaderboard_updated', { 
+            detail: updateData 
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error handling incoming leaderboard update:', error);
+    }
+  },
+
+  /**
+   * Stop listening for updates (cleanup)
+   */
+  stopListeningForUpdates() {
+    try {
+      if (this.broadcastChannel) {
+        this.broadcastChannel.close();
+        this.broadcastChannel = null;
+      }
+      
+      if (this._storageListener) {
+        window.removeEventListener('storage', this._storageListener);
+        this._storageListener = null;
+      }
+      
+      console.log('🔕 Stopped listening for leaderboard updates');
+    } catch (error) {
+      console.error('Error stopping leaderboard listeners:', error);
     }
   },
 
@@ -306,4 +438,7 @@ export const leaderboardService = {
   }
 };
 
-export default leaderboardService;
+// Initialize the service with real-time listeners
+const initializedLeaderboardService = leaderboardService.init();
+
+export default initializedLeaderboardService;

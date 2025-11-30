@@ -46,6 +46,19 @@
     gap: var(--spacing-4);
     text-align: center;
   }
+  
+  .progress-container {
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+  
+  .progress-info {
+    margin-bottom: var(--spacing-2);
+  }
+  
+  .progress-text,
+  .progress-percentage {
+    font-size: var(--text-xs);
+  }
 }
 
 .test-info h1 {
@@ -144,7 +157,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: var(--spacing-10) var(--spacing-8);
+  padding: var(--spacing-10) var(--spacing-8) var(--spacing-20);  /* Add bottom padding for fixed progress bar */
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
@@ -226,7 +239,7 @@
 }
 
 .question-text {
-  color: var(--text-primary);
+  color: #1f2937;  /* Dark gray for visibility on white background */
   font-size: var(--text-2xl);
   margin-bottom: var(--spacing-8);
   line-height: var(--leading-relaxed);
@@ -307,8 +320,8 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: #f3f4f6;  /* Light gray background */
+  color: #374151;       /* Dark gray text for visibility */
   border-radius: var(--radius-full);
   font-weight: var(--font-bold);
   font-size: var(--text-lg);
@@ -329,7 +342,7 @@
 
 .option-text {
   font-size: var(--text-lg);
-  color: var(--text-secondary);
+  color: #6b7280;  /* Medium gray for option text */
   flex: 1;
   line-height: var(--leading-relaxed);
   transition: all var(--transition-base);
@@ -337,7 +350,7 @@
 
 .option:hover .option-text,
 .option.selected .option-text {
-  color: var(--text-primary);
+  color: #111827;  /* Very dark gray for selected/hovered options */
   font-weight: var(--font-medium);
 }
 
@@ -423,7 +436,7 @@
 .progress-label {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
-  color: var(--text-primary);
+  color: #374151;  /* Dark gray for visibility */
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -434,19 +447,53 @@
   color: var(--primary-600);
 }
 
+/* ==================== MINIMALISTIC PROGRESS BAR ==================== */
+
+.progress-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  padding: var(--spacing-4) var(--spacing-6);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+}
+
+.progress-text {
+  font-size: var(--text-sm);
+  color: #6b7280;
+  font-weight: var(--font-medium);
+}
+
+.progress-percentage {
+  font-size: var(--text-sm);
+  color: #3b82f6;
+  font-weight: var(--font-bold);
+}
+
 .progress-bar {
-  height: 12px;
-  background: var(--bg-secondary);
+  height: 4px;
+  background: #e5e7eb;
   border-radius: var(--radius-full);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
+  margin: var(--spacing-1) 0;
 }
 
 .progress-fill {
   height: 100%;
-  background: var(--gradient-primary);
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
   border-radius: var(--radius-full);
-  transition: width var(--transition-slow);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
@@ -455,8 +502,46 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
   animation: shimmer 2s infinite;
+  opacity: 0.8;
+}
+
+.progress-dots {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  pointer-events: none;
+}
+
+.progress-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d1d5db;
+  border: 2px solid #ffffff;
+  transform: translateX(-50%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-dot.completed {
+  background: #3b82f6;
+  transform: translateX(-50%) scale(1.2);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.progress-dot.answered {
+  background: #10b981;
+  border-color: #ffffff;
+}
+
+.progress-dot.completed.answered {
+  background: #059669;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
 }
 
 /* ==================== QUESTION PALETTE ==================== */
@@ -474,7 +559,7 @@
 .palette-header {
   font-size: var(--text-base);
   font-weight: var(--font-bold);
-  color: var(--text-primary);
+  color: #374151;  /* Dark gray for visibility */
   margin-bottom: var(--spacing-4);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -581,10 +666,27 @@
 
 .completion-stat-label {
   font-size: var(--text-base);
-  color: var(--text-secondary);
+  color: #6b7280;  /* Medium gray for visibility */
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: var(--font-semibold);
+}
+
+/* ==================== TEXT VISIBILITY FIXES ==================== */
+/* Additional overrides to ensure text is always visible */
+
+.question-section .question-text,
+.question-section h2 {
+  color: #1f2937 !important;  /* Force dark color for questions */
+}
+
+.option .option-text {
+  color: #6b7280 !important;  /* Force medium gray for options */
+}
+
+.option:hover .option-text,
+.option.selected .option-text {
+  color: #111827 !important;  /* Force very dark for selected/hovered */
 }
 
 /* ==================== RESPONSIVE DESIGN ==================== */

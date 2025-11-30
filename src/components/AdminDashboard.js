@@ -5,6 +5,7 @@ import realTimeService from '../services/realTimeService';
 import jobService from '../services/jobService';
 import leaderboardService from '../services/leaderboardService';
 import sampleDataService from '../services/sampleDataService';
+import adminCSVService from '../services/adminCSVService';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -31,6 +32,21 @@ const AdminDashboard = () => {
     salary: '',
     description: '',
     requirements: ''
+  });
+
+  // CSV Reports states
+  const [csvData, setCsvData] = useState(null);
+  const [csvStats, setCsvStats] = useState(null);
+  const [recentSubmissions, setRecentSubmissions] = useState([]);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [searchCriteria, setSearchCriteria] = useState({
+    userId: '',
+    startDate: '',
+    endDate: '',
+    minScore: '',
+    maxScore: '',
+    deviceType: '',
+    hasViolations: undefined
   });
 
   console.log('AdminDashboard render - Real-time mode:', { 
@@ -115,27 +131,31 @@ const AdminDashboard = () => {
   };
 
   const calculateLeaderboard = () => {
-    // Use service data if available, otherwise create mock data
+    // Prioritize real leaderboard data from actual submissions
     if (leaderboardData.length > 0) {
       return leaderboardData.map(user => ({
         id: user.userId,
-        name: user.userName,
-        email: user.userEmail || 'N/A',
-        score: user.totalScore,
-        testsCompleted: user.testsCompleted,
-        avatar: user.userName?.charAt(0) || 'S'
+        name: user.userName || user.displayName || 'Unknown Student',
+        email: user.userEmail || user.email || 'N/A',
+        score: user.totalScore || 0,
+        testsCompleted: user.testsCompleted || 0,
+        averageScore: user.averageScore || 0,
+        lastSubmission: user.lastSubmission,
+        avatar: (user.userName || user.displayName)?.charAt(0)?.toUpperCase() || 'S'
       }));
     }
     
-    // Fallback to students data with mock scores
-    return students.map(student => ({
-      id: student.id,
-      name: student.displayName || 'Unknown Student',
-      email: student.email,
-      score: Math.floor(Math.random() * 2000) + 1000, // Mock scores
-      testsCompleted: student.testsCompleted || 0,
-      avatar: student.displayName?.charAt(0) || 'S'
-    })).sort((a, b) => b.score - a.score).slice(0, 10);
+    // If no real leaderboard data, show encouraging message
+    return [{
+      id: 'placeholder',
+      name: 'No student submissions yet',
+      email: 'Students will appear here after completing assessments',
+      score: 0,
+      testsCompleted: 0,
+      averageScore: 0,
+      avatar: '📊',
+      isPlaceholder: true
+    }];
   };
 
   // Real-time data fetching
@@ -231,6 +251,25 @@ const AdminDashboard = () => {
 
     leaderboardService.onLeaderboardUpdate(handleLeaderboardUpdate);
 
+    // Listen for custom leaderboard update events
+    const handleCustomLeaderboardUpdate = (event) => {
+      console.log('📊 Admin dashboard received custom leaderboard update event');
+      if (event.detail && event.detail.data) {
+        setLeaderboardData(event.detail.data);
+      }
+    };
+
+    // Listen for cross-device updates
+    const handleCrossDeviceUpdate = (event) => {
+      console.log('📱 Admin dashboard received cross-device update');
+      if (event.detail && event.detail.type === 'leaderboard_update') {
+        loadLeaderboard(); // Refresh leaderboard data
+      }
+    };
+
+    window.addEventListener('leaderboard_updated', handleCustomLeaderboardUpdate);
+    window.addEventListener('cross_device_update', handleCrossDeviceUpdate);
+
     // Set up real-time subscriptions
     const unsubscribeSubmissions = realTimeService.subscribe('submissions', (payload) => {
       console.log('📋 Real-time submissions update:', payload);
@@ -272,6 +311,8 @@ const AdminDashboard = () => {
       unsubscribeUsers();
       unsubscribeActivity();
       leaderboardService.offLeaderboardUpdate(handleLeaderboardUpdate);
+      window.removeEventListener('leaderboard_updated', handleCustomLeaderboardUpdate);
+      window.removeEventListener('cross_device_update', handleCrossDeviceUpdate);
     };
   }, [currentUser, fetchRealTimeData]);
 
@@ -281,6 +322,85 @@ const AdminDashboard = () => {
     setRealTimeStatus('refreshing');
     fetchRealTimeData();
   }, [fetchRealTimeData]);
+
+  // CSV Reports Handlers
+  const loadCSVData = useCallback(async () => {
+    setCsvLoading(true);
+    try {
+      const [csvData, statistics, recent] = await Promise.all([
+        adminCSVService.getCurrentCSVData(),
+        adminCSVService.getSubmissionStatistics(),
+        adminCSVService.getRecentSubmissions(10)
+      ]);
+      
+      setCsvData(csvData);
+      setCsvStats(statistics);
+      setRecentSubmissions(recent);
+    } catch (error) {
+      console.error('Failed to load CSV data:', error);
+      setError('Failed to load CSV data');
+    } finally {
+      setCsvLoading(false);
+    }
+  }, []);
+
+  const handleCSVRefresh = useCallback(async () => {
+    await adminCSVService.forceRefresh();
+    await loadCSVData();
+  }, [loadCSVData]);
+
+  const handleCSVDownload = useCallback(async (criteria = null) => {
+    try {
+      if (criteria && Object.values(criteria).some(v => v !== '' && v !== undefined)) {
+        // Download filtered CSV
+        const success = await adminCSVService.exportFilteredCSV(criteria);
+        if (!success) {
+          setError('Failed to export filtered CSV');
+        }
+      } else {
+        // Download full CSV
+        const success = await adminCSVService.downloadCSV();
+        if (!success) {
+          setError('Failed to download CSV');
+        }
+      }
+    } catch (error) {
+      console.error('CSV download error:', error);
+      setError('Failed to download CSV file');
+    }
+  }, []);
+
+  const handleCSVSearch = useCallback(async (criteria) => {
+    setCsvLoading(true);
+    try {
+      const filtered = await adminCSVService.searchSubmissions(criteria);
+      setRecentSubmissions(filtered.slice(0, 10)); // Show first 10 results
+    } catch (error) {
+      console.error('CSV search error:', error);
+      setError('Failed to search submissions');
+    } finally {
+      setCsvLoading(false);
+    }
+  }, []);
+
+  // Load CSV data when tab changes to CSV reports
+  useEffect(() => {
+    if (activeTab === 'csv-reports' && !csvData) {
+      loadCSVData();
+    }
+  }, [activeTab, csvData, loadCSVData]);
+
+  // Setup real-time CSV updates
+  useEffect(() => {
+    if (activeTab === 'csv-reports') {
+      const removeListener = adminCSVService.addUpdateListener((updateData) => {
+        console.log('CSV update received:', updateData);
+        loadCSVData(); // Refresh data when new submissions arrive
+      });
+
+      return removeListener;
+    }
+  }, [activeTab, loadCSVData]);
 
   // Show loading state while fetching initial data
   if (loading && students.length === 0) {
@@ -481,6 +601,20 @@ const AdminDashboard = () => {
           onClick={() => setActiveTab('job-posting')}
         >
           💼 Job Posting
+        </button>
+
+        <button
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'csv-reports' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'csv-reports' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
+          }}
+          onClick={() => setActiveTab('csv-reports')}
+        >
+          📊 CSV Reports
         </button>
       </div>
 
@@ -979,14 +1113,20 @@ const AdminDashboard = () => {
                         {calculateLeaderboard().map((student, index) => (
                           <tr key={student.id} style={{ 
                             borderBottom: '1px solid #dee2e6',
-                            backgroundColor: index < 3 ? '#fff3cd' : 'white'
+                            backgroundColor: student.isPlaceholder ? '#f8f9fa' : (index < 3 ? '#fff3cd' : 'white'),
+                            opacity: student.isPlaceholder ? 0.7 : 1
                           }}>
                             <td style={{ padding: '12px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontWeight: 'bold' }}>#{index + 1}</span>
-                                {index === 0 && <span>🥇</span>}
-                                {index === 1 && <span>🥈</span>}
-                                {index === 2 && <span>🥉</span>}
+                                <span style={{ 
+                                  fontWeight: 'bold',
+                                  color: student.isPlaceholder ? '#666' : '#333'
+                                }}>
+                                  {student.isPlaceholder ? '-' : `#${index + 1}`}
+                                </span>
+                                {!student.isPlaceholder && index === 0 && <span>🥇</span>}
+                                {!student.isPlaceholder && index === 1 && <span>🥈</span>}
+                                {!student.isPlaceholder && index === 2 && <span>🥉</span>}
                               </div>
                             </td>
                             <td style={{ padding: '12px' }}>
@@ -995,36 +1135,61 @@ const AdminDashboard = () => {
                                   width: '32px',
                                   height: '32px',
                                   borderRadius: '50%',
-                                  backgroundColor: '#007bff',
+                                  backgroundColor: student.isPlaceholder ? '#6c757d' : '#007bff',
                                   color: 'white',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: '14px',
+                                  fontSize: student.avatar?.length > 1 ? '18px' : '14px',
                                   fontWeight: 'bold'
                                 }}>
                                   {student.avatar}
                                 </div>
                                 <div>
-                                  <div style={{ fontWeight: '500' }}>{student.name}</div>
+                                  <div style={{ 
+                                    fontWeight: '500',
+                                    color: student.isPlaceholder ? '#666' : '#333'
+                                  }}>
+                                    {student.name}
+                                  </div>
                                   <div style={{ fontSize: '12px', color: '#666' }}>{student.email}</div>
+                                  {!student.isPlaceholder && student.lastSubmission && (
+                                    <div style={{ fontSize: '11px', color: '#999' }}>
+                                      Last: {new Date(student.lastSubmission).toLocaleDateString()}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>
                             <td style={{ padding: '12px', textAlign: 'center' }}>
-                              <span style={{
-                                padding: '4px 8px',
-                                borderRadius: '12px',
-                                backgroundColor: '#e3f2fd',
-                                color: '#1976d2',
-                                fontSize: '14px',
-                                fontWeight: 'bold'
-                              }}>
-                                {student.score}
-                              </span>
+                              {student.isPlaceholder ? (
+                                <span style={{ color: '#666', fontSize: '14px' }}>-</span>
+                              ) : (
+                                <div>
+                                  <span style={{
+                                    padding: '4px 8px',
+                                    borderRadius: '12px',
+                                    backgroundColor: '#e3f2fd',
+                                    color: '#1976d2',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold'
+                                  }}>
+                                    {student.score.toLocaleString()}
+                                  </span>
+                                  {student.averageScore && (
+                                    <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+                                      Avg: {student.averageScore}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td style={{ padding: '12px', textAlign: 'center' }}>
-                              {student.testsCompleted}
+                              <span style={{ 
+                                color: student.isPlaceholder ? '#666' : '#333'
+                              }}>
+                                {student.isPlaceholder ? '-' : student.testsCompleted}
+                              </span>
                             </td>
                           </tr>
                         ))}
@@ -1288,7 +1453,326 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'csv-reports' && (
+          <CSVReportsSection 
+            csvData={csvData}
+            csvStats={csvStats}
+            recentSubmissions={recentSubmissions}
+            searchCriteria={searchCriteria}
+            csvLoading={csvLoading}
+            onSearch={handleCSVSearch}
+            onDownload={handleCSVDownload}
+            onRefresh={handleCSVRefresh}
+            setSearchCriteria={setSearchCriteria}
+          />
+        )}
       </div>
+    </div>
+  );
+};
+
+// CSV Reports Component
+const CSVReportsSection = ({ 
+  csvData, 
+  csvStats, 
+  recentSubmissions, 
+  searchCriteria, 
+  csvLoading,
+  onSearch, 
+  onDownload, 
+  onRefresh,
+  setSearchCriteria 
+}) => {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2>📊 CSV Reports & Data Export</h2>
+        <div>
+          <button 
+            onClick={onRefresh} 
+            disabled={csvLoading}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: csvLoading ? 'not-allowed' : 'pointer',
+              marginRight: '10px'
+            }}
+          >
+            {csvLoading ? '🔄 Refreshing...' : '🔄 Refresh Data'}
+          </button>
+          <button 
+            onClick={() => onDownload()}
+            disabled={csvLoading}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: csvLoading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            📥 Download Full CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      {csvStats && (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '20px', 
+          marginBottom: '30px' 
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '10px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>{csvStats.totalSubmissions}</h3>
+            <p style={{ margin: 0, opacity: 0.9 }}>Total Submissions</p>
+          </div>
+          <div style={{
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '10px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>{csvStats.averageScore}%</h3>
+            <p style={{ margin: 0, opacity: 0.9 }}>Average Score</p>
+          </div>
+          <div style={{
+            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '10px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>{csvStats.totalViolations}</h3>
+            <p style={{ margin: 0, opacity: 0.9 }}>Total Violations</p>
+          </div>
+          <div style={{
+            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '10px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '12px' }}>
+              {csvStats.realTimeStatus === 'Active' ? '🟢 Active' : '🔴 Inactive'}
+            </h3>
+            <p style={{ margin: 0, opacity: 0.9 }}>Real-time Status</p>
+          </div>
+        </div>
+      )}
+
+      {/* Search Filters */}
+      <div style={{
+        background: '#f8f9fa',
+        padding: '20px',
+        borderRadius: '10px',
+        marginBottom: '20px',
+        border: '1px solid #dee2e6'
+      }}>
+        <h3 style={{ marginBottom: '15px' }}>🔍 Filter & Export Options</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>User ID:</label>
+            <input
+              type="text"
+              value={searchCriteria.userId}
+              onChange={(e) => setSearchCriteria({...searchCriteria, userId: e.target.value})}
+              placeholder="Search by user ID..."
+              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Start Date:</label>
+            <input
+              type="date"
+              value={searchCriteria.startDate}
+              onChange={(e) => setSearchCriteria({...searchCriteria, startDate: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>End Date:</label>
+            <input
+              type="date"
+              value={searchCriteria.endDate}
+              onChange={(e) => setSearchCriteria({...searchCriteria, endDate: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Min Score:</label>
+            <input
+              type="number"
+              min="0"
+              max="30"
+              value={searchCriteria.minScore}
+              onChange={(e) => setSearchCriteria({...searchCriteria, minScore: e.target.value})}
+              placeholder="0"
+              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Max Score:</label>
+            <input
+              type="number"
+              min="0"
+              max="30"
+              value={searchCriteria.maxScore}
+              onChange={(e) => setSearchCriteria({...searchCriteria, maxScore: e.target.value})}
+              placeholder="30"
+              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Device Type:</label>
+            <select
+              value={searchCriteria.deviceType}
+              onChange={(e) => setSearchCriteria({...searchCriteria, deviceType: e.target.value})}
+              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+            >
+              <option value="">All Devices</option>
+              <option value="Desktop">Desktop</option>
+              <option value="Mobile">Mobile</option>
+              <option value="Tablet">Tablet</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => onSearch(searchCriteria)}
+            disabled={csvLoading}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#17a2b8',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: csvLoading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            🔍 Search & Preview
+          </button>
+          <button
+            onClick={() => onDownload(searchCriteria)}
+            disabled={csvLoading}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: csvLoading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            📥 Export Filtered CSV
+          </button>
+        </div>
+      </div>
+
+      {/* Recent Submissions Preview */}
+      <div style={{
+        background: 'white',
+        border: '1px solid #dee2e6',
+        borderRadius: '10px',
+        overflow: 'hidden'
+      }}>
+        <div style={{ 
+          background: '#007bff', 
+          color: 'white', 
+          padding: '15px 20px',
+          fontWeight: 'bold'
+        }}>
+          📋 Recent Submissions Preview (Last 10)
+        </div>
+        {csvLoading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>
+            <div>🔄 Loading submission data...</div>
+          </div>
+        ) : recentSubmissions.length > 0 ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead style={{ background: '#f8f9fa' }}>
+                <tr>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>User ID</th>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Score</th>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Percentage</th>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Device</th>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Violations</th>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Submitted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentSubmissions.map((submission, index) => (
+                  <tr key={index} style={{ backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa' }}>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                      {submission.userId}
+                    </td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                      <span style={{ 
+                        color: submission.score >= 24 ? '#28a745' : submission.score >= 18 ? '#ffc107' : '#dc3545',
+                        fontWeight: 'bold'
+                      }}>
+                        {submission.score}/30
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                      {submission.percentage}%
+                    </td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                      <span style={{
+                        background: submission.deviceType === 'Desktop' ? '#007bff' : 
+                                   submission.deviceType === 'Mobile' ? '#28a745' : '#ffc107',
+                        color: 'white',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '12px'
+                      }}>
+                        {submission.deviceType}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                      <span style={{
+                        color: submission.totalViolations > 0 ? '#dc3545' : '#28a745',
+                        fontWeight: 'bold'
+                      }}>
+                        {submission.totalViolations}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6', fontSize: '12px' }}>
+                      {new Date(submission.timestamp).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#6c757d' }}>
+            📭 No submissions found. Data will appear here when users complete tests.
+          </div>
+        )}
+      </div>
+
+      {csvData && (
+        <div style={{ marginTop: '20px', fontSize: '12px', color: '#6c757d', textAlign: 'center' }}>
+          CSV last updated: {csvData.lastUpdated ? new Date(csvData.lastUpdated).toLocaleString() : 'Never'}
+          <br />
+          Total records available: {csvData.totalSubmissions || 0}
+        </div>
+      )}
     </div>
   );
 };

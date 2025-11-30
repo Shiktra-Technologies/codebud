@@ -10,11 +10,46 @@ class RealTimeService {
     this.heartbeatInterval = null;
     this.pollingIntervals = new Map();
     this.isActive = true;
+    this.deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     
     // Initialize services
     this.initializeHeartbeat();
     this.initializeActivityTracking();
     this.setupVisibilityListener();
+    this.initializeCrossDeviceSync();
+  }
+
+  /**
+   * Initialize cross-device synchronization
+   */
+  initializeCrossDeviceSync() {
+    // Listen for storage events from other devices
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'cross_device_sync' && event.newValue) {
+        try {
+          const syncData = JSON.parse(event.newValue);
+          if (syncData.deviceId !== this.deviceId && syncData.type === 'leaderboard_update') {
+            console.log('📱 Received leaderboard update from another device');
+            this.handleCrossDeviceUpdate(syncData);
+          }
+        } catch (error) {
+          console.error('Error processing cross-device sync:', error);
+        }
+      }
+    });
+  }
+
+  /**
+   * Handle updates from other devices
+   */
+  handleCrossDeviceUpdate(syncData) {
+    // Trigger leaderboard refresh
+    try {
+      const event = new CustomEvent('cross_device_update', { detail: syncData });
+      window.dispatchEvent(event);
+    } catch (error) {
+      console.error('Error handling cross-device update:', error);
+    }
   }
 
   /**
@@ -98,10 +133,39 @@ class RealTimeService {
       channel.postMessage(payload);
     }
 
-    // Update localStorage to trigger storage events
+    // Update localStorage to trigger storage events for cross-device communication
     localStorage.setItem(`realtime_${collectionName}`, JSON.stringify(payload));
+    localStorage.setItem(`realtime_${collectionName}_timestamp`, timestamp);
     
     console.log(`📤 Emitted data for ${collectionName}:`, payload);
+  }
+
+  /**
+   * Broadcast update specifically for leaderboard
+   * @param {string} updateType - Type of update
+   * @param {*} data - Data to broadcast
+   */
+  broadcastUpdate(updateType, data) {
+    this.emit(updateType, data);
+    
+    // Special handling for leaderboard updates
+    if (updateType === 'leaderboard') {
+      try {
+        // Cross-device sync via localStorage
+        const syncPayload = {
+          type: 'leaderboard_update',
+          data: data,
+          timestamp: new Date().toISOString(),
+          deviceId: this.deviceId
+        };
+        localStorage.setItem('cross_device_sync', JSON.stringify(syncPayload));
+        
+        const { default: leaderboardService } = require('./leaderboardService');
+        leaderboardService.refreshLeaderboard();
+      } catch (error) {
+        console.warn('Could not trigger leaderboard refresh:', error);
+      }
+    }
   }
 
   /**

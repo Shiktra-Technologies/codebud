@@ -129,31 +129,42 @@ const SubmissionPage = () => {
           </div>
         </div>
 
-        {/* Detailed Results for Aptitude Test */}
+        {/* Summary Statistics for Aptitude Test - No Detailed Answers */}
         {testResults.testType === 'aptitude' && testResults.answers && (
-          <div className="detailed-results">
-            <h3>📋 Question Review</h3>
-            <div className="questions-review">
-              {testResults.answers.map((answer, index) => (
-                <div key={answer.questionId} className={`question-item ${answer.isCorrect ? 'correct' : 'incorrect'}`}>
-                  <div className="question-header">
-                    <span className="question-number">Q{index + 1}</span>
-                    <span className={`result-badge ${answer.isCorrect ? 'correct' : 'incorrect'}`}>
-                      {answer.isCorrect ? '✓' : '✗'}
-                    </span>
-                    <span className="time-taken">{answer.timeSpent}s</span>
-                  </div>
-                  <div className="question-text">{answer.question}</div>
-                  <div className="answer-comparison">
-                    <div className="user-answer">
-                      <strong>Your Answer:</strong> {answer.userAnswerText}
-                    </div>
-                    <div className="correct-answer">
-                      <strong>Correct Answer:</strong> {answer.correctAnswerText}
-                    </div>
-                  </div>
+          <div className="test-summary">
+            <h3>� Test Summary</h3>
+            <div className="summary-stats">
+              <div className="summary-item">
+                <div className="stat-icon">✅</div>
+                <div className="stat-info">
+                  <span className="stat-number">{testResults.answers.filter(a => a.isCorrect).length}</span>
+                  <span className="stat-label">Correct Answers</span>
                 </div>
-              ))}
+              </div>
+              <div className="summary-item">
+                <div className="stat-icon">❌</div>
+                <div className="stat-info">
+                  <span className="stat-number">{testResults.answers.filter(a => !a.isCorrect).length}</span>
+                  <span className="stat-label">Incorrect Answers</span>
+                </div>
+              </div>
+              <div className="summary-item">
+                <div className="stat-icon">📈</div>
+                <div className="stat-info">
+                  <span className="stat-number">{testResults.percentage}%</span>
+                  <span className="stat-label">Accuracy</span>
+                </div>
+              </div>
+              <div className="summary-item">
+                <div className="stat-icon">⏱️</div>
+                <div className="stat-info">
+                  <span className="stat-number">{Math.round(testResults.answers.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / testResults.answers.length)}s</span>
+                  <span className="stat-label">Avg. Time/Question</span>
+                </div>
+              </div>
+            </div>
+            <div className="score-message">
+              <p>Your final score has been recorded. For security and test integrity purposes, detailed question-by-question answers are not displayed.</p>
             </div>
           </div>
         )}
@@ -322,6 +333,9 @@ const SubmissionPage = () => {
               ` This test was automatically submitted after reaching the maximum allowed violations (${testResults.violations.maxViolations}).`}
             {isViolationSubmission && !testResults.violations?.autoSubmitted && 
               ' This test was automatically submitted due to a critical security breach (fullscreen exit or multiple people detected).'}
+          </p>
+          <p style={{ marginTop: '10px', fontSize: '0.9em', color: '#6c757d', fontStyle: 'italic' }}>
+            Note: Individual question answers are not displayed to maintain test security and integrity.
           </p>
         </div>
       </div>

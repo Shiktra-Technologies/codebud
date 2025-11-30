@@ -17,6 +17,7 @@ import ProblemList from './components/ProblemList';
 import ProblemSolver from './components/ProblemSolver';
 import SubmissionPage from './components/SubmissionPage';
 import ActivityTracker from './components/ActivityTracker';
+import CSVForwardingTest from './components/CSVForwardingTest';
 import './App.css';
 
 function App() {
@@ -78,6 +79,11 @@ function App() {
               <Route path="/profile" element={
                 <PrivateRoute>
                   <Profile />
+                </PrivateRoute>
+              } />
+              <Route path="/csv-test" element={
+                <PrivateRoute requireRole="admin">
+                  <CSVForwardingTest />
                 </PrivateRoute>
               } />
               <Route path="*" element={<Navigate to="/" replace />} />

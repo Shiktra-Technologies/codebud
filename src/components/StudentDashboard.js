@@ -4,6 +4,7 @@ import { useSimpleAuth } from '../context/SimpleAuthContext';
 import jobService from '../services/jobService';
 import leaderboardService from '../services/leaderboardService';
 import sampleDataService from '../services/sampleDataService';
+import leaderboardDemo from '../utils/leaderboardDemo';
 import './Dashboard.css';
 
 const StudentDashboard = () => {
@@ -15,6 +16,15 @@ const StudentDashboard = () => {
   const [jobPostings, setJobPostings] = useState([]);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [userRank, setUserRank] = useState(null);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+
+  // Helper function to get avatar emoji based on name
+  const getAvatarEmoji = (name) => {
+    if (!name) return '👤';
+    const avatars = ['👨‍💻', '👩‍💻', '👨‍🎓', '👩‍🎓', '🧑‍💻', '👨‍🔬', '👩‍🔬', '🧑‍🎓'];
+    const index = name.length % avatars.length;
+    return avatars[index];
+  };
 
   // Redirect if not a student
   if (!isStudent()) {
@@ -60,7 +70,12 @@ const StudentDashboard = () => {
   // Initialize services and load data
   useEffect(() => {
     jobService.initializeSampleData();
-    sampleDataService.addSampleSubmissionsToLocalStorage(); // Add sample test submissions for leaderboard
+    // Only add sample data if no real submissions exist
+    const existingSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+    if (existingSubmissions.length === 0) {
+      sampleDataService.addSampleSubmissionsToLocalStorage();
+    }
+    
     loadJobPostings();
     loadLeaderboard();
     loadUserRank();
@@ -70,13 +85,40 @@ const StudentDashboard = () => {
       console.log('📊 Student dashboard received leaderboard update');
       setLeaderboardData(updatedLeaderboard);
       loadUserRank(); // Refresh user rank
+      setLeaderboardLoading(false);
     };
 
     leaderboardService.onLeaderboardUpdate(handleLeaderboardUpdate);
 
+    // Listen for custom leaderboard update events
+    const handleCustomLeaderboardUpdate = (event) => {
+      console.log('📊 Received custom leaderboard update event');
+      if (event.detail && event.detail.data) {
+        setLeaderboardData(event.detail.data);
+        loadUserRank();
+        setLeaderboardLoading(false);
+      }
+    };
+
+    // Listen for cross-device updates
+    const handleCrossDeviceUpdate = (event) => {
+      console.log('📱 Student dashboard received cross-device update');
+      if (event.detail && event.detail.type === 'leaderboard_update') {
+        loadLeaderboard(); // Refresh leaderboard data
+      }
+    };
+
+    window.addEventListener('leaderboard_updated', handleCustomLeaderboardUpdate);
+    window.addEventListener('cross_device_update', handleCrossDeviceUpdate);
+
+    // Initial load with loading state
+    setLeaderboardLoading(true);
+    
     // Cleanup
     return () => {
       leaderboardService.offLeaderboardUpdate(handleLeaderboardUpdate);
+      window.removeEventListener('leaderboard_updated', handleCustomLeaderboardUpdate);
+      window.removeEventListener('cross_device_update', handleCrossDeviceUpdate);
     };
   }, []);
 
@@ -170,18 +212,19 @@ const StudentDashboard = () => {
     }
   ];
 
-  // Use dynamic leaderboard data or fallback to static
+  // Use dynamic leaderboard data - prioritize real submission data
   const leaderboard = leaderboardData.length > 0 ? leaderboardData.map((user, index) => ({
     rank: user.rank || index + 1,
-    name: user.userName,
-    score: user.totalScore,
-    avatar: '👨‍💻',
-    isCurrentUser: currentUser?.uid === user.userId
+    name: user.userName || user.displayName || 'Anonymous',
+    email: user.userEmail || user.email,
+    score: user.totalScore || 0,
+    testsCompleted: user.testsCompleted || 0,
+    averageScore: user.averageScore || 0,
+    avatar: getAvatarEmoji(user.userName || user.displayName),
+    isCurrentUser: currentUser?.uid === user.userId || currentUser?.id === user.userId
   })) : [
-    { rank: 1, name: 'Alex Chen', score: 2450, avatar: '👨‍💻' },
-    { rank: 2, name: 'Sarah Kim', score: 2380, avatar: '👩‍💻' },
-    { rank: 3, name: 'David Wilson', score: 2320, avatar: '👨‍🎓' },
-    { rank: 4, name: 'Emma Davis', score: 2280, avatar: '👩‍🎓' },
+    { rank: 1, name: 'Complete an assessment', score: 0, avatar: '🎯', isPlaceholder: true },
+    { rank: 2, name: 'to see real rankings!', score: 0, avatar: '�', isPlaceholder: true },
     { rank: 5, name: 'You', score: 2150, avatar: '🏆', isCurrentUser: true }
   ];
 
@@ -462,14 +505,29 @@ const StudentDashboard = () => {
                   <div className="score-col">Score</div>
                 </div>
                 <div className="leaderboard-list">
-                  {leaderboard.length > 0 ? leaderboard.map((entry) => (
+                  {leaderboardLoading ? (
+                    <div style={{ 
+                      padding: '40px', 
+                      textAlign: 'center', 
+                      color: '#bb86fc' 
+                    }}>
+                      <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
+                      Loading leaderboard...
+                    </div>
+                  ) : leaderboard.length > 0 ? leaderboard.map((entry) => (
                     <div 
-                      key={entry.rank} 
-                      className={`leaderboard-item ${entry.isCurrentUser ? 'current-user' : ''}`}
+                      key={`${entry.rank}-${entry.name}`}
+                      className={`leaderboard-item ${entry.isCurrentUser ? 'current-user' : ''} ${entry.isPlaceholder ? 'placeholder' : ''}`}
+                      style={{ 
+                        opacity: entry.isPlaceholder ? 0.6 : 1,
+                        fontStyle: entry.isPlaceholder ? 'italic' : 'normal'
+                      }}
                     >
                       <div className="rank-col">
-                        <span className="rank-number">#{entry.rank}</span>
-                        {entry.rank <= 3 && (
+                        <span className="rank-number">
+                          {entry.isPlaceholder ? '?' : `#${entry.rank}`}
+                        </span>
+                        {!entry.isPlaceholder && entry.rank <= 3 && (
                           <span className="rank-medal">
                             {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
                           </span>
@@ -477,10 +535,24 @@ const StudentDashboard = () => {
                       </div>
                       <div className="name-col">
                         <span className="avatar">{entry.avatar}</span>
-                        <span className="name">{entry.name}</span>
+                        <div className="name-info">
+                          <span className="name">{entry.name}</span>
+                          {!entry.isPlaceholder && entry.testsCompleted && (
+                            <span className="tests-completed">
+                              {entry.testsCompleted} test{entry.testsCompleted !== 1 ? 's' : ''} completed
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="score-col">
-                        <span className="score">{entry.score.toLocaleString()}</span>
+                        <span className="score">
+                          {entry.isPlaceholder ? '-' : entry.score.toLocaleString()}
+                        </span>
+                        {!entry.isPlaceholder && entry.averageScore && (
+                          <span className="avg-score">
+                            Avg: {entry.averageScore}
+                          </span>
+                        )}
                       </div>
                     </div>
                   )) : (

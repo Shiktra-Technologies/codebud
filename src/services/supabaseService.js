@@ -210,12 +210,32 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     existingSubmissions.push(submission);
     localStorage.setItem('all_submissions', JSON.stringify(existingSubmissions));
     
-    // Trigger leaderboard refresh
+    // Forward submission to admin CSV system
+    try {
+      const { default: submissionForwardingService } = await import('./submissionForwardingService');
+      await submissionForwardingService.forwardSubmission({
+        ...submissionData,
+        userId: userId,
+        submittedAt: submission.submitted_at,
+        id: submission.id
+      });
+    } catch (forwardingError) {
+      console.error('Failed to forward submission to admin:', forwardingError);
+      // Don't fail the entire submission if forwarding fails
+    }
+    
+    // Trigger leaderboard refresh and real-time broadcast
     try {
       const { default: leaderboardService } = await import('./leaderboardService');
-      leaderboardService.refreshLeaderboard();
+      const updatedLeaderboard = leaderboardService.refreshLeaderboard();
+      
+      // Import and trigger real-time broadcast
+      const { default: realTimeService } = await import('./realTimeService');
+      realTimeService.emit('leaderboard', updatedLeaderboard);
+      
+      console.log('✅ Leaderboard updated and broadcasted after submission');
     } catch (err) {
-      console.warn('Could not refresh leaderboard:', err);
+      console.warn('Could not refresh/broadcast leaderboard:', err);
     }
     
     return { success: true, data: submission };
@@ -242,12 +262,18 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     existingSubmissions.push(submission);
     localStorage.setItem('all_submissions', JSON.stringify(existingSubmissions));
     
-    // Trigger leaderboard refresh even on fallback
+    // Trigger leaderboard refresh and real-time broadcast even on fallback
     try {
       const { default: leaderboardService } = await import('./leaderboardService');
-      leaderboardService.refreshLeaderboard();
+      const updatedLeaderboard = leaderboardService.refreshLeaderboard();
+      
+      // Import and trigger real-time broadcast
+      const { default: realTimeService } = await import('./realTimeService');
+      realTimeService.emit('leaderboard', updatedLeaderboard);
+      
+      console.log('✅ Leaderboard updated and broadcasted after fallback submission');
     } catch (err) {
-      console.warn('Could not refresh leaderboard:', err);
+      console.warn('Could not refresh/broadcast leaderboard:', err);
     }
     
     return { success: true, data: submission, fallback: true };
@@ -573,6 +599,90 @@ export const getDashboardStats = async () => {
   }
 };
 
+// ==================== ADMIN SUBMISSION FORWARDING ====================
+
+/**
+ * Save submission forwarding data
+ * @param {object} forwardingData - Forwarding metadata
+ */
+export const saveSubmissionForwarding = async (forwardingData) => {
+  try {
+    const forwardingRecord = {
+      id: `fwd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      submission_id: forwardingData.id || forwardingData.submissionId,
+      user_id: forwardingData.userId,
+      forwarded_at: forwardingData.forwardedAt || new Date().toISOString(),
+      device_info: JSON.stringify(forwardingData.deviceInfo || {}),
+      forwarding_status: forwardingData.forwardingStatus || 'completed',
+      created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('submission_forwarding')
+      .insert(forwardingRecord);
+
+    if (error) throw error;
+
+    console.log('✅ Submission forwarding saved to Supabase');
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Error saving submission forwarding:', error);
+    
+    // Fallback to localStorage
+    const existingForwarding = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
+    existingForwarding.push(forwardingRecord);
+    localStorage.setItem('submission_forwarding', JSON.stringify(existingForwarding));
+    
+    return { success: false, error: error.message, fallback: true };
+  }
+};
+
+/**
+ * Get all submissions for admin CSV generation
+ */
+export const getAllSubmissionsForAdmin = async () => {
+  try {
+    const { data: submissions, error } = await supabase
+      .from('submissions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    console.log(`📊 Retrieved ${submissions.length} submissions for CSV`);
+    return submissions;
+  } catch (error) {
+    console.error('❌ Error getting all submissions:', error);
+    
+    // Fallback to localStorage
+    const localSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+    console.log(`📊 Using ${localSubmissions.length} local submissions as fallback`);
+    return localSubmissions;
+  }
+};
+
+/**
+ * Get submission forwarding records
+ */
+export const getSubmissionForwardingRecords = async () => {
+  try {
+    const { data: records, error } = await supabase
+      .from('submission_forwarding')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return records;
+  } catch (error) {
+    console.error('❌ Error getting forwarding records:', error);
+    
+    // Fallback to localStorage
+    const localRecords = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
+    return localRecords;
+  }
+};
+
 export default {
   saveUserToSupabase,
   getUserFromSupabase,
@@ -585,5 +695,8 @@ export default {
   subscribeToUserActivity,
   subscribeToSubmissions,
   syncPendingSubmissions,
-  getDashboardStats
+  getDashboardStats,
+  saveSubmissionForwarding,
+  getAllSubmissionsForAdmin,
+  getSubmissionForwardingRecords
 };
