@@ -253,8 +253,16 @@ const AdminDashboard = () => {
           return timeB - timeA;
         });
         
-        setTestResults(uniqueSubmissions);
-        console.log(`📊 Loaded ${uniqueSubmissions.length} total submissions from all sources`);
+        // Only update if we have more comprehensive data
+        setTestResults(prev => {
+          // If we have significantly more data, use the comprehensive set
+          if (uniqueSubmissions.length > prev.length || prev.length === 0) {
+            console.log(`📊 Loaded ${uniqueSubmissions.length} total submissions from all sources`);
+            return uniqueSubmissions;
+          }
+          // Otherwise, keep the existing data to prevent jumping
+          return prev;
+        });
       }
 
       // Get activity data from real-time service
@@ -327,12 +335,27 @@ const AdminDashboard = () => {
     // Set up real-time subscriptions
     const unsubscribeSubmissions = realTimeService.subscribe('submissions', (payload) => {
       console.log('📋 Real-time submissions update:', payload);
-      const data = Array.isArray(payload) ? payload : payload.data || [];
-      if (data.length > 0) {
-        setTestResults(data); // Show all submissions
+      const newData = Array.isArray(payload) ? payload : payload.data || [];
+      if (newData.length > 0) {
+        // Merge with existing data instead of replacing it
+        setTestResults(prev => {
+          const combined = [...newData, ...prev];
+          const unique = combined.filter((item, index, self) => {
+            if (!item) return false;
+            return index === self.findIndex(s => {
+              if (s.id && item.id) return s.id === item.id;
+              const sKey = `${s.userId || s.studentEmail || 'anon'}_${s.submittedAt || s.timestamp}`;
+              const itemKey = `${item.userId || item.studentEmail || 'anon'}_${item.submittedAt || item.timestamp}`;
+              return sKey === itemKey;
+            });
+          });
+          // Sort by timestamp (newest first)
+          unique.sort((a, b) => new Date(b.submittedAt || b.timestamp || 0) - new Date(a.submittedAt || a.timestamp || 0));
+          return unique;
+        });
         setRealTimeStatus('connected');
       }
-    }, { pollInterval: 2000 });
+    }, { pollInterval: 5000 }); // Reduced frequency to prevent jumping
 
     const unsubscribeUsers = realTimeService.subscribe('activeUsers', (payload) => {
       console.log('👥 Real-time users update:', payload);
@@ -345,13 +368,17 @@ const AdminDashboard = () => {
         setActiveUsers(filteredActiveUsers);
         setRealTimeStatus('connected');
       }
-    }, { pollInterval: 3000 });
+    }, { pollInterval: 10000 }); // Reduced frequency
 
     const unsubscribeActivity = realTimeService.subscribe('activities', (payload) => {
       console.log('📊 Real-time activity update:', payload);
-      // Update user activity status
-      fetchRealTimeData();
-    }, { pollInterval: 5000 });
+      // Update activity status without refetching all data to prevent jumping
+      const data = Array.isArray(payload) ? payload : payload.data || [];
+      if (data.length > 0) {
+        // Just update the status without full data refetch
+        setRealTimeStatus('connected');
+      }
+    }, { pollInterval: 15000 }); // Much reduced frequency for activity updates
 
     // Track admin user activity
     if (currentUser) {
