@@ -5,6 +5,8 @@
 
 import submissionForwardingService from './submissionForwardingService';
 import realTimeService from './realTimeService';
+import { getAllSubmissions } from './supabaseService';
+import { supabase } from '../config/supabaseConfig';
 
 class AdminCSVService {
   constructor() {
@@ -18,16 +20,19 @@ class AdminCSVService {
 
   initialize() {
     try {
-      // Initialize BroadcastChannel for real-time updates
+      // Initialize BroadcastChannel for real-time updates (local only)
       if (typeof BroadcastChannel !== 'undefined') {
         this.updateChannel = new BroadcastChannel('admin-submissions');
         this.setupRealTimeListener();
       }
 
-      // Setup localStorage listener for cross-tab communication
+      // Setup localStorage listener for cross-tab communication (local only)
       this.setupStorageListener();
       
-      console.log('📊 Admin CSV Service initialized');
+      // Setup Supabase real-time subscriptions for cross-device updates
+      this.setupSupabaseRealTime();
+      
+      console.log('📊 Admin CSV Service initialized with cross-device support');
     } catch (error) {
       console.error('Failed to initialize Admin CSV Service:', error);
     }
@@ -65,6 +70,44 @@ class AdminCSVService {
         }
       }
     });
+  }
+
+  /**
+   * Setup Supabase real-time subscriptions for cross-device updates
+   */
+  setupSupabaseRealTime() {
+    try {
+      // Subscribe to submissions table changes
+      this.supabaseSubscription = supabase
+        .channel('admin-csv-submissions')
+        .on('postgres_changes', 
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'submissions' 
+          }, 
+          (payload) => {
+            console.log('🆕 AdminCSV received new submission via Supabase:', payload.new);
+            this.handleNewSubmission(payload.new);
+          }
+        )
+        .on('postgres_changes', 
+          { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'submissions' 
+          }, 
+          (payload) => {
+            console.log('📝 AdminCSV received submission update via Supabase:', payload.new);
+            this.handleNewSubmission(payload.new);
+          }
+        )
+        .subscribe();
+
+      console.log('✅ Supabase real-time subscriptions active for AdminCSV');
+    } catch (error) {
+      console.error('❌ Failed to setup Supabase real-time subscriptions:', error);
+    }
   }
 
   /**
@@ -241,22 +284,33 @@ class AdminCSVService {
    */
   async getRecentSubmissions(limit = 10) {
     try {
-      const allSubmissions = submissionForwardingService.getAllSubmissions();
+      // Try to get submissions from Supabase first
+      let allSubmissions = await getAllSubmissions();
       
-      // Sort by timestamp descending and limit results
+      if (!allSubmissions || allSubmissions.length === 0) {
+        // Fallback to localStorage via submissionForwardingService
+        console.warn('📦 Falling back to localStorage for recent submissions');
+        allSubmissions = submissionForwardingService.getAllSubmissions();
+      }
+      
+      // Sort by timestamp/submitted_at descending and limit results
       const recent = allSubmissions
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .sort((a, b) => {
+          const aTime = new Date(a.submitted_at || a.timestamp || a.created_at);
+          const bTime = new Date(b.submitted_at || b.timestamp || b.created_at);
+          return bTime - aTime;
+        })
         .slice(0, limit);
 
       return recent.map(submission => ({
-        userName: submission.studentName || submission.userName || 'Anonymous User',
-        userEmail: submission.studentEmail || submission.userEmail || 'No email provided', 
+        userName: submission.user_name || submission.studentName || submission.userName || 'Anonymous User',
+        userEmail: submission.user_email || submission.studentEmail || submission.userEmail || 'No email provided', 
         score: submission.score,
-        percentage: submission.percentage,
-        timestamp: submission.timestamp,
+        percentage: submission.percentage || ((submission.score / submission.total_questions) * 100),
+        timestamp: submission.submitted_at || submission.timestamp || submission.created_at,
         deviceType: submission.deviceType,
         totalViolations: submission.totalViolations,
-        submissionStatus: submission.submissionStatus
+        submissionStatus: submission.status || submission.submissionStatus
       }));
     } catch (error) {
       console.error('Failed to get recent submissions:', error);
@@ -269,15 +323,24 @@ class AdminCSVService {
    */
   async searchSubmissions(criteria = {}) {
     try {
-      const allSubmissions = submissionForwardingService.getAllSubmissions();
+      // Try to get submissions from Supabase first
+      let allSubmissions = await getAllSubmissions();
+      
+      if (!allSubmissions || allSubmissions.length === 0) {
+        // Fallback to localStorage via submissionForwardingService
+        console.warn('📦 Falling back to localStorage for submission search');
+        allSubmissions = submissionForwardingService.getAllSubmissions();
+      }
       
       let filtered = allSubmissions;
 
       // Filter by user name or email
       if (criteria.searchText) {
         filtered = filtered.filter(sub => 
+          (sub.user_name && sub.user_name.toLowerCase().includes(criteria.searchText.toLowerCase())) ||
           (sub.userName && sub.userName.toLowerCase().includes(criteria.searchText.toLowerCase())) ||
           (sub.displayName && sub.displayName.toLowerCase().includes(criteria.searchText.toLowerCase())) ||
+          (sub.user_email && sub.user_email.toLowerCase().includes(criteria.searchText.toLowerCase())) ||
           (sub.userEmail && sub.userEmail.toLowerCase().includes(criteria.searchText.toLowerCase()))
         );
       }
@@ -426,12 +489,29 @@ class AdminCSVService {
    * Clean up resources
    */
   destroy() {
-    if (this.updateChannel) {
-      this.updateChannel.close();
+    try {
+      // Unsubscribe from Supabase real-time
+      if (this.supabaseSubscription) {
+        this.supabaseSubscription.unsubscribe();
+        this.supabaseSubscription = null;
+        console.log('🔌 AdminCSV Supabase subscriptions cleaned up');
+      }
+
+      // Close BroadcastChannel
+      if (this.updateChannel) {
+        this.updateChannel.close();
+        this.updateChannel = null;
+      }
+
+      // Clear listeners and cache
+      this.listeners.clear();
+      this.csvCache = null;
+      this.isListening = false;
+      
+      console.log('✅ AdminCSV Service destroyed');
+    } catch (error) {
+      console.error('❌ Error during AdminCSV cleanup:', error);
     }
-    this.listeners.clear();
-    this.csvCache = null;
-    this.isListening = false;
   }
 }
 

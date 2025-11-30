@@ -6,6 +6,8 @@ import jobService from '../services/jobService';
 import leaderboardService from '../services/leaderboardService';
 import sampleDataService from '../services/sampleDataService';
 import adminCSVService from '../services/adminCSVService';
+import { getAllSubmissions } from '../services/supabaseService';
+import { supabase } from '../config/supabaseConfig';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -201,49 +203,65 @@ const AdminDashboard = () => {
         setActiveUsers(currentlyActive);
       }
 
-      // Get submissions from all localStorage sources (including past submissions)
-      const testResults = JSON.parse(localStorage.getItem('test_results') || '[]');
-      const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-      const pendingSubmissions = JSON.parse(localStorage.getItem('pending_submissions') || '[]');
-      const forwardingData = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
+      // Get submissions from Supabase (primary) and localStorage (fallback)
+      let uniqueSubmissions = [];
       
-      // Try to get individual test results too
-      const singleTestResult = localStorage.getItem('testResults');
-      let singleResult = [];
-      if (singleTestResult) {
-        try {
-          const parsed = JSON.parse(singleTestResult);
-          singleResult = [parsed]; // Wrap single result in array
-        } catch (e) {
-          console.warn('Could not parse single test result:', e);
+      try {
+        // Try to get submissions from Supabase first
+        const supabaseSubmissions = await getAllSubmissions();
+        if (supabaseSubmissions && supabaseSubmissions.length > 0) {
+          console.log(`✅ Loaded ${supabaseSubmissions.length} submissions from Supabase`);
+          uniqueSubmissions = supabaseSubmissions;
+        } else {
+          throw new Error('No Supabase submissions found, falling back to localStorage');
         }
-      }
-
-      // Merge all submission sources and remove duplicates
-      const allSources = [
-        ...testResults,
-        ...allSubmissions, 
-        ...pendingSubmissions,
-        ...forwardingData,
-        ...singleResult
-      ];
-      
-      // Remove duplicates based on id, timestamp, or a combination of user+timestamp
-      const uniqueSubmissions = allSources.filter((submission, index, self) => {
-        if (!submission) return false;
+      } catch (error) {
+        console.warn('📦 Falling back to localStorage for submissions:', error.message);
         
-        return index === self.findIndex(s => {
-          // Match by ID if both have IDs
-          if (s.id && submission.id) {
-            return s.id === submission.id;
+        // Fallback to localStorage sources if Supabase fails
+        const testResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+        const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+        const pendingSubmissions = JSON.parse(localStorage.getItem('pending_submissions') || '[]');
+        const forwardingData = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
+        
+        // Try to get individual test results too
+        const singleTestResult = localStorage.getItem('testResults');
+        let singleResult = [];
+        if (singleTestResult) {
+          try {
+            const parsed = JSON.parse(singleTestResult);
+            singleResult = [parsed]; // Wrap single result in array
+          } catch (e) {
+            console.warn('Could not parse single test result:', e);
           }
+        }
+
+        // Merge all localStorage sources and remove duplicates
+        const allSources = [
+          ...testResults,
+          ...allSubmissions, 
+          ...pendingSubmissions,
+          ...forwardingData,
+          ...singleResult
+        ];
+        
+        // Remove duplicates based on id, timestamp, or a combination of user+timestamp
+        uniqueSubmissions = allSources.filter((submission, index, self) => {
+          if (!submission) return false;
           
-          // Match by user+timestamp combination
-          const sKey = `${s.userId || s.studentEmail || 'anon'}_${s.submittedAt || s.timestamp}`;
-          const submissionKey = `${submission.userId || submission.studentEmail || 'anon'}_${submission.submittedAt || submission.timestamp}`;
-          return sKey === submissionKey;
+          return index === self.findIndex(s => {
+            // Match by ID if both have IDs
+            if (s.id && submission.id) {
+              return s.id === submission.id;
+            }
+            
+            // Match by user+timestamp combination
+            const sKey = `${s.userId || s.studentEmail || 'anon'}_${s.submittedAt || s.timestamp}`;
+            const submissionKey = `${submission.userId || submission.studentEmail || 'anon'}_${submission.submittedAt || submission.timestamp}`;
+            return sKey === submissionKey;
+          });
         });
-      });
+      }
       
       if (uniqueSubmissions.length > 0) {
         // Sort by submission time (newest first)
@@ -482,6 +500,89 @@ const AdminDashboard = () => {
       return removeListener;
     }
   }, [activeTab, loadCSVData]);
+
+  // Setup Supabase real-time subscriptions for cross-device updates
+  useEffect(() => {
+    console.log('🔄 Setting up Supabase real-time subscriptions for Admin Dashboard');
+    
+    // Subscribe to submissions table changes
+    const submissionsSubscription = supabase
+      .channel('admin-submissions')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'submissions' 
+        }, 
+        (payload) => {
+          console.log('🆕 New submission received via Supabase real-time:', payload.new);
+          
+          // Add new submission to testResults state
+          const newSubmission = payload.new;
+          setTestResults(prev => {
+            // Check if submission already exists to avoid duplicates
+            const exists = prev.some(sub => sub.id === newSubmission.id);
+            if (exists) return prev;
+            
+            return [...prev, newSubmission];
+          });
+          
+          // Refresh CSV data if on CSV reports tab
+          if (activeTab === 'csv-reports') {
+            loadCSVData();
+          }
+        }
+      )
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'submissions' 
+        }, 
+        (payload) => {
+          console.log('📝 Submission updated via Supabase real-time:', payload.new);
+          
+          // Update existing submission in testResults state
+          const updatedSubmission = payload.new;
+          setTestResults(prev => 
+            prev.map(sub => 
+              sub.id === updatedSubmission.id ? updatedSubmission : sub
+            )
+          );
+          
+          // Refresh CSV data if on CSV reports tab
+          if (activeTab === 'csv-reports') {
+            loadCSVData();
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to users table changes for active user tracking
+    const usersSubscription = supabase
+      .channel('admin-users')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'users' 
+        }, 
+        (payload) => {
+          console.log('👤 User activity update via Supabase real-time:', payload);
+          
+          // Refresh user data when user activities change
+          fetchRealTimeData();
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on component unmount
+    return () => {
+      console.log('🔌 Cleaning up Supabase real-time subscriptions');
+      submissionsSubscription.unsubscribe();
+      usersSubscription.unsubscribe();
+    };
+  }, [activeTab, loadCSVData, fetchRealTimeData]);
 
   // Show loading state while fetching initial data
   if (loading && students.length === 0) {
@@ -1599,6 +1700,54 @@ const CSVReportsSection = ({
           >
             📥 Download Full CSV
           </button>
+        </div>
+      </div>
+
+      {/* CSV Report Information */}
+      <div style={{ 
+        background: '#f8f9fa', 
+        padding: '20px', 
+        borderRadius: '10px', 
+        marginBottom: '20px',
+        border: '1px solid #dee2e6'
+      }}>
+        <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>📋 Comprehensive Submission Report</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', fontSize: '14px' }}>
+          <div>
+            <strong>👤 Student Information:</strong>
+            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+              <li>Student Name & Email</li>
+              <li>Session ID & Timestamps</li>
+              <li>Test Type & Version</li>
+            </ul>
+          </div>
+          <div>
+            <strong>📊 Performance Data:</strong>
+            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+              <li>Score, Percentage, Time Spent</li>
+              <li>Question-by-question answers</li>
+              <li>Individual question timing</li>
+            </ul>
+          </div>
+          <div>
+            <strong>💻 Device & Environment:</strong>
+            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+              <li>Device Type (Mobile/Desktop/Tablet)</li>
+              <li>Browser & Operating System</li>
+              <li>Screen Resolution & User Agent</li>
+            </ul>
+          </div>
+          <div>
+            <strong>🔒 Security & Proctoring:</strong>
+            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+              <li>Violation counts & details</li>
+              <li>Security assessment & trust score</li>
+              <li>Proctoring event timeline</li>
+            </ul>
+          </div>
+        </div>
+        <div style={{ marginTop: '15px', padding: '10px', background: '#e7f3ff', borderRadius: '5px', fontSize: '13px', color: '#0066cc' }}>
+          💡 <strong>Total Columns:</strong> 45+ data points per submission including detailed JSON analysis for comprehensive reporting
         </div>
       </div>
 

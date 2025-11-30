@@ -58,7 +58,27 @@ class SubmissionForwardingService {
       // Add to local CSV data
       this.csvData.push(csvRow);
 
-      // Save to persistent storage
+      // Save submission to main Supabase submissions table for cross-device access
+      try {
+        const userId = submissionData.userId || submissionData.userEmail || `anonymous_${Date.now()}`;
+        await supabaseService.submitTestToSupabase(userId, {
+          ...submissionData,
+          userName: submissionData.userName || submissionData.displayName,
+          userEmail: submissionData.userEmail || submissionData.email,
+          testType: submissionData.testType || 'aptitude',
+          score: submissionData.score || 0,
+          totalQuestions: submissionData.totalQuestions || submissionData.answers?.length || 0,
+          timeTaken: submissionData.timing?.totalTimeSpent || 0,
+          answers: submissionData.answers || [],
+          status: 'completed'
+        });
+        console.log('✅ Submission saved to Supabase submissions table');
+      } catch (supabaseError) {
+        console.error('❌ Failed to save submission to Supabase:', supabaseError);
+        // Don't fail the entire forwarding process if Supabase fails
+      }
+
+      // Save to persistent storage (forwarding metadata)
       await this.saveToStorage(submissionData);
 
       // Notify admin dashboard in real-time
@@ -90,7 +110,8 @@ class SubmissionForwardingService {
     return {
       // Basic Info
       timestamp: new Date(submission.submittedAt || Date.now()).toISOString(),
-      userId: submission.userId || 'Anonymous',
+      studentName: submission.userName || submission.displayName || 'Anonymous User',
+      studentEmail: submission.userEmail || submission.email || 'No email provided',
       sessionId: submission.sessionId || this.generateSessionId(),
       
       // Test Results
@@ -150,7 +171,87 @@ class SubmissionForwardingService {
       
       // Status
       submissionStatus: 'Completed',
-      validSubmission: this.isValidSubmission(submission)
+      validSubmission: this.isValidSubmission(submission),
+      
+      // Question-by-question details (first 5 questions for detailed view)
+      question1Answer: submission.answers?.[0]?.userAnswerText || 'Not Answered',
+      question1Correct: submission.answers?.[0]?.isCorrect ? 'Yes' : 'No',
+      question1Time: submission.answers?.[0]?.timeSpent || 0,
+      question2Answer: submission.answers?.[1]?.userAnswerText || 'Not Answered',
+      question2Correct: submission.answers?.[1]?.isCorrect ? 'Yes' : 'No', 
+      question2Time: submission.answers?.[1]?.timeSpent || 0,
+      question3Answer: submission.answers?.[2]?.userAnswerText || 'Not Answered',
+      question3Correct: submission.answers?.[2]?.isCorrect ? 'Yes' : 'No',
+      question3Time: submission.answers?.[2]?.timeSpent || 0,
+      question4Answer: submission.answers?.[3]?.userAnswerText || 'Not Answered',
+      question4Correct: submission.answers?.[3]?.isCorrect ? 'Yes' : 'No',
+      question4Time: submission.answers?.[3]?.timeSpent || 0,
+      question5Answer: submission.answers?.[4]?.userAnswerText || 'Not Answered',
+      question5Correct: submission.answers?.[4]?.isCorrect ? 'Yes' : 'No',
+      question5Time: submission.answers?.[4]?.timeSpent || 0,
+      
+      // Comprehensive analysis sections
+      detailedAnswerAnalysis: JSON.stringify({
+        totalQuestions: submission.answers?.length || 0,
+        answeredQuestions: submission.answers?.filter(a => a.userAnswer !== undefined).length || 0,
+        unansweredQuestions: submission.answers?.filter(a => a.userAnswer === undefined).length || 0,
+        averageTimePerQuestion: submission.answers?.length > 0 ? 
+          Math.round(submission.answers.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / submission.answers.length) : 0,
+        fastestQuestion: Math.min(...(submission.answers?.map(a => a.timeSpent || Infinity) || [0])),
+        slowestQuestion: Math.max(...(submission.answers?.map(a => a.timeSpent || 0) || [0])),
+        questionTypes: submission.answers?.reduce((acc, a) => {
+          const type = a.questionType || 'Multiple Choice';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {}) || {}
+      }),
+      
+      violationSummary: JSON.stringify({
+        hasViolations: (proctoring.totalViolations || 0) > 0,
+        riskLevel: (proctoring.totalViolations || 0) > 5 ? 'High' : 
+                   (proctoring.totalViolations || 0) > 2 ? 'Medium' : 'Low',
+        mostCommonViolation: proctoring.violations?.reduce((acc, v) => {
+          acc[v.type] = (acc[v.type] || 0) + 1;
+          return acc;
+        }, {}) || {},
+        violationTimeline: proctoring.violations?.map(v => ({
+          time: v.timestamp,
+          type: v.type,
+          severity: v.severity
+        })) || []
+      }),
+      
+      performanceMetrics: JSON.stringify({
+        efficiency: submission.percentage && submission.timing?.totalTimeSpent ? 
+          Math.round((submission.percentage / (submission.timing.totalTimeSpent / 60)) * 10) / 10 : 0,
+        consistency: submission.answers?.length > 0 ? 
+          Math.round((1 - (Math.max(...(submission.answers.map(a => a.timeSpent || 0))) - 
+                          Math.min(...(submission.answers.map(a => a.timeSpent || Infinity)))) / 
+                         (submission.answers.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / submission.answers.length)) * 100) : 0,
+        completionRate: submission.answers?.length > 0 ? 
+          Math.round((submission.answers.filter(a => a.userAnswer !== undefined).length / submission.answers.length) * 100) : 0,
+        accuracy: submission.percentage || 0
+      }),
+      
+      securityAssessment: JSON.stringify({
+        proctoringEnabled: true,
+        trustScore: Math.max(0, 100 - ((proctoring.totalViolations || 0) * 10)),
+        environmentSecure: (proctoring.totalViolations || 0) < 3,
+        recommendedAction: (proctoring.totalViolations || 0) > 5 ? 'Review Manually' : 
+                          (proctoring.totalViolations || 0) > 2 ? 'Minor Review' : 'Accept',
+        flaggedForReview: (proctoring.totalViolations || 0) > 3
+      }),
+      
+      testEnvironmentDetails: JSON.stringify({
+        device: deviceInfo.deviceType,
+        platform: `${deviceInfo.browser} on ${deviceInfo.os}`,
+        screenSize: deviceInfo.screenResolution,
+        testDuration: submission.timing?.totalTimeSpentFormatted || 'N/A',
+        startTime: submission.timing?.startTime ? new Date(submission.timing.startTime).toLocaleString() : 'N/A',
+        completionTime: submission.timing?.endTime ? new Date(submission.timing.endTime).toLocaleString() : 'N/A',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        userAgent: deviceInfo.userAgent?.substring(0, 100) + '...' // Truncated for readability
+      })
     };
   }
 
@@ -303,7 +404,8 @@ class SubmissionForwardingService {
   getCSVHeaders() {
     return [
       'Timestamp',
-      'User ID',
+      'Student Name',
+      'Student Email',
       'Session ID',
       'Score',
       'Total Questions',
@@ -335,7 +437,27 @@ class SubmissionForwardingService {
       'Test Version',
       'Proctoring Enabled',
       'Submission Status',
-      'Valid Submission'
+      'Valid Submission',
+      'Question 1 Answer',
+      'Question 1 Correct',
+      'Question 1 Time (sec)',
+      'Question 2 Answer',
+      'Question 2 Correct',
+      'Question 2 Time (sec)',
+      'Question 3 Answer',
+      'Question 3 Correct', 
+      'Question 3 Time (sec)',
+      'Question 4 Answer',
+      'Question 4 Correct',
+      'Question 4 Time (sec)',
+      'Question 5 Answer',
+      'Question 5 Correct',
+      'Question 5 Time (sec)',
+      'Detailed Answer Analysis',
+      'Violation Summary',
+      'Performance Metrics',
+      'Security Assessment',
+      'Test Environment Details'
     ].join(',');
   }
 
@@ -345,7 +467,8 @@ class SubmissionForwardingService {
   formatCSVRow(rowData) {
     const values = [
       rowData.timestamp,
-      rowData.userId,
+      rowData.studentName,
+      rowData.studentEmail,
       rowData.sessionId,
       rowData.score,
       rowData.totalQuestions,
@@ -377,7 +500,31 @@ class SubmissionForwardingService {
       rowData.testVersion,
       rowData.proctoringEnabled,
       rowData.submissionStatus,
-      rowData.validSubmission
+      rowData.validSubmission,
+      
+      // Question-by-question details
+      `"${(rowData.question1Answer || '').replace(/"/g, '""')}"`,
+      rowData.question1Correct,
+      rowData.question1Time,
+      `"${(rowData.question2Answer || '').replace(/"/g, '""')}"`,
+      rowData.question2Correct,
+      rowData.question2Time,
+      `"${(rowData.question3Answer || '').replace(/"/g, '""')}"`,
+      rowData.question3Correct,
+      rowData.question3Time,
+      `"${(rowData.question4Answer || '').replace(/"/g, '""')}"`,
+      rowData.question4Correct,
+      rowData.question4Time,
+      `"${(rowData.question5Answer || '').replace(/"/g, '""')}"`,
+      rowData.question5Correct,
+      rowData.question5Time,
+      
+      // Comprehensive analysis sections (JSON escaped)
+      `"${(rowData.detailedAnswerAnalysis || '{}').replace(/"/g, '""')}"`,
+      `"${(rowData.violationSummary || '{}').replace(/"/g, '""')}"`,
+      `"${(rowData.performanceMetrics || '{}').replace(/"/g, '""')}"`,
+      `"${(rowData.securityAssessment || '{}').replace(/"/g, '""')}"`,
+      `"${(rowData.testEnvironmentDetails || '{}').replace(/"/g, '""')}"`
     ];
 
     return values.join(',');
