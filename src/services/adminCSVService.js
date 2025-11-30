@@ -77,14 +77,14 @@ class AdminCSVService {
    */
   setupSupabaseRealTime() {
     try {
-      // Subscribe to submissions table changes
+      // Subscribe to submission_csv table changes
       this.supabaseSubscription = supabase
-        .channel('admin-csv-submissions')
+        .channel('admin-csv-submission-csv')
         .on('postgres_changes', 
           { 
             event: 'INSERT', 
             schema: 'public', 
-            table: 'submissions' 
+            table: 'submission_csv' 
           }, 
           (payload) => {
             console.log('🆕 AdminCSV received new submission via Supabase:', payload.new);
@@ -95,7 +95,7 @@ class AdminCSVService {
           { 
             event: 'UPDATE', 
             schema: 'public', 
-            table: 'submissions' 
+            table: 'submission_csv' 
           }, 
           (payload) => {
             console.log('📝 AdminCSV received submission update via Supabase:', payload.new);
@@ -104,7 +104,7 @@ class AdminCSVService {
         )
         .subscribe();
 
-      console.log('✅ Supabase real-time subscriptions active for AdminCSV');
+      console.log('✅ Supabase real-time subscriptions active for AdminCSV (submission_csv table)');
     } catch (error) {
       console.error('❌ Failed to setup Supabase real-time subscriptions:', error);
     }
@@ -284,13 +284,41 @@ class AdminCSVService {
    */
   async getRecentSubmissions(limit = 10) {
     try {
-      // Try to get submissions from Supabase first
-      let allSubmissions = await getAllSubmissions();
+      // Always try Supabase first
+      const result = await getAllSubmissions();
       
-      if (!allSubmissions || allSubmissions.length === 0) {
-        // Fallback to localStorage via submissionForwardingService
-        console.warn('📦 Falling back to localStorage for recent submissions');
-        allSubmissions = submissionForwardingService.getAllSubmissions();
+      if (result && result.data) {
+        console.log(`📊 AdminCSV: Using ${result.data.length} submissions from Supabase`);
+        const allSubmissions = result.data;
+        
+        // Sort by timestamp/submitted_at descending and limit results
+        const recent = allSubmissions
+          .sort((a, b) => {
+            const aTime = new Date(a.submitted_at || a.timestamp || a.created_at);
+            const bTime = new Date(b.submitted_at || b.timestamp || b.created_at);
+            return bTime - aTime;
+          })
+          .slice(0, limit);
+
+        return recent.map(submission => ({
+          userName: submission.user_name || submission.studentName || submission.userName || 'Anonymous User',
+          userEmail: submission.user_email || submission.studentEmail || submission.userEmail || 'No email provided', 
+          score: submission.score,
+          percentage: submission.percentage || ((submission.score / submission.total_questions) * 100),
+          timestamp: submission.submitted_at || submission.timestamp || submission.created_at,
+          deviceType: submission.device_info?.platform || submission.deviceType,
+          totalViolations: submission.violation_count || submission.totalViolations || 0,
+          submissionStatus: submission.status || submission.submissionStatus
+        }));
+      } else {
+        // Only fallback if Supabase truly fails
+        console.warn('📦 No Supabase data, checking localStorage');
+        const localSubmissions = submissionForwardingService.getAllSubmissions();
+        console.log(`📦 Found ${localSubmissions.length} submissions in localStorage`);
+        
+        if (localSubmissions.length === 0) {
+          return []; // Return empty array instead of thousands of fake data
+        }
       }
       
       // Sort by timestamp/submitted_at descending and limit results
@@ -324,9 +352,12 @@ class AdminCSVService {
   async searchSubmissions(criteria = {}) {
     try {
       // Try to get submissions from Supabase first
-      let allSubmissions = await getAllSubmissions();
+      let allSubmissions = [];
+      const result = await getAllSubmissions();
       
-      if (!allSubmissions || allSubmissions.length === 0) {
+      if (result && result.data && result.data.length > 0) {
+        allSubmissions = result.data;
+      } else {
         // Fallback to localStorage via submissionForwardingService
         console.warn('📦 Falling back to localStorage for submission search');
         allSubmissions = submissionForwardingService.getAllSubmissions();

@@ -6,7 +6,7 @@ import jobService from '../services/jobService';
 import leaderboardService from '../services/leaderboardService';
 import sampleDataService from '../services/sampleDataService';
 import adminCSVService from '../services/adminCSVService';
-import { getAllSubmissions } from '../services/supabaseService';
+import { getAllSubmissions, submitTestToSupabase } from '../services/supabaseService';
 import { supabase } from '../config/supabaseConfig';
 import './AdminDashboard.css';
 
@@ -203,64 +203,36 @@ const AdminDashboard = () => {
         setActiveUsers(currentlyActive);
       }
 
-      // Get submissions from Supabase (primary) and localStorage (fallback)
+      // Get submissions from Supabase (primary) - ignore localStorage if table exists
       let uniqueSubmissions = [];
       
       try {
-        // Try to get submissions from Supabase first
-        const supabaseSubmissions = await getAllSubmissions();
-        if (supabaseSubmissions && supabaseSubmissions.length > 0) {
-          console.log(`✅ Loaded ${supabaseSubmissions.length} submissions from Supabase`);
-          uniqueSubmissions = supabaseSubmissions;
+        // Check if Supabase table exists first
+        const { checkSubmissionCSVTable } = await import('../services/supabaseService');
+        const tableCheck = await checkSubmissionCSVTable();
+        
+        if (tableCheck.exists) {
+          console.log('✅ submission_csv table exists - using Supabase data only');
+          
+          // Get submissions from Supabase
+          const result = await getAllSubmissions();
+          if (result && result.data) {
+            console.log(`✅ Loaded ${result.data.length} submissions from Supabase submission_csv table`);
+            uniqueSubmissions = result.data;
+          } else {
+            console.log('📊 No submissions in Supabase table yet');
+            uniqueSubmissions = [];
+          }
         } else {
-          throw new Error('No Supabase submissions found, falling back to localStorage');
+          throw new Error('submission_csv table does not exist, using localStorage');
         }
       } catch (error) {
         console.warn('📦 Falling back to localStorage for submissions:', error.message);
         
-        // Fallback to localStorage sources if Supabase fails
-        const testResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+        // Only use localStorage if Supabase table doesn't exist
         const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-        const pendingSubmissions = JSON.parse(localStorage.getItem('pending_submissions') || '[]');
-        const forwardingData = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
-        
-        // Try to get individual test results too
-        const singleTestResult = localStorage.getItem('testResults');
-        let singleResult = [];
-        if (singleTestResult) {
-          try {
-            const parsed = JSON.parse(singleTestResult);
-            singleResult = [parsed]; // Wrap single result in array
-          } catch (e) {
-            console.warn('Could not parse single test result:', e);
-          }
-        }
-
-        // Merge all localStorage sources and remove duplicates
-        const allSources = [
-          ...testResults,
-          ...allSubmissions, 
-          ...pendingSubmissions,
-          ...forwardingData,
-          ...singleResult
-        ];
-        
-        // Remove duplicates based on id, timestamp, or a combination of user+timestamp
-        uniqueSubmissions = allSources.filter((submission, index, self) => {
-          if (!submission) return false;
-          
-          return index === self.findIndex(s => {
-            // Match by ID if both have IDs
-            if (s.id && submission.id) {
-              return s.id === submission.id;
-            }
-            
-            // Match by user+timestamp combination
-            const sKey = `${s.userId || s.studentEmail || 'anon'}_${s.submittedAt || s.timestamp}`;
-            const submissionKey = `${submission.userId || submission.studentEmail || 'anon'}_${submission.submittedAt || submission.timestamp}`;
-            return sKey === submissionKey;
-          });
-        });
+        console.log(`📊 Using only all_submissions from localStorage: ${allSubmissions.length} items`);
+        uniqueSubmissions = allSubmissions;
       }
       
       if (uniqueSubmissions.length > 0) {
@@ -310,6 +282,119 @@ const AdminDashboard = () => {
     }
   }, [getAllUsers, currentUser]);
 
+  // Test Supabase function
+  const testSupabaseSubmissions = async () => {
+    console.log('🧪 Testing Supabase submission_csv table...');
+    try {
+      // First check table structure
+      console.log('🔍 Checking submission_csv table structure...');
+      const { checkSubmissionCSVTable } = await import('../services/supabaseService');
+      const tableCheck = await checkSubmissionCSVTable();
+      console.log('📊 Table check result:', tableCheck);
+      
+      if (tableCheck.exists) {
+        console.log('✅ submission_csv table exists! Cleaning up localStorage and using Supabase...');
+        
+        // Clear old localStorage data since we have Supabase now
+        const oldData = {
+          test_results: JSON.parse(localStorage.getItem('test_results') || '[]').length,
+          pending_submissions: JSON.parse(localStorage.getItem('pending_submissions') || '[]').length,
+          submission_forwarding: JSON.parse(localStorage.getItem('submission_forwarding') || '[]').length,
+        };
+        
+        if (oldData.test_results > 0 || oldData.pending_submissions > 0 || oldData.submission_forwarding > 0) {
+          console.log('🧹 Clearing old localStorage data:', oldData);
+          localStorage.removeItem('test_results');
+          localStorage.removeItem('pending_submissions'); 
+          localStorage.removeItem('submission_forwarding');
+          localStorage.removeItem('supabase_submissions');
+        }
+        
+        // Test retrieving existing submissions from Supabase
+        console.log('📋 Retrieving submissions from submission_csv table...');
+        const submissions = await getAllSubmissions();
+        console.log('📊 Current submissions in Supabase:', submissions);
+        
+        // Make cleanup function available globally
+        window.clearAllLocalStorageData = () => {
+          localStorage.clear();
+          console.log('🧹 Cleared ALL localStorage data. Refresh the page.');
+        };
+        
+        console.log('💡 To clear ALL localStorage: clearAllLocalStorageData()');
+        return;
+      }
+      
+      if (!tableCheck.exists) {
+        console.log('🔨 Attempting to create submission_csv table...');
+        const createResult = await createSubmissionCSVTable();
+        console.log('🏗️ Table creation result:', createResult);
+        
+        if (!createResult.success) {
+          console.error('❌ Table does not exist. Please create it manually.');
+          console.log('📋 SQL Script to run in Supabase dashboard:');
+          const { getSubmissionCSVTableScript } = await import('../services/supabaseService');
+          console.log(getSubmissionCSVTableScript());
+          
+          // Check localStorage data to see what's causing the large number
+          const testResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+          const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+          const pendingSubmissions = JSON.parse(localStorage.getItem('pending_submissions') || '[]');
+          const forwardingData = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
+          
+          console.warn('🗂️ Large localStorage detected:', {
+            test_results: testResults.length,
+            all_submissions: allSubmissions.length,
+            pending_submissions: pendingSubmissions.length,
+            submission_forwarding: forwardingData.length,
+            total: testResults.length + allSubmissions.length + pendingSubmissions.length + forwardingData.length
+          });
+          
+          // Provide cleanup function
+          window.clearLargeLocalStorageData = () => {
+            localStorage.removeItem('submission_forwarding');
+            localStorage.removeItem('pending_submissions');
+            console.log('🧹 Cleared large localStorage data. Refresh the page.');
+          };
+          
+          console.log('💡 If you see too many submissions, run: clearLargeLocalStorageData()');
+          
+          console.warn('⚠️ Using localStorage fallback until table is created');
+          return;
+        }
+      }
+      
+      if (!tableCheck.exists) {
+        console.error('❌ Submissions table does not exist - need to create it');
+        return;
+      }
+      
+      // Test inserting a submission
+      const testData = {
+        userName: 'Test Student',
+        userEmail: 'test@student.com',
+        testType: 'aptitude',
+        score: 25,
+        totalQuestions: 30,
+        timeTaken: 1800,
+        answers: [],
+        status: 'completed'
+      };
+      
+      console.log('📝 Inserting test submission...');
+      const insertResult = await submitTestToSupabase('test_user_' + Date.now(), testData);
+      console.log('✅ Insert result:', insertResult);
+      
+      // Test retrieving submissions
+      console.log('📋 Retrieving submissions...');
+      const retrieveResult = await getAllSubmissions();
+      console.log('✅ Retrieve result:', retrieveResult);
+      
+    } catch (error) {
+      console.error('❌ Supabase test failed:', error);
+    }
+  };
+
   // Initialize real-time subscriptions
   useEffect(() => {
     console.log('🚀 Initializing Real-Time Admin Dashboard');
@@ -317,6 +402,14 @@ const AdminDashboard = () => {
     // Initialize services and load data
     jobService.initializeSampleData();
     sampleDataService.addSampleSubmissionsToLocalStorage(); // Add sample test submissions for leaderboard
+    
+    // Test Supabase after a short delay
+    setTimeout(() => {
+      testSupabaseSubmissions();
+    }, 2000);
+
+    // Make test function available globally for manual testing
+    window.testSupabaseSubmissions = testSupabaseSubmissions;
     
     // Initial data fetch
     fetchRealTimeData();
@@ -505,20 +598,25 @@ const AdminDashboard = () => {
   useEffect(() => {
     console.log('🔄 Setting up Supabase real-time subscriptions for Admin Dashboard');
     
-    // Subscribe to submissions table changes
+    // Subscribe to submission_csv table changes
     const submissionsSubscription = supabase
-      .channel('admin-submissions')
+      .channel('admin-submission-csv')
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'submissions' 
+          table: 'submission_csv' 
         }, 
         (payload) => {
           console.log('🆕 New submission received via Supabase real-time:', payload.new);
           
           // Add new submission to testResults state
-          const newSubmission = payload.new;
+          const newSubmission = {
+            ...payload.new,
+            user_name: payload.new.users?.display_name || 'Unknown Student',
+            user_email: payload.new.users?.email || 'No email'
+          };
+          
           setTestResults(prev => {
             // Check if submission already exists to avoid duplicates
             const exists = prev.some(sub => sub.id === newSubmission.id);
@@ -537,13 +635,18 @@ const AdminDashboard = () => {
         { 
           event: 'UPDATE', 
           schema: 'public', 
-          table: 'submissions' 
+          table: 'submission_csv' 
         }, 
         (payload) => {
           console.log('📝 Submission updated via Supabase real-time:', payload.new);
           
           // Update existing submission in testResults state
-          const updatedSubmission = payload.new;
+          const updatedSubmission = {
+            ...payload.new,
+            user_name: payload.new.users?.display_name || 'Unknown Student',
+            user_email: payload.new.users?.email || 'No email'
+          };
+          
           setTestResults(prev => 
             prev.map(sub => 
               sub.id === updatedSubmission.id ? updatedSubmission : sub

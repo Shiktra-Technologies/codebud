@@ -3,7 +3,7 @@
  * Handles real-time forwarding of all submission data to admin with CSV generation
  */
 
-import supabaseService from './supabaseService';
+import supabaseService, { submitTestToSupabase } from './supabaseService';
 import realTimeService from './realTimeService';
 
 class SubmissionForwardingService {
@@ -61,7 +61,9 @@ class SubmissionForwardingService {
       // Save submission to main Supabase submissions table for cross-device access
       try {
         const userId = submissionData.userId || submissionData.userEmail || `anonymous_${Date.now()}`;
-        await supabaseService.submitTestToSupabase(userId, {
+        console.log('💾 Attempting to save submission to Supabase:', { userId, testType: submissionData.testType });
+        
+        const result = await submitTestToSupabase(userId, {
           ...submissionData,
           userName: submissionData.userName || submissionData.displayName,
           userEmail: submissionData.userEmail || submissionData.email,
@@ -72,7 +74,8 @@ class SubmissionForwardingService {
           answers: submissionData.answers || [],
           status: 'completed'
         });
-        console.log('✅ Submission saved to Supabase submissions table');
+        
+        console.log('✅ Submission saved to Supabase submissions table:', result);
       } catch (supabaseError) {
         console.error('❌ Failed to save submission to Supabase:', supabaseError);
         // Don't fail the entire forwarding process if Supabase fails

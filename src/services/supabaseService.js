@@ -180,34 +180,188 @@ export const updateUserActivity = async (userId) => {
  * @param {string} userId - User ID
  * @param {object} submissionData - Test submission data
  */
+// Check if submission_csv table exists and what columns it has
+export const checkSubmissionCSVTable = async () => {
+  try {
+    console.log('🔍 Checking submission_csv table structure...');
+    
+    // Try a simple select to see what columns exist
+    const { data, error } = await supabase
+      .from('submission_csv')
+      .select(`
+        *,
+        users:user_id (
+          email,
+          display_name
+        )
+      `)
+      .limit(1);
+    
+    if (error) {
+      console.error('❌ submission_csv table check error:', error);
+      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+        console.log('❌ submission_csv table does not exist');
+        return { exists: false, error };
+      } else {
+        console.log('⚠️ Table exists but has issues:', error.message);
+        return { exists: true, error, columns: [] };
+      }
+    }
+    
+    console.log('✅ submission_csv table exists, sample data:', data);
+    return { exists: true, data };
+  } catch (error) {
+    console.error('❌ Failed to check submission_csv table:', error);
+    return { exists: false, error };
+  }
+};
+
+// Provide SQL script for manual table creation in Supabase dashboard
+export const getSubmissionCSVTableScript = () => {
+  return `
+-- Create the submission_csv table for cross-device submissions
+CREATE TABLE IF NOT EXISTS submission_csv (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  test_type TEXT DEFAULT 'aptitude',
+  score INTEGER DEFAULT 0,
+  total_questions INTEGER DEFAULT 30,
+  time_taken INTEGER DEFAULT 0,
+  answers JSONB DEFAULT '[]'::jsonb,
+  status TEXT DEFAULT 'completed',
+  submitted_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  device_info JSONB DEFAULT '{}'::jsonb,
+  violation_count INTEGER DEFAULT 0,
+  violation_details JSONB DEFAULT '[]'::jsonb
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_submission_csv_user_id ON submission_csv (user_id);
+CREATE INDEX IF NOT EXISTS idx_submission_csv_submitted_at ON submission_csv (submitted_at);
+CREATE INDEX IF NOT EXISTS idx_submission_csv_test_type ON submission_csv (test_type);
+
+-- Enable Row Level Security
+ALTER TABLE submission_csv ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for security
+CREATE POLICY "Users can insert their own submissions" ON submission_csv
+  FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+  
+CREATE POLICY "Users can view their own submissions" ON submission_csv
+  FOR SELECT USING (auth.uid()::text = user_id::text);
+  
+CREATE POLICY "Admins can view all submissions" ON submission_csv
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users 
+      WHERE id = auth.uid() 
+      AND role IN ('admin', 'super_admin')
+    )
+  );
+`;
+};
+
+// Create submission_csv table (simplified approach)
+export const createSubmissionCSVTable = async () => {
+  try {
+    console.log('🔨 Note: To create submission_csv table, run this SQL in Supabase dashboard:');
+    console.log(getSubmissionCSVTableScript());
+    
+    // Try to check if table exists by attempting a simple query
+    const { data, error } = await supabase
+      .from('submission_csv')
+      .select('id')
+      .limit(1);
+    
+    if (error && error.code === 'PGRST116') {
+      console.log('❌ Table does not exist. Please create it manually in Supabase dashboard.');
+      return { 
+        success: false, 
+        error, 
+        message: 'Please run the SQL script in Supabase dashboard to create the table',
+        sql: getSubmissionCSVTableScript()
+      };
+    }
+    
+    console.log('✅ submission_csv table exists');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error checking submission_csv table:', error);
+    return { 
+      success: false, 
+      error,
+      message: 'Please run the SQL script in Supabase dashboard to create the table',
+      sql: getSubmissionCSVTableScript()
+    };
+  }
+};
+
 export const submitTestToSupabase = async (userId, submissionData) => {
   try {
+    console.log('💾 Submitting to submission_csv table with user reference');
+    
+    // Create submission object for the new normalized table
     const submission = {
-      id: `${userId}_${Date.now()}`,
       user_id: userId,
-      user_name: submissionData.userName || submissionData.student_name || 'Unknown Student',
-      user_email: submissionData.userEmail || submissionData.student_email || '',
-      test_type: submissionData.testType || 'general',
+      test_type: submissionData.testType || 'aptitude',
       score: submissionData.score || 0,
-      total_questions: submissionData.totalQuestions || 0,
+      total_questions: submissionData.totalQuestions || submissionData.answers?.length || 30,
       time_taken: submissionData.timeTaken || 0,
       answers: submissionData.answers || [],
       status: submissionData.status || 'completed',
       submitted_at: new Date().toISOString(),
-      created_at: new Date().toISOString()
+      
+      // Additional CSV-specific data
+      device_info: {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        screenResolution: `${screen.width}x${screen.height}`,
+        timestamp: new Date().toISOString()
+      },
+      violation_count: submissionData.violations?.count || submissionData.violationAnalysis?.totalViolations || 0,
+      violation_details: submissionData.violations?.details || submissionData.violationAnalysis?.detailedViolations || []
     };
 
+    console.log('📝 Attempting to save to submission_csv table:', {
+      user_id: submission.user_id,
+      test_type: submission.test_type,
+      score: submission.score,
+      total_questions: submission.total_questions
+    });
+
+    // Try to insert into Supabase submission_csv table
     const { data, error } = await supabase
-      .from('submissions')
-      .insert(submission);
+      .from('submission_csv')
+      .insert(submission)
+      .select(`
+        *,
+        users:user_id (
+          email,
+          display_name,
+          role
+        )
+      `);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase submission_csv insert error:', error);
+      throw error;
+    }
 
-    console.log('✅ Test submission saved to Supabase');
-    
+    console.log('✅ Submission saved to submission_csv table:', data);
+
     // Also save to localStorage as fallback
+    const localSubmission = {
+      id: data[0]?.id || `${userId}_${Date.now()}`,
+      user_id: userId,
+      user_name: data[0]?.users?.display_name || submissionData.userName || 'Unknown Student',
+      user_email: data[0]?.users?.email || submissionData.userEmail || '',
+      ...submission
+    };
+
     const existingSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-    existingSubmissions.push(submission);
+    existingSubmissions.push(localSubmission);
     localStorage.setItem('all_submissions', JSON.stringify(existingSubmissions));
     
     // Forward submission to admin CSV system
@@ -374,29 +528,56 @@ export const getTestProgress = async (userId, testType = 'general') => {
  */
 export const getAllSubmissions = async () => {
   try {
+    console.log('📡 Querying submission_csv table with user details...');
+    
     const { data, error } = await supabase
-      .from('submissions')
+      .from('submission_csv')
       .select(`
         *,
         users:user_id (
+          id,
           email,
           display_name,
-          role
+          role,
+          created_at
         )
       `)
       .order('submitted_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Supabase submission_csv query error:', error);
+      throw error;
+    }
     
-    console.log(`✅ Retrieved ${data.length} submissions from Supabase`);
-    return { success: true, data };
+    // Transform data to include user info directly
+    const transformedData = data?.map(submission => ({
+      ...submission,
+      user_name: submission.users?.display_name || 'Unknown Student',
+      user_email: submission.users?.email || 'No email',
+      percentage: submission.percentage || Math.round((submission.score / submission.total_questions) * 100)
+    })) || [];
+    
+    console.log(`✅ Retrieved ${transformedData.length} submissions from submission_csv table`);
+    console.log('📊 Sample submission data:', transformedData[0]);
+    
+    return { success: true, data: transformedData };
   } catch (error) {
-    console.error('❌ Error getting all submissions from Supabase:', error);
+    console.error('❌ Error getting submissions from submission_csv table:', error);
     
-    // Fallback to localStorage
-    const existingSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-    console.log(`✅ Fallback: Retrieved ${existingSubmissions.length} submissions from localStorage`);
-    return { success: true, data: existingSubmissions, fallback: true };
+    // Fallback to localStorage - check multiple sources
+    const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+    const supabaseSubmissions = JSON.parse(localStorage.getItem('supabase_submissions') || '[]');
+    
+    // Combine both sources
+    const combinedSubmissions = [...allSubmissions, ...supabaseSubmissions];
+    
+    // Remove duplicates by ID
+    const uniqueSubmissions = combinedSubmissions.filter((submission, index, self) => 
+      index === self.findIndex(s => s.id === submission.id)
+    );
+    
+    console.log(`✅ Fallback: Retrieved ${uniqueSubmissions.length} submissions from localStorage (${allSubmissions.length} + ${supabaseSubmissions.length} combined)`);
+    return { success: true, data: uniqueSubmissions, fallback: true };
   }
 };
 
@@ -692,6 +873,9 @@ export default {
   autoSaveTestProgress,
   getTestProgress,
   getAllSubmissions,
+  checkSubmissionCSVTable,
+  createSubmissionCSVTable,
+  getSubmissionCSVTableScript,
   subscribeToUserActivity,
   subscribeToSubmissions,
   syncPendingSubmissions,
