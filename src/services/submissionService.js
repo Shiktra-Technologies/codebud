@@ -207,18 +207,11 @@ export const getAllSubmissionsFromSupabase = async () => {
   }
 
   try {
-    console.log('📊 Fetching all submissions from Supabase...');
+    console.log('📊 Fetching all submissions from submission_csv_with_users...');
     
     const { data, error } = await supabase
-      .from('submission_csv')
-      .select(`
-        *,
-        users!inner(
-          email,
-          display_name,
-          role
-        )
-      `)
+      .from('submission_csv_with_users')
+      .select('*')
       .order('submitted_at', { ascending: false });
 
     if (error) {
@@ -226,25 +219,37 @@ export const getAllSubmissionsFromSupabase = async () => {
       throw error;
     }
 
-    console.log(`✅ Retrieved ${data?.length || 0} submissions from Supabase`);
+    console.log(`✅ Retrieved ${data?.length || 0} submissions from submission_csv_with_users`);
     
     // Format the data for the admin dashboard
-    const formattedData = data?.map(submission => ({
-      id: submission.id,
-      user_id: submission.user_id,
-      user_name: submission.users?.display_name || 'Unknown',
-      user_email: submission.users?.email || 'Unknown',
-      test_type: submission.test_type,
-      score: submission.score,
-      total_questions: submission.total_questions,
-      time_taken: submission.time_taken,
-      answers: submission.answers,
-      status: submission.status,
-      submitted_at: submission.submitted_at,
-      violation_count: submission.violation_count,
-      violation_details: submission.violation_details,
-      device_info: submission.device_info
-    })) || [];
+    // submission_csv_with_users should have user data already flattened
+    const formattedData = data?.map(submission => {
+      // Log the first submission to see available fields
+      if (data.indexOf(submission) === 0) {
+        console.log('🔍 First submission fields:', Object.keys(submission));
+        console.log('🔍 First submission sample:', submission);
+      }
+      
+      return {
+        id: submission.id,
+        user_id: submission.user_id,
+        // Try multiple possible field names for user name
+        user_name: submission.display_name || submission.user_name || submission.name || submission.user_display_name || 'Unknown',
+        // Try multiple possible field names for user email  
+        user_email: submission.email || submission.user_email || submission.user_email_address || 'Unknown',
+        test_type: submission.test_type,
+        score: submission.score,
+        total_questions: submission.total_questions,
+        time_taken: submission.time_taken,
+        answers: submission.answers,
+        status: submission.status,
+        submitted_at: submission.submitted_at,
+        violation_count: submission.violation_count,
+        violation_details: submission.violation_details,
+        device_info: submission.device_info,
+        role: submission.role || 'student'
+      };
+    }) || [];
 
     return { 
       success: true, 
@@ -253,29 +258,16 @@ export const getAllSubmissionsFromSupabase = async () => {
     };
 
   } catch (error) {
-    console.error('❌ Error fetching submissions:', error);
+    console.error('❌ Error fetching submissions from Supabase:', error);
     
-    // Fallback to localStorage
-    console.log('📱 Falling back to localStorage submissions...');
-    try {
-      const localSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-      console.log(`📱 Retrieved ${localSubmissions.length} submissions from localStorage`);
-      
-      return { 
-        success: true, 
-        data: localSubmissions,
-        count: localSubmissions.length,
-        fallback: true
-      };
-    } catch (localError) {
-      console.error('❌ localStorage fallback also failed:', localError);
-      return { 
-        success: false, 
-        error: error.message,
-        data: [],
-        count: 0
-      };
-    }
+    // NO localStorage fallback - only show real database data
+    console.log('� Only showing real Supabase data - no localStorage fallback');
+    return { 
+      success: false, 
+      error: error.message,
+      data: [],
+      count: 0
+    };
   }
 };
 

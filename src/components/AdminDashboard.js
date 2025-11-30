@@ -57,7 +57,12 @@ const AdminDashboard = () => {
     studentsCount: students.length,
     activeUsersCount: activeUsers.length,
     submissionsCount: testResults.length,
-    status: realTimeStatus
+    status: realTimeStatus,
+    currentUser: currentUser ? { 
+      id: currentUser.id, 
+      email: currentUser.email, 
+      role: currentUser.role 
+    } : null
   });
   
   const formatLastSeen = (timestamp) => {
@@ -149,17 +154,8 @@ const AdminDashboard = () => {
       }));
     }
     
-    // If no real leaderboard data, show encouraging message
-    return [{
-      id: 'placeholder',
-      name: 'No student submissions yet',
-      email: 'Students will appear here after completing assessments',
-      score: 0,
-      testsCompleted: 0,
-      averageScore: 0,
-      avatar: '📊',
-      isPlaceholder: true
-    }];
+    // If no real leaderboard data, return empty array
+    return [];
   };
 
   // Real-time data fetching
@@ -217,24 +213,31 @@ const AdminDashboard = () => {
           console.log('✅ submission_csv table exists - using Supabase data only');
           
           // Get submissions from Supabase using new clean service
+          console.log('🔍 Calling getAllSubmissionsFromSupabase...');
           const result = await getAllSubmissionsFromSupabase();
+          console.log('📋 getAllSubmissionsFromSupabase result:', { 
+            success: result.success, 
+            dataLength: result.data?.length,
+            error: result.error 
+          });
+          
           if (result.success && result.data) {
-            console.log(`✅ Loaded ${result.data.length} submissions from Supabase submission_csv table`);
+            console.log(`✅ Loaded ${result.data.length} submissions from Supabase submission_csv_with_users table`);
+            if (result.data.length > 0) {
+              console.log('🔍 Sample submission:', result.data[0]);
+            }
             uniqueSubmissions = result.data;
           } else {
             console.log('📊 No submissions in Supabase table yet');
             uniqueSubmissions = [];
           }
         } else {
-          throw new Error('submission_csv table does not exist, using localStorage');
+          console.warn('📊 submission_csv table does not exist');
+          uniqueSubmissions = [];
         }
       } catch (error) {
-        console.warn('📦 Falling back to localStorage for submissions:', error.message);
-        
-        // Only use localStorage if Supabase table doesn't exist
-        const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-        console.log(`📊 Using only all_submissions from localStorage: ${allSubmissions.length} items`);
-        uniqueSubmissions = allSubmissions;
+        console.warn('� Error accessing Supabase submissions:', error.message);
+        uniqueSubmissions = [];
       }
       
       if (uniqueSubmissions.length > 0) {
@@ -501,44 +504,257 @@ const AdminDashboard = () => {
         return;
       }
       
-      // Test inserting a submission
-      const testData = {
-        userName: 'Test Student',
-        userEmail: 'test@student.com',
-        testType: 'aptitude',
-        score: 25,
-        totalQuestions: 30,
-        timeTaken: 1800,
-        answers: [],
-        status: 'completed'
-      };
+      // Test inserting multiple submissions with realistic data to populate submission_csv_with_users
+      const testStudents = [
+        {
+          id: 'student_001_' + Date.now(),
+          userName: 'Alice Johnson',
+          userEmail: 'alice.johnson@example.com',
+          testType: 'aptitude',
+          score: 28,
+          totalQuestions: 30,
+          timeTaken: 1650,
+          answers: Array.from({length: 30}, (_, i) => ({question: i+1, answer: 'A', correct: Math.random() > 0.1})),
+          status: 'completed'
+        },
+        {
+          id: 'student_002_' + Date.now(),
+          userName: 'Bob Smith',
+          userEmail: 'bob.smith@example.com',
+          testType: 'aptitude', 
+          score: 22,
+          totalQuestions: 30,
+          timeTaken: 1890,
+          answers: Array.from({length: 30}, (_, i) => ({question: i+1, answer: 'B', correct: Math.random() > 0.2})),
+          status: 'completed'
+        },
+        {
+          id: 'student_003_' + Date.now(),
+          userName: 'Carol Davis',
+          userEmail: 'carol.davis@example.com',
+          testType: 'technical',
+          score: 35,
+          totalQuestions: 40,
+          timeTaken: 2100,
+          answers: Array.from({length: 40}, (_, i) => ({question: i+1, answer: 'C', correct: Math.random() > 0.05})),
+          status: 'completed'
+        }
+      ];
       
-      console.log('📝 Inserting test submission...');
-      const insertResult = await submitTestToSupabase('test_user_' + Date.now(), testData);
-      console.log('✅ Insert result:', insertResult);
+      console.log('📝 Inserting test submissions to populate submission_csv_with_users...');
+      const insertResults = [];
       
-      // Test retrieving submissions
-      console.log('📋 Retrieving submissions...');
+      for (const student of testStudents) {
+        console.log(`👤 Creating submission for ${student.userName}...`);
+        try {
+          const insertResult = await submitTestToSupabase(student.id, student);
+          insertResults.push(insertResult);
+          console.log(`✅ Inserted submission for ${student.userName}:`, insertResult?.success ? 'Success' : 'Failed');
+        } catch (error) {
+          console.error(`❌ Failed to insert submission for ${student.userName}:`, error.message);
+        }
+      }
+      
+      console.log('✅ Insert results summary:', insertResults);
+      
+      // Wait a moment for database to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Test retrieving submissions from both tables
+      console.log('📋 Retrieving submissions from submission_csv_with_users...');
       const retrieveResult = await getAllSubmissions();
-      console.log('✅ Retrieve result:', retrieveResult);
+      console.log('✅ Submissions retrieved:', {
+        count: retrieveResult?.data?.length || 0,
+        submissions: retrieveResult?.data?.slice(0, 3).map(s => ({
+          userName: s.user_name || s.userName || s.display_name || s.name || 'Unknown',
+          email: s.user_email || s.userEmail || s.email,
+          testType: s.test_type || s.testType,
+          score: s.score
+        })) || []
+      });
+
+      // Log if no data is found but don't create fake data
+      if (!retrieveResult?.data || retrieveResult.data.length === 0) {
+        console.log('� No submissions found in submission_csv_with_users table');
+        console.log('ℹ️ Submit real tests to see data here');
+      }
       
     } catch (error) {
       console.error('❌ Supabase test failed:', error);
     }
   };
 
+  // Create localStorage test data when Supabase is empty
+  const createLocalStorageTestData = async () => {
+    const testSubmissions = [
+      {
+        id: 'sub_001_' + Date.now(),
+        user_id: 'student_001',
+        user_name: 'Alice Johnson',
+        user_email: 'alice.johnson@example.com',
+        display_name: 'Alice Johnson',
+        displayName: 'Alice Johnson',
+        userName: 'Alice Johnson',
+        userEmail: 'alice.johnson@example.com',
+        test_type: 'Aptitude Test',
+        testType: 'Aptitude Test',
+        score: 28,
+        total_questions: 30,
+        totalQuestions: 30,
+        time_taken: 1650,
+        timeTaken: 1650,
+        answers: Array.from({length: 30}, (_, i) => ({question: i+1, answer: 'A', correct: Math.random() > 0.1})),
+        status: 'completed',
+        submitted_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        submittedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        violation_count: 0,
+        device_info: {browser: 'Chrome', os: 'macOS'},
+        role: 'student'
+      },
+      {
+        id: 'sub_002_' + Date.now(),
+        user_id: 'student_002',
+        user_name: 'Bob Smith',
+        user_email: 'bob.smith@example.com',
+        display_name: 'Bob Smith',
+        displayName: 'Bob Smith',
+        userName: 'Bob Smith',
+        userEmail: 'bob.smith@example.com',
+        test_type: 'Technical Assessment',
+        testType: 'Technical Assessment',
+        score: 22,
+        total_questions: 30,
+        totalQuestions: 30,
+        time_taken: 1890,
+        timeTaken: 1890,
+        answers: Array.from({length: 30}, (_, i) => ({question: i+1, answer: 'B', correct: Math.random() > 0.2})),
+        status: 'completed',
+        submitted_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        submittedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+        violation_count: 1,
+        device_info: {browser: 'Firefox', os: 'Windows'},
+        role: 'student'
+      },
+      {
+        id: 'sub_003_' + Date.now(),
+        user_id: 'student_003',
+        user_name: 'Carol Davis',
+        user_email: 'carol.davis@example.com',
+        display_name: 'Carol Davis',
+        displayName: 'Carol Davis',
+        userName: 'Carol Davis',
+        userEmail: 'carol.davis@example.com',
+        test_type: 'Programming Challenge',
+        testType: 'Programming Challenge',
+        score: 35,
+        total_questions: 40,
+        totalQuestions: 40,
+        time_taken: 2100,
+        timeTaken: 2100,
+        answers: Array.from({length: 40}, (_, i) => ({question: i+1, answer: 'C', correct: Math.random() > 0.05})),
+        status: 'completed',
+        submitted_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+        submittedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+        violation_count: 0,
+        device_info: {browser: 'Safari', os: 'macOS'},
+        role: 'student'
+      },
+      {
+        id: 'sub_004_' + Date.now(),
+        user_id: 'student_004',
+        user_name: 'David Wilson',
+        user_email: 'david.wilson@example.com',
+        display_name: 'David Wilson',
+        displayName: 'David Wilson',
+        userName: 'David Wilson',
+        userEmail: 'david.wilson@example.com',
+        test_type: 'Aptitude Test',
+        testType: 'Aptitude Test',
+        score: 18,
+        total_questions: 30,
+        totalQuestions: 30,
+        time_taken: 2400,
+        timeTaken: 2400,
+        answers: Array.from({length: 30}, (_, i) => ({question: i+1, answer: 'D', correct: Math.random() > 0.4})),
+        status: 'completed',
+        submitted_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+        submittedAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+        timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+        violation_count: 2,
+        device_info: {browser: 'Chrome', os: 'Linux'},
+        role: 'student'
+      },
+      {
+        id: 'sub_005_' + Date.now(),
+        user_id: 'student_005',
+        user_name: 'Emma Brown',
+        user_email: 'emma.brown@example.com',
+        display_name: 'Emma Brown',
+        displayName: 'Emma Brown',
+        userName: 'Emma Brown',
+        userEmail: 'emma.brown@example.com',
+        test_type: 'Coding Assessment',
+        testType: 'Coding Assessment',
+        score: 42,
+        total_questions: 45,
+        totalQuestions: 45,
+        time_taken: 3600,
+        timeTaken: 3600,
+        answers: Array.from({length: 45}, (_, i) => ({question: i+1, answer: 'A', correct: Math.random() > 0.07})),
+        status: 'completed',
+        submitted_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+        submittedAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+        timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+        violation_count: 0,
+        device_info: {browser: 'Edge', os: 'Windows'},
+        role: 'student'
+      }
+    ];
+
+    // Store in all the possible localStorage keys that the app might check
+    localStorage.setItem('all_submissions', JSON.stringify(testSubmissions));
+    localStorage.setItem('test_results', JSON.stringify(testSubmissions));
+    localStorage.setItem('admin_submissions', JSON.stringify(testSubmissions));
+
+    // Create CSV data for the CSV service
+    const csvHeaders = 'Student Name,Student Email,Test Type,Score,Total Questions,Percentage,Time Taken,Submission Date,Status,Violations,Device';
+    const csvRows = testSubmissions.map(sub => {
+      const percentage = Math.round((sub.score / sub.total_questions) * 100);
+      const deviceInfo = `${sub.device_info.browser} on ${sub.device_info.os}`;
+      return `"${sub.user_name}","${sub.user_email}","${sub.test_type}","${sub.score}","${sub.total_questions}","${percentage}%","${Math.floor(sub.time_taken / 60)} min","${new Date(sub.submitted_at).toLocaleString()}","${sub.status}","${sub.violation_count}","${deviceInfo}"`;
+    }).join('\n');
+
+    const csvContent = csvHeaders + '\n' + csvRows;
+    const csvData = {
+      content: csvContent,
+      lastUpdated: new Date().toISOString(),
+      totalSubmissions: testSubmissions.length,
+      downloadUrl: null
+    };
+
+    localStorage.setItem('admin_csv_data', JSON.stringify(csvData));
+
+    console.log(`✅ Created ${testSubmissions.length} test submissions in localStorage`);
+    console.log('📊 Submissions with names:');
+    testSubmissions.forEach(sub => {
+      console.log(`  • ${sub.user_name} - ${sub.test_type} - ${sub.score}/${sub.total_questions}`);
+    });
+
+    return testSubmissions;
+  };
+
   // Initialize real-time subscriptions
   useEffect(() => {
-    console.log('🚀 Initializing Real-Time Admin Dashboard');
+    console.log('🚀 Initializing Real-Time Admin Dashboard - Real Data Only');
     
-    // Initialize services and load data
-    jobService.initializeSampleData();
-    sampleDataService.addSampleSubmissionsToLocalStorage(); // Add sample test submissions for leaderboard
+    // Initialize job service (but don't add sample data)
+    // jobService.initializeSampleData(); // DISABLED - no sample job data
+    // sampleDataService.addSampleSubmissionsToLocalStorage(); // DISABLED - no sample submissions
     
-    // Test Supabase after a short delay
-    setTimeout(() => {
-      testSupabaseSubmissions();
-    }, 2000);
+    console.log('ℹ️ Sample data services disabled - showing only real database data');
 
     // Make test function available globally for manual testing
     window.testSupabaseSubmissions = testSupabaseSubmissions;
@@ -1033,6 +1249,20 @@ const AdminDashboard = () => {
         >
           📊 CSV Reports
         </button>
+        
+        <button
+          style={{ 
+            padding: '10px 15px', 
+            margin: '0 5px', 
+            backgroundColor: activeTab === 'debug' ? '#dc3545' : '#f8f9fa',
+            color: activeTab === 'debug' ? 'white' : 'black',
+            border: '1px solid #dee2e6',
+            cursor: 'pointer'
+          }}
+          onClick={() => setActiveTab('debug')}
+        >
+          🔧 Debug
+        </button>
       </div>
 
       {/* Content Area */}
@@ -1412,9 +1642,9 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {filteredSubmissions.map(result => {
-                      // Handle both Supabase and localStorage data formats
-                      const studentName = result.user_name || result.userName || 'Unknown Student';
-                      const studentEmail = result.user_email || result.userEmail || '';
+                      // Handle multiple data formats: Supabase submission_csv_with_users, regular Supabase, and localStorage
+                      const studentName = result.user_name || result.userName || result.display_name || result.displayName || result.name || 'Unknown Student';
+                      const studentEmail = result.user_email || result.userEmail || result.email || '';
                       const testType = result.test_type || result.testType || result.problemTitle || 'Aptitude Test';
                       const score = result.score || 0;
                       const totalQuestions = result.total_questions || result.totalQuestions || 30;
@@ -2068,6 +2298,247 @@ const AdminDashboard = () => {
             onRefresh={handleCSVRefresh}
             setSearchCriteria={setSearchCriteria}
           />
+        )}
+
+        {/* Debug Panel */}
+        {activeTab === 'debug' && (
+          <div>
+            <h2>🔧 Debug Information & Troubleshooting</h2>
+            
+            {/* Authentication Debug */}
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: '#e8f4fd', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              border: '1px solid #0084d6'
+            }}>
+              <h3>🔑 Authentication Status</h3>
+              <div style={{ fontFamily: 'monospace', fontSize: '14px' }}>
+                <div><strong>Current User:</strong> {JSON.stringify(currentUser, null, 2)}</div>
+                <div><strong>User Role:</strong> {currentUser?.role || 'undefined'}</div>
+                <div><strong>Is Admin:</strong> {currentUser?.role === 'admin' || currentUser?.role === 'super_admin' ? 'Yes' : 'No'}</div>
+              </div>
+            </div>
+            
+            {/* Data State Debug */}
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: '#f0f8e8', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              border: '1px solid #28a745'
+            }}>
+              <h3>📊 Data State</h3>
+              <div style={{ fontFamily: 'monospace', fontSize: '14px' }}>
+                <div><strong>Students Count:</strong> {students.length}</div>
+                <div><strong>Active Users Count:</strong> {activeUsers.length}</div>
+                <div><strong>Submissions Count:</strong> {testResults.length}</div>
+                <div><strong>Real-time Status:</strong> {realTimeStatus}</div>
+                <div><strong>Loading State:</strong> {loading ? 'true' : 'false'}</div>
+                <div><strong>Error:</strong> {error || 'none'}</div>
+                <div><strong>Filter State:</strong> {submissionFilter}</div>
+                <div><strong>Filtered Submissions:</strong> {getFilteredSubmissions().length}</div>
+              </div>
+            </div>
+            
+            {/* Supabase Connection Debug */}
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: '#fff8e8', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              border: '1px solid #ff9800'
+            }}>
+              <h3>🔗 Supabase Connection Test</h3>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={testSupabaseSubmissions}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🧪 Test Supabase Connection
+                </button>
+                
+                <button
+                  onClick={() => {
+                    console.log('🧹 Clearing all localStorage test data...');
+                    localStorage.removeItem('all_submissions');
+                    localStorage.removeItem('test_results');
+                    localStorage.removeItem('admin_submissions');
+                    localStorage.removeItem('admin_csv_data');
+                    console.log('✅ localStorage cleared, refreshing dashboard...');
+                    fetchRealTimeData();
+                    alert('Cleared all test data! Dashboard will now show only real submissions from submission_csv_with_users table.');
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🧹 Clear Test Data
+                </button>
+                
+                <button
+                  onClick={() => fetchRealTimeData()}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔄 Refresh Data
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const { data: { user } } = await supabase.auth.getUser();
+                      console.log('🔐 Current Supabase session:', session);
+                      console.log('🔐 Current Supabase user:', user);
+                      alert(`Session: ${session ? 'Active' : 'None'}\nUser: ${user?.email || 'Not authenticated'}\nRole: ${user?.user_metadata?.role || 'Not set'}`);
+                    } catch (error) {
+                      console.error('Auth check error:', error);
+                      alert('Error checking auth: ' + error.message);
+                    }
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#6f42c1',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔐 Check Supabase Auth
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    try {
+                      console.log('🧪 Testing direct submission_csv_with_users query...');
+                      const { data: directQuery, error: directError } = await supabase
+                        .from('submission_csv_with_users')
+                        .select('*')
+                        .limit(5);
+                      
+                      if (directError) {
+                        console.error('Direct query error:', directError);
+                        alert('Direct query failed: ' + directError.message);
+                      } else {
+                        console.log('Direct query success:', directQuery);
+                        alert(`Direct query success: Found ${directQuery.length} submissions from submission_csv_with_users`);
+                        if (directQuery.length > 0) {
+                          console.log('Sample submission from submission_csv_with_users:', directQuery[0]);
+                          console.log('Available fields:', Object.keys(directQuery[0]));
+                          alert(`Sample fields available: ${Object.keys(directQuery[0]).join(', ')}`);
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Direct query error:', error);
+                      alert('Direct query failed: ' + error.message);
+                    }
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔍 Test submission_csv_with_users
+                </button>
+              </div>
+            </div>
+            
+            {/* Recent Submissions Debug */}
+            {testResults.length > 0 && (
+              <div style={{ 
+                padding: '20px', 
+                backgroundColor: '#fce8f3', 
+                borderRadius: '8px',
+                marginBottom: '20px',
+                border: '1px solid #e91e63'
+              }}>
+                <h3>📋 Sample Submission Data</h3>
+                <pre style={{ 
+                  backgroundColor: '#fff', 
+                  padding: '15px', 
+                  borderRadius: '4px', 
+                  overflow: 'auto',
+                  fontSize: '12px',
+                  maxHeight: '400px'
+                }}>
+                  {JSON.stringify(testResults[0], null, 2)}
+                </pre>
+              </div>
+            )}
+            
+            {/* localStorage Debug */}
+            <div style={{ 
+              padding: '20px', 
+              backgroundColor: '#f8f4ff', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              border: '1px solid #8b5cf6'
+            }}>
+              <h3>💾 localStorage Debug</h3>
+              <div style={{ fontFamily: 'monospace', fontSize: '14px', marginBottom: '15px' }}>
+                <div><strong>all_submissions length:</strong> {JSON.parse(localStorage.getItem('all_submissions') || '[]').length}</div>
+              </div>
+              <button
+                onClick={() => {
+                  const data = localStorage.getItem('all_submissions');
+                  console.log('localStorage all_submissions:', JSON.parse(data || '[]'));
+                  alert(`localStorage has ${JSON.parse(data || '[]').length} submissions`);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#8b5cf6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  marginRight: '10px'
+                }}
+              >
+                📦 Check localStorage
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('all_submissions');
+                  alert('localStorage cleared');
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                🗑️ Clear localStorage
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
