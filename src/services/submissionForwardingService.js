@@ -3,7 +3,8 @@
  * Handles real-time forwarding of all submission data to admin with CSV generation
  */
 
-import supabaseService, { submitTestToSupabase } from './supabaseService';
+import supabaseService from './supabaseService';
+import { submitTestToSupabase } from './submissionService';
 import realTimeService from './realTimeService';
 
 class SubmissionForwardingService {
@@ -17,6 +18,9 @@ class SubmissionForwardingService {
 
   async initializeService() {
     try {
+      // Clear old localStorage data to prevent quota issues
+      this.clearOldLocalStorageData();
+      
       // Initialize BroadcastChannel for real-time admin updates
       if (typeof BroadcastChannel !== 'undefined') {
         this.adminChannel = new BroadcastChannel('admin-submissions');
@@ -351,13 +355,64 @@ class SubmissionForwardingService {
         this.adminChannel.postMessage(adminNotification);
       }
 
-      // Also trigger localStorage event for cross-tab communication
-      localStorage.setItem('admin_submission_update', JSON.stringify(adminNotification));
-      localStorage.removeItem('admin_submission_update');
+      // Also trigger localStorage event for cross-tab communication (minimal data)
+      try {
+        const minimalNotification = {
+          type: 'new_submission',
+          userId: adminNotification.userId,
+          score: adminNotification.score,
+          timestamp: adminNotification.timestamp
+        };
+        localStorage.setItem('admin_submission_update', JSON.stringify(minimalNotification));
+        localStorage.removeItem('admin_submission_update');
+      } catch (quotaError) {
+        console.warn('localStorage quota exceeded, skipping notification storage');
+        // Clear some old data if quota exceeded
+        this.clearOldLocalStorageData();
+      }
 
       console.log('📢 Admin notified of new submission');
     } catch (error) {
       console.error('Failed to notify admin:', error);
+    }
+  }
+
+  /**
+   * Clear old localStorage data to prevent quota exceeded errors
+   */
+  clearOldLocalStorageData() {
+    try {
+      console.log('🧹 Clearing old localStorage data to free up space...');
+      
+      // Clear old submissions (keep only last 50)
+      const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+      if (allSubmissions.length > 50) {
+        const recentSubmissions = allSubmissions.slice(-50);
+        localStorage.setItem('all_submissions', JSON.stringify(recentSubmissions));
+        console.log(`🧹 Cleared ${allSubmissions.length - 50} old submissions`);
+      }
+      
+      // Clear old forwarding data (keep only last 20)
+      const forwardingData = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
+      if (forwardingData.length > 20) {
+        const recentForwarding = forwardingData.slice(-20);
+        localStorage.setItem('submission_forwarding', JSON.stringify(recentForwarding));
+        console.log(`🧹 Cleared ${forwardingData.length - 20} old forwarding records`);
+      }
+      
+      // Clear other potentially large items
+      const keysToCheck = ['test_results', 'pending_submissions', 'user_scores'];
+      keysToCheck.forEach(key => {
+        const data = localStorage.getItem(key);
+        if (data && data.length > 10000) { // If larger than 10KB
+          localStorage.removeItem(key);
+          console.log(`🧹 Cleared large ${key} data`);
+        }
+      });
+      
+      console.log('🧹 localStorage cleanup completed');
+    } catch (error) {
+      console.error('Error clearing localStorage:', error);
     }
   }
 

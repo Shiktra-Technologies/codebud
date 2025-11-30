@@ -6,7 +6,8 @@ import jobService from '../services/jobService';
 import leaderboardService from '../services/leaderboardService';
 import sampleDataService from '../services/sampleDataService';
 import adminCSVService from '../services/adminCSVService';
-import { getAllSubmissions, submitTestToSupabase } from '../services/supabaseService';
+import { getAllSubmissions } from '../services/supabaseService';
+import { getAllSubmissionsFromSupabase } from '../services/submissionService';
 import { supabase } from '../config/supabaseConfig';
 import './AdminDashboard.css';
 
@@ -41,6 +42,7 @@ const AdminDashboard = () => {
   const [csvStats, setCsvStats] = useState(null);
   const [recentSubmissions, setRecentSubmissions] = useState([]);
   const [csvLoading, setCsvLoading] = useState(false);
+  const [submissionFilter, setSubmissionFilter] = useState('all');
   const [searchCriteria, setSearchCriteria] = useState({
     searchText: '',
     startDate: '',
@@ -214,9 +216,9 @@ const AdminDashboard = () => {
         if (tableCheck.exists) {
           console.log('✅ submission_csv table exists - using Supabase data only');
           
-          // Get submissions from Supabase
-          const result = await getAllSubmissions();
-          if (result && result.data) {
+          // Get submissions from Supabase using new clean service
+          const result = await getAllSubmissionsFromSupabase();
+          if (result.success && result.data) {
             console.log(`✅ Loaded ${result.data.length} submissions from Supabase submission_csv table`);
             uniqueSubmissions = result.data;
           } else {
@@ -281,6 +283,51 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   }, [getAllUsers, currentUser]);
+
+  // Filter submissions based on selected filter
+  const getFilteredSubmissions = useCallback(() => {
+    if (!testResults || testResults.length === 0) return [];
+    
+    let filtered = [...testResults];
+    
+    switch (submissionFilter) {
+      case 'passed':
+        filtered = filtered.filter(r => {
+          const score = r.score || 0;
+          const total = r.total_questions || r.totalQuestions || 30;
+          return (score / total) >= 0.6;
+        });
+        break;
+      case 'failed':
+        filtered = filtered.filter(r => {
+          const score = r.score || 0;
+          const total = r.total_questions || r.totalQuestions || 30;
+          return (score / total) < 0.6;
+        });
+        break;
+      case 'today':
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        filtered = filtered.filter(r => {
+          const submissionDate = new Date(r.submitted_at || r.submittedAt || r.timestamp);
+          return submissionDate >= today;
+        });
+        break;
+      case 'week':
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        filtered = filtered.filter(r => {
+          const submissionDate = new Date(r.submitted_at || r.submittedAt || r.timestamp);
+          return submissionDate >= weekAgo;
+        });
+        break;
+      default:
+        // 'all' - no filtering
+        break;
+    }
+    
+    return filtered;
+  }, [testResults, submissionFilter]);
 
   // Test Supabase function
   const testSupabaseSubmissions = async () => {
@@ -362,7 +409,45 @@ const AdminDashboard = () => {
           console.warn('⚠️ No current user - cannot test database connectivity');
         }
         
-        // Make cleanup function available globally
+        // Import and make test function available globally
+        import('../utils/testSubmissionFlow').then(module => {
+          window.testSubmissionFlow = module.testSubmissionFlow;
+        });
+        
+        // Import and make test functions available globally
+        import('../utils/testSubmissionFlow').then(({ testSubmissionFlow }) => {
+          window.testSubmissionFlow = testSubmissionFlow;
+          console.log('✅ testSubmissionFlow() is now available globally');
+        }).catch(console.error);
+
+        // Make debugging functions available globally
+        window.debugSubmissionFlow = async () => {
+          console.log('🔍 === DEBUGGING SUBMISSION FLOW ===');
+          
+          // Check current auth user
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          console.log('👤 Current auth user:', user ? { id: user.id, email: user.email } : 'None', authError);
+          
+          // Check users table
+          if (user) {
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+            console.log('👥 User in users table:', userData || 'Not found', userError);
+          }
+          
+          // Check submissions table
+          const { data: submissions, error: submissionsError } = await supabase
+            .from('submission_csv')
+            .select('*')
+            .limit(5);
+          console.log('📊 Recent submissions:', submissions || [], submissionsError);
+          
+          console.log('🔍 === DEBUGGING COMPLETE ===');
+        };
+        
         window.clearAllLocalStorageData = () => {
           localStorage.clear();
           console.log('🧹 Cleared ALL localStorage data. Refresh the page.');
@@ -1164,8 +1249,142 @@ const AdminDashboard = () => {
 
         {activeTab === 'submissions' && (
           <div>
-            <h2>Recent Submissions ({testResults.length})</h2>
-            {testResults.length === 0 ? (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <h2>Submissions ({getFilteredSubmissions().length} / {testResults.length})</h2>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <select
+                  value={submissionFilter}
+                  onChange={(e) => setSubmissionFilter(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="all">All Submissions</option>
+                  <option value="passed">Passed (≥60%)</option>
+                  <option value="failed">Failed (&lt;60%)</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                </select>
+                <button
+                  onClick={() => fetchRealTimeData()}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    marginRight: '8px'
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? '🔄 Refreshing...' : '🔄 Refresh'}
+                </button>
+                <button
+                  onClick={() => {
+                    // Clear localStorage and refresh
+                    localStorage.removeItem('all_submissions');
+                    fetchRealTimeData();
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🧹 Clear Cache
+                </button>
+              </div>
+            </div>
+            
+            {(() => {
+              const filteredSubmissions = getFilteredSubmissions();
+              return filteredSubmissions.length > 0 && (
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                  gap: '16px', 
+                  marginBottom: '20px' 
+                }}>
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: '#e3f2fd',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1976d2' }}>
+                      {filteredSubmissions.length}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>
+                      {submissionFilter === 'all' ? 'Total Submissions' : 'Filtered Results'}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: '#e8f5e8',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2e7d32' }}>
+                      {filteredSubmissions.filter(r => {
+                        const score = r.score || 0;
+                        const total = r.total_questions || r.totalQuestions || 30;
+                        return (score / total) >= 0.6;
+                      }).length}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>Passed</div>
+                  </div>
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: '#fce4ec',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#c2185b' }}>
+                      {filteredSubmissions.filter(r => {
+                        const score = r.score || 0;
+                        const total = r.total_questions || r.totalQuestions || 30;
+                        return (score / total) < 0.6;
+                      }).length}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>Failed</div>
+                  </div>
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: '#fff3e0',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f57c00' }}>
+                      {filteredSubmissions.length > 0 
+                        ? Math.round(filteredSubmissions.reduce((acc, r) => {
+                            const score = r.score || 0;
+                            const total = r.total_questions || r.totalQuestions || 30;
+                            return acc + (score / total);
+                          }, 0) / filteredSubmissions.length * 100)
+                        : 0}%
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#666' }}>Average Score</div>
+                  </div>
+                </div>
+              );
+            })()}
+            
+            {(() => {
+              const filteredSubmissions = getFilteredSubmissions();
+              return filteredSubmissions.length === 0 ? (
               <div style={{ 
                 textAlign: 'center', 
                 padding: '40px', 
@@ -1184,37 +1403,88 @@ const AdminDashboard = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Student</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Test</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Score</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Submitted</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Student</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Test Details</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Score</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Result</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 'bold' }}>Submitted</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {testResults.map(result => (
-                    <tr key={result.id} style={{ borderBottom: '1px solid #dee2e6' }}>
-                      <td style={{ padding: '12px' }}>{result.userName}</td>
-                      <td style={{ padding: '12px' }}>{result.problemTitle}</td>
-                      <td style={{ padding: '12px' }}>{result.score}%</td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ 
-                          padding: '4px 8px', 
-                          borderRadius: '4px', 
-                          backgroundColor: result.passed ? '#d4edda' : '#f8d7da',
-                          color: result.passed ? '#155724' : '#721c24',
-                          fontSize: '12px'
-                        }}>
-                          {result.passed ? 'Passed' : 'Failed'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>{formatLastSeen(result.submittedAt)}</td>
-                    </tr>
-                  ))}
+                    {filteredSubmissions.map(result => {
+                      // Handle both Supabase and localStorage data formats
+                      const studentName = result.user_name || result.userName || 'Unknown Student';
+                      const studentEmail = result.user_email || result.userEmail || '';
+                      const testType = result.test_type || result.testType || result.problemTitle || 'Aptitude Test';
+                      const score = result.score || 0;
+                      const totalQuestions = result.total_questions || result.totalQuestions || 30;
+                      const percentage = Math.round((score / totalQuestions) * 100);
+                      const passed = percentage >= 60;
+                      const submittedTime = result.submitted_at || result.submittedAt || result.timestamp;
+                      const status = result.status || 'completed';
+                      
+                      return (
+                        <tr key={result.id} style={{ borderBottom: '1px solid #dee2e6' }}>
+                          <td style={{ padding: '12px' }}>
+                            <div>
+                              <strong>{studentName}</strong>
+                              {studentEmail && (
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                  {studentEmail}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <div>
+                              <strong>{testType}</strong>
+                              <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                {score}/{totalQuestions} questions
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <div>
+                              <strong style={{ 
+                                color: passed ? '#28a745' : '#dc3545' 
+                              }}>
+                                {percentage}%
+                              </strong>
+                              <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                {score} correct
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{ 
+                              padding: '4px 8px', 
+                              borderRadius: '4px', 
+                              backgroundColor: passed ? '#d4edda' : '#f8d7da',
+                              color: passed ? '#155724' : '#721c24',
+                              fontSize: '12px',
+                              textTransform: 'capitalize'
+                            }}>
+                              {passed ? 'Passed' : 'Failed'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <div>
+                              <strong>{formatLastSeen(submittedTime)}</strong>
+                              {result.time_taken && (
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                  {Math.floor(result.time_taken / 60)}m {result.time_taken % 60}s
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            )}
+            );
+            })()}
           </div>
         )}
 
