@@ -315,11 +315,11 @@ const AdminDashboard = () => {
         const submissions = await getAllSubmissions();
         console.log('📊 Current submissions in Supabase:', submissions);
         
-        // Test inserting a sample submission if user is logged in
+        // Test database connectivity only - no test submissions
         if (currentUser && currentUser.id) {
-          console.log('🧪 Testing submission insert with current user...');
+          console.log('🔍 Testing database connectivity...');
           
-          // First, let's check if the user exists in the users table
+          // Check if the user exists in the users table
           console.log('👤 Checking if user exists in users table...');
           const { data: userCheck, error: userCheckError } = await supabase
             .from('users')
@@ -329,10 +329,10 @@ const AdminDashboard = () => {
             
           if (userCheckError) {
             console.error('❌ User does not exist in users table:', userCheckError);
-            console.log('🔧 This is likely why foreign key constraint fails');
+            console.log('🔧 This is likely why submissions would fail');
             
-            // Try to create the user
-            console.log('🔨 Attempting to create user record...');
+            // Try to create the user for future submissions
+            console.log('🔨 Attempting to create user record for future submissions...');
             const { data: newUser, error: createError } = await supabase
               .from('users')
               .insert([{
@@ -347,46 +347,19 @@ const AdminDashboard = () => {
               
             if (createError) {
               console.error('❌ Failed to create user:', createError);
-              return;
+              console.log('⚠️ Students will not be able to submit tests until user record exists');
             } else {
               console.log('✅ User created successfully:', newUser);
+              console.log('✅ Ready to receive real student submissions');
             }
           } else {
             console.log('✅ User exists in users table:', userCheck);
+            console.log('✅ Ready to receive real student submissions');
           }
           
-          try {
-            const testData = {
-              testType: 'aptitude',
-              score: 25,
-              totalQuestions: 30,
-              timeTaken: 1800,
-              answers: Array(30).fill(null).map((_, i) => ({ 
-                questionId: i + 1, 
-                answer: 'A', 
-                correct: i % 4 === 0 
-              })),
-              status: 'completed'
-            };
-            
-            console.log('📝 Attempting to insert test submission...');
-            const insertResult = await submitTestToSupabase(currentUser.id, testData);
-            console.log('📊 Test insert result:', insertResult);
-            
-            if (insertResult.success) {
-              console.log('✅ Test insert successful!');
-              // Refresh submissions to see the new one
-              const updatedSubmissions = await getAllSubmissions();
-              console.log('📊 Updated submissions after test insert:', updatedSubmissions);
-            } else {
-              console.error('❌ Test insert failed:', insertResult.error);
-            }
-            
-          } catch (insertError) {
-            console.error('❌ Test insert failed:', insertError);
-          }
+          console.log('🎯 Database connectivity test complete - no test submissions created');
         } else {
-          console.warn('⚠️ No current user - cannot test submission insert');
+          console.warn('⚠️ No current user - cannot test database connectivity');
         }
         
         // Make cleanup function available globally

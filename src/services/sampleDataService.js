@@ -6,6 +6,12 @@ import { submitTestToSupabase } from './supabaseService';
 import leaderboardService from './leaderboardService';
 
 export const generateSampleSubmissions = () => {
+  console.log('🚫 Sample submission generation is disabled');
+  console.log('ℹ️ Only real student test submissions will be stored in the database');
+  return [];
+
+  // DISABLED SAMPLE DATA:
+  /*
   const sampleSubmissions = [
     {
       id: 'user1_1732824000000',
@@ -122,28 +128,20 @@ export const generateSampleSubmissions = () => {
   ];
 
   return sampleSubmissions;
+  */
 };
 
 export const addSampleSubmissionsToLocalStorage = () => {
+  console.log('🚫 Sample submission generation to localStorage is disabled');
+  console.log('ℹ️ Only real student test submissions will be stored');
+  
+  // Return existing submissions if any
   try {
     const existingSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-    const sampleSubmissions = generateSampleSubmissions();
-    
-    // Only add if we don't already have sample data
-    if (existingSubmissions.length === 0) {
-      localStorage.setItem('all_submissions', JSON.stringify(sampleSubmissions));
-      console.log(`✅ Added ${sampleSubmissions.length} sample test submissions for leaderboard demo`);
-      
-      // Refresh leaderboard
-      leaderboardService.refreshLeaderboard();
-      
-      return sampleSubmissions;
-    } else {
-      console.log(`ℹ️ Found ${existingSubmissions.length} existing submissions, skipping sample data generation`);
-      return existingSubmissions;
-    }
+    console.log(`ℹ️ Found ${existingSubmissions.length} existing submissions in localStorage`);
+    return existingSubmissions;
   } catch (error) {
-    console.error('Error adding sample submissions:', error);
+    console.error('Error reading existing submissions:', error);
     return [];
   }
 };
@@ -159,37 +157,11 @@ export const clearAllSubmissions = () => {
   }
 };
 
-// Function to simulate a new test submission
+// Function to simulate a new test submission - DISABLED
 export const simulateTestSubmission = (userId, userName, userEmail, testType, score) => {
-  const submission = {
-    id: `${userId}_${Date.now()}`,
-    user_id: userId,
-    user_name: userName,
-    user_email: userEmail,
-    test_type: testType,
-    score: score,
-    total_questions: testType === 'aptitude' ? 20 : 15,
-    time_taken: Math.floor(Math.random() * 1800) + 600, // 10-40 minutes
-    status: 'completed',
-    submitted_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-    answers: []
-  };
-
-  try {
-    const existingSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-    existingSubmissions.push(submission);
-    localStorage.setItem('all_submissions', JSON.stringify(existingSubmissions));
-    
-    // Trigger leaderboard refresh
-    leaderboardService.refreshLeaderboard();
-    
-    console.log(`✅ Simulated test submission: ${userName} scored ${score} in ${testType}`);
-    return submission;
-  } catch (error) {
-    console.error('Error simulating test submission:', error);
-    return null;
-  }
+  console.log('🚫 Test simulation is disabled');
+  console.log('ℹ️ Only real student test submissions will be stored');
+  return null;
 };
 
 export default {

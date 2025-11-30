@@ -19,8 +19,18 @@ const testTypes = ['aptitude', 'coding', 'technical', 'general'];
 
 /**
  * Generate a random test submission for demo purposes
+ * DISABLED: Only real student submissions should be stored
  */
 export const generateRandomSubmission = async () => {
+  console.log('🚫 Demo submission generation is disabled');
+  console.log('ℹ️ Only real student test submissions will be stored in the database');
+  return { 
+    success: false, 
+    message: 'Demo submissions are disabled. Only real student submissions allowed.' 
+  };
+
+  // DISABLED CODE:
+  /*
   const user = demoUsers[Math.floor(Math.random() * demoUsers.length)];
   const testType = testTypes[Math.floor(Math.random() * testTypes.length)];
   const totalQuestions = Math.floor(Math.random() * 20) + 10; // 10-30 questions
@@ -61,25 +71,20 @@ export const generateRandomSubmission = async () => {
     console.error('Error generating demo submission:', error);
     return { success: false, error: error.message };
   }
+  */
 };
 
 /**
  * Generate multiple submissions for testing
+ * DISABLED: Only real student submissions should be stored
  */
 export const generateMultipleSubmissions = async (count = 3) => {
-  console.log(`🎯 Generating ${count} demo submissions...`);
-  
-  const results = [];
-  for (let i = 0; i < count; i++) {
-    const result = await generateRandomSubmission();
-    results.push(result);
-    
-    // Small delay between submissions
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
-  
-  console.log('✅ Demo submissions completed:', results);
-  return results;
+  console.log('🚫 Demo multiple submission generation is disabled');
+  console.log('ℹ️ Only real student test submissions will be stored in the database');
+  return [{ 
+    success: false, 
+    message: 'Demo submissions are disabled. Only real student submissions allowed.' 
+  }];
 };
 
 /**
