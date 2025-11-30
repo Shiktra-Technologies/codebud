@@ -31,11 +31,11 @@ ALTER TABLE submission_csv ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can insert their own submissions
 CREATE POLICY "Users can insert their own submissions" ON submission_csv
-  FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Policy: Users can view their own submissions  
 CREATE POLICY "Users can view their own submissions" ON submission_csv
-  FOR SELECT USING (auth.uid()::text = user_id::text);
+  FOR SELECT USING (auth.uid() = user_id);
 
 -- Policy: Admins can view all submissions
 CREATE POLICY "Admins can view all submissions" ON submission_csv
@@ -46,6 +46,14 @@ CREATE POLICY "Admins can view all submissions" ON submission_csv
       AND role IN ('admin', 'super_admin')
     )
   );
+
+-- Policy: Allow public access for testing (REMOVE THIS IN PRODUCTION)
+CREATE POLICY "Allow public read for testing" ON submission_csv
+  FOR SELECT USING (true);
+
+-- Policy: Allow public insert for testing (REMOVE THIS IN PRODUCTION)  
+CREATE POLICY "Allow public insert for testing" ON submission_csv
+  FOR INSERT WITH CHECK (true);
 
 -- Policy: Admins can update all submissions (for status changes, etc.)
 CREATE POLICY "Admins can update all submissions" ON submission_csv

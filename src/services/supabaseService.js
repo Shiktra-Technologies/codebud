@@ -301,37 +301,45 @@ export const submitTestToSupabase = async (userId, submissionData) => {
   try {
     console.log('💾 Submitting to submission_csv table with user reference');
     
+    // Validate user_id format
+    if (!userId || typeof userId !== 'string') {
+      throw new Error(`Invalid user_id format: ${userId}`);
+    }
+    
     // Create submission object for the new normalized table
     const submission = {
-      user_id: userId,
+      user_id: userId, // This should be a UUID from Supabase Auth
       test_type: submissionData.testType || 'aptitude',
-      score: submissionData.score || 0,
-      total_questions: submissionData.totalQuestions || submissionData.answers?.length || 30,
-      time_taken: submissionData.timeTaken || 0,
-      answers: submissionData.answers || [],
+      score: parseInt(submissionData.score) || 0,
+      total_questions: parseInt(submissionData.totalQuestions || submissionData.answers?.length) || 30,
+      time_taken: parseInt(submissionData.timeTaken) || 0,
+      answers: Array.isArray(submissionData.answers) ? submissionData.answers : [],
       status: submissionData.status || 'completed',
-      submitted_at: new Date().toISOString(),
       
       // Additional CSV-specific data
       device_info: {
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-        language: navigator.language,
-        screenResolution: `${screen.width}x${screen.height}`,
+        userAgent: navigator?.userAgent || 'unknown',
+        platform: navigator?.platform || 'unknown',
+        language: navigator?.language || 'en',
+        screenResolution: typeof screen !== 'undefined' ? `${screen.width}x${screen.height}` : 'unknown',
         timestamp: new Date().toISOString()
       },
-      violation_count: submissionData.violations?.count || submissionData.violationAnalysis?.totalViolations || 0,
-      violation_details: submissionData.violations?.details || submissionData.violationAnalysis?.detailedViolations || []
+      violation_count: parseInt(submissionData.violations?.count || submissionData.violationAnalysis?.totalViolations) || 0,
+      violation_details: Array.isArray(submissionData.violations?.details) ? submissionData.violations.details : 
+                        Array.isArray(submissionData.violationAnalysis?.detailedViolations) ? submissionData.violationAnalysis.detailedViolations : []
     };
 
     console.log('📝 Attempting to save to submission_csv table:', {
       user_id: submission.user_id,
+      user_id_type: typeof submission.user_id,
       test_type: submission.test_type,
       score: submission.score,
-      total_questions: submission.total_questions
+      total_questions: submission.total_questions,
+      answers_length: submission.answers.length
     });
 
     // Try to insert into Supabase submission_csv table
+    console.log('🔄 Inserting submission into Supabase...');
     const { data, error } = await supabase
       .from('submission_csv')
       .insert(submission)
@@ -345,11 +353,23 @@ export const submitTestToSupabase = async (userId, submissionData) => {
       `);
 
     if (error) {
-      console.error('❌ Supabase submission_csv insert error:', error);
+      console.error('❌ Supabase submission_csv insert error:', {
+        error: error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        submission: submission
+      });
       throw error;
     }
 
-    console.log('✅ Submission saved to submission_csv table:', data);
+    if (!data || data.length === 0) {
+      console.warn('⚠️ No data returned from Supabase insert');
+      throw new Error('No data returned from Supabase insert');
+    }
+
+    console.log('✅ Submission saved to submission_csv table:', data[0]);
 
     // Also save to localStorage as fallback
     const localSubmission = {
@@ -545,17 +565,29 @@ export const getAllSubmissions = async () => {
       .order('submitted_at', { ascending: false });
     
     if (error) {
-      console.error('❌ Supabase submission_csv query error:', error);
+      console.error('❌ Supabase submission_csv query error:', {
+        error: error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       throw error;
     }
     
+    // Handle empty data (this is normal when no submissions exist yet)
+    if (!data || data.length === 0) {
+      console.log('📊 No submissions found in submission_csv table (table is empty)');
+      return { success: true, data: [] };
+    }
+    
     // Transform data to include user info directly
-    const transformedData = data?.map(submission => ({
+    const transformedData = data.map(submission => ({
       ...submission,
       user_name: submission.users?.display_name || 'Unknown Student',
       user_email: submission.users?.email || 'No email',
       percentage: submission.percentage || Math.round((submission.score / submission.total_questions) * 100)
-    })) || [];
+    }));
     
     console.log(`✅ Retrieved ${transformedData.length} submissions from submission_csv table`);
     console.log('📊 Sample submission data:', transformedData[0]);
@@ -564,20 +596,12 @@ export const getAllSubmissions = async () => {
   } catch (error) {
     console.error('❌ Error getting submissions from submission_csv table:', error);
     
-    // Fallback to localStorage - check multiple sources
+    // Only fallback to localStorage if Supabase completely fails
+    console.warn('📦 Supabase failed, falling back to localStorage');
     const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-    const supabaseSubmissions = JSON.parse(localStorage.getItem('supabase_submissions') || '[]');
     
-    // Combine both sources
-    const combinedSubmissions = [...allSubmissions, ...supabaseSubmissions];
-    
-    // Remove duplicates by ID
-    const uniqueSubmissions = combinedSubmissions.filter((submission, index, self) => 
-      index === self.findIndex(s => s.id === submission.id)
-    );
-    
-    console.log(`✅ Fallback: Retrieved ${uniqueSubmissions.length} submissions from localStorage (${allSubmissions.length} + ${supabaseSubmissions.length} combined)`);
-    return { success: true, data: uniqueSubmissions, fallback: true };
+    console.log(`📦 Fallback: Retrieved ${allSubmissions.length} submissions from localStorage`);
+    return { success: true, data: allSubmissions, fallback: true };
   }
 };
 
