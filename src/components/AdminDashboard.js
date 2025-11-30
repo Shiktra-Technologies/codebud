@@ -40,7 +40,7 @@ const AdminDashboard = () => {
   const [recentSubmissions, setRecentSubmissions] = useState([]);
   const [csvLoading, setCsvLoading] = useState(false);
   const [searchCriteria, setSearchCriteria] = useState({
-    userId: '',
+    searchText: '',
     startDate: '',
     endDate: '',
     minScore: '',
@@ -201,22 +201,76 @@ const AdminDashboard = () => {
         setActiveUsers(currentlyActive);
       }
 
-      // Get submissions from localStorage (real-time submissions)
-      const storedSubmissions = JSON.parse(localStorage.getItem('test_results') || '[]');
-      if (storedSubmissions.length > 0) {
-        setTestResults(storedSubmissions.slice(0, 50)); // Show last 50 submissions
+      // Get submissions from all localStorage sources (including past submissions)
+      const testResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+      const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+      const pendingSubmissions = JSON.parse(localStorage.getItem('pending_submissions') || '[]');
+      const forwardingData = JSON.parse(localStorage.getItem('submission_forwarding') || '[]');
+      
+      // Try to get individual test results too
+      const singleTestResult = localStorage.getItem('testResults');
+      let singleResult = [];
+      if (singleTestResult) {
+        try {
+          const parsed = JSON.parse(singleTestResult);
+          singleResult = [parsed]; // Wrap single result in array
+        } catch (e) {
+          console.warn('Could not parse single test result:', e);
+        }
+      }
+
+      // Merge all submission sources and remove duplicates
+      const allSources = [
+        ...testResults,
+        ...allSubmissions, 
+        ...pendingSubmissions,
+        ...forwardingData,
+        ...singleResult
+      ];
+      
+      // Remove duplicates based on id, timestamp, or a combination of user+timestamp
+      const uniqueSubmissions = allSources.filter((submission, index, self) => {
+        if (!submission) return false;
+        
+        return index === self.findIndex(s => {
+          // Match by ID if both have IDs
+          if (s.id && submission.id) {
+            return s.id === submission.id;
+          }
+          
+          // Match by user+timestamp combination
+          const sKey = `${s.userId || s.studentEmail || 'anon'}_${s.submittedAt || s.timestamp}`;
+          const submissionKey = `${submission.userId || submission.studentEmail || 'anon'}_${submission.submittedAt || submission.timestamp}`;
+          return sKey === submissionKey;
+        });
+      });
+      
+      if (uniqueSubmissions.length > 0) {
+        // Sort by submission time (newest first)
+        uniqueSubmissions.sort((a, b) => {
+          const timeA = new Date(a.submittedAt || a.timestamp || 0);
+          const timeB = new Date(b.submittedAt || b.timestamp || 0);
+          return timeB - timeA;
+        });
+        
+        setTestResults(uniqueSubmissions);
+        console.log(`📊 Loaded ${uniqueSubmissions.length} total submissions from all sources`);
       }
 
       // Get activity data from real-time service
-      const activityData = realTimeService.getLatestData('submissions');
-      if (activityData && activityData.length > 0) {
-        setTestResults(prev => {
-          const combined = [...activityData, ...prev];
-          const unique = combined.filter((item, index, self) => 
-            index === self.findIndex(t => t.id === item.id)
-          );
-          return unique.slice(0, 50);
-        });
+      try {
+        const activityData = await realTimeService.fetchLatestData('submissions');
+        if (activityData && activityData.length > 0) {
+          setTestResults(prev => {
+            const combined = [...activityData, ...prev];
+            const unique = combined.filter((item, index, self) => 
+              index === self.findIndex(t => t.id === item.id)
+            );
+            return unique; // Show all unique submissions
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch real-time activity data:', error);
       }
 
       setRealTimeStatus('connected');
@@ -275,7 +329,7 @@ const AdminDashboard = () => {
       console.log('📋 Real-time submissions update:', payload);
       const data = Array.isArray(payload) ? payload : payload.data || [];
       if (data.length > 0) {
-        setTestResults(data.slice(0, 50));
+        setTestResults(data); // Show all submissions
         setRealTimeStatus('connected');
       }
     }, { pollInterval: 2000 });
@@ -330,7 +384,7 @@ const AdminDashboard = () => {
       const [csvData, statistics, recent] = await Promise.all([
         adminCSVService.getCurrentCSVData(),
         adminCSVService.getSubmissionStatistics(),
-        adminCSVService.getRecentSubmissions(10)
+        adminCSVService.getRecentSubmissions(1000) // Request a very high limit to get all submissions
       ]);
       
       setCsvData(csvData);
@@ -374,7 +428,7 @@ const AdminDashboard = () => {
     setCsvLoading(true);
     try {
       const filtered = await adminCSVService.searchSubmissions(criteria);
-      setRecentSubmissions(filtered.slice(0, 10)); // Show first 10 results
+      setRecentSubmissions(filtered); // Show all filtered results
     } catch (error) {
       console.error('CSV search error:', error);
       setError('Failed to search submissions');
@@ -496,10 +550,10 @@ const AdminDashboard = () => {
                 // Add to localStorage
                 const existing = JSON.parse(localStorage.getItem('test_results') || '[]');
                 existing.unshift(testSubmission);
-                localStorage.setItem('test_results', JSON.stringify(existing.slice(0, 50)));
+                localStorage.setItem('test_results', JSON.stringify(existing)); // Store all submissions
                 
                 // Trigger real-time update
-                realTimeService.broadcastUpdate('submissions', [testSubmission, ...existing.slice(0, 50)]);
+                realTimeService.broadcastUpdate('submissions', [testSubmission, ...existing]); // Broadcast all submissions
                 
                 console.log('🧪 Generated test submission:', testSubmission);
               }}
@@ -975,13 +1029,13 @@ const AdminDashboard = () => {
                   timestamp: user.lastSeen || Date.now(),
                   user,
                   id: `active_${user.id}`
-                })), ...testResults.slice(0, 10).map(submission => ({
+                })), ...testResults.slice(0, 50).map(submission => ({
                   type: 'submission',
                   timestamp: submission.submittedAt || submission.timestamp,
                   submission,
                   user: students.find(s => s.id === submission.userId || s.email === submission.studentEmail),
                   id: submission.id || `sub_${Math.random()}`
-                }))].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 20).map((activity, index) => (
+                }))].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 100).map((activity, index) => (
                   <div key={activity.id} style={{
                     padding: '15px 20px',
                     borderBottom: '1px solid #e9ecef',
@@ -1585,12 +1639,12 @@ const CSVReportsSection = ({
         <h3 style={{ marginBottom: '15px' }}>🔍 Filter & Export Options</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>User ID:</label>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Student Name:</label>
             <input
               type="text"
-              value={searchCriteria.userId}
-              onChange={(e) => setSearchCriteria({...searchCriteria, userId: e.target.value})}
-              placeholder="Search by user ID..."
+              value={searchCriteria.searchText}
+              onChange={(e) => setSearchCriteria({...searchCriteria, searchText: e.target.value})}
+              placeholder="Search by student name or email..."
               style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
             />
           </div>
@@ -1695,7 +1749,7 @@ const CSVReportsSection = ({
           padding: '15px 20px',
           fontWeight: 'bold'
         }}>
-          📋 Recent Submissions Preview (Last 10)
+          📋 All Submissions
         </div>
         {csvLoading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -1703,10 +1757,14 @@ const CSVReportsSection = ({
           </div>
         ) : recentSubmissions.length > 0 ? (
           <div style={{ overflowX: 'auto' }}>
+            <div style={{ marginBottom: '10px', fontSize: '14px', color: '#666' }}>
+              Showing all {recentSubmissions.length} submissions
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ background: '#f8f9fa' }}>
                 <tr>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>User ID</th>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Student Name</th>
+                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Email</th>
                   <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Score</th>
                   <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Percentage</th>
                   <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Device</th>
@@ -1718,7 +1776,30 @@ const CSVReportsSection = ({
                 {recentSubmissions.map((submission, index) => (
                   <tr key={index} style={{ backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa' }}>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      {submission.userId}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          backgroundColor: '#007bff',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: 'bold'
+                        }}>
+                          {(submission.userName || submission.displayName || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontWeight: '500' }}>
+                          {submission.userName || submission.displayName || 'Anonymous User'}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                      <span style={{ color: '#666', fontSize: '14px' }}>
+                        {submission.userEmail || submission.email || 'No email provided'}
+                      </span>
                     </td>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
                       <span style={{ 

@@ -3,7 +3,7 @@ import { useSimpleAuth } from '../context/SimpleAuthContext';
 import './Profile.css';
 
 const Profile = () => {
-  const { currentUser, userRole } = useSimpleAuth();
+  const { currentUser, userRole, promoteToAdmin } = useSimpleAuth();
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -79,6 +79,26 @@ const Profile = () => {
           >
             Reset Password
           </button>
+          
+          {userRole === 'student' && (
+            <button 
+              onClick={() => {
+                const success = promoteToAdmin();
+                if (success) {
+                  setMessage('✅ Temporarily promoted to admin! You can now access admin features.');
+                  // Force page refresh to update UI
+                  setTimeout(() => window.location.reload(), 1000);
+                } else {
+                  setError('Failed to promote to admin');
+                }
+              }} 
+              disabled={loading}
+              className="reset-button"
+              style={{ backgroundColor: '#28a745', marginTop: '10px' }}
+            >
+              🔧 Promote to Admin (Testing)
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -249,7 +249,8 @@ class AdminCSVService {
         .slice(0, limit);
 
       return recent.map(submission => ({
-        userId: submission.userId,
+        userName: submission.studentName || submission.userName || 'Anonymous User',
+        userEmail: submission.studentEmail || submission.userEmail || 'No email provided', 
         score: submission.score,
         percentage: submission.percentage,
         timestamp: submission.timestamp,
@@ -272,10 +273,12 @@ class AdminCSVService {
       
       let filtered = allSubmissions;
 
-      // Filter by user ID
-      if (criteria.userId) {
+      // Filter by user name or email
+      if (criteria.searchText) {
         filtered = filtered.filter(sub => 
-          sub.userId.toLowerCase().includes(criteria.userId.toLowerCase())
+          (sub.userName && sub.userName.toLowerCase().includes(criteria.searchText.toLowerCase())) ||
+          (sub.displayName && sub.displayName.toLowerCase().includes(criteria.searchText.toLowerCase())) ||
+          (sub.userEmail && sub.userEmail.toLowerCase().includes(criteria.searchText.toLowerCase()))
         );
       }
 

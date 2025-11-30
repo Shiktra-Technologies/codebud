@@ -7,6 +7,8 @@ import ViolationWarningPopup from './ViolationWarningPopup';
 import { generateViolationAnalysis } from '../utils/violationAnalysis';
 import { useRealTimeActivity, useRealTimeSubmission } from '../hooks/useRealTime';
 import realTimeService from '../services/realTimeService';
+import submissionForwardingService from '../services/submissionForwardingService';
+import { useSimpleAuth } from '../context/SimpleAuthContext';
 import './ProblemSolver.css';
 
 // Sample problem data with test cases
@@ -515,6 +517,29 @@ const ProblemSolver = () => {
             console.log('🚀 Recording real-time DSA submission:', submissionData);
             recordSubmission(submissionData);
             realTimeService.trackUserActivity(currentUser.uid, `completed DSA: ${problem.title}`);
+            
+            // Forward to CSV for admin dashboard
+            submissionForwardingService.forwardSubmission({
+              userId: currentUser.uid,
+              userEmail: currentUser.email,
+              displayName: currentUser.displayName || currentUser.email,
+              testType: 'DSA Problem',
+              testTitle: problem.title,
+              score: percentage,
+              totalQuestions: problem.testCases?.length || 1,
+              correctAnswers: results.correct,
+              wrongAnswers: results.wrong,
+              timeSpent: results.timing.totalTime,
+              submissionTime: results.timing.endTime,
+              details: {
+                difficulty: problem.difficulty,
+                category: problem.category,
+                codeSubmission: code,
+                language: selectedLanguage,
+                testResults: results.testResults,
+                violationCount: results.violationAnalysis?.totalViolations || 0
+              }
+            });
           }
           resolve();
         }),
@@ -524,7 +549,7 @@ const ProblemSolver = () => {
           try {
             const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
             existingResults.unshift(submissionData);
-            localStorage.setItem('test_results', JSON.stringify(existingResults.slice(0, 100)));
+            localStorage.setItem('test_results', JSON.stringify(existingResults)); // Store all submissions
           } catch (error) {
             console.error('Error saving to localStorage:', error);
           }

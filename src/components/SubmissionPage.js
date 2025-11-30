@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProctor } from '../context/ProctorContext';
+import { useSimpleAuth } from '../context/SimpleAuthContext';
+import submissionForwardingService from '../services/submissionForwardingService';
 import './SubmissionPage.css';
 
 const SubmissionPage = () => {
   const { pauseMonitoring, exitFullscreen, permissions } = useProctor();
+  const { currentUser } = useSimpleAuth();
   const navigate = useNavigate();
   const [testResults, setTestResults] = useState(null);
+  const [csvForwarded, setCsvForwarded] = useState(false);
 
   useEffect(() => {
     // Pause monitoring when reaching submission page (keep permissions active)
@@ -15,9 +19,27 @@ const SubmissionPage = () => {
     // Load test results from localStorage
     const savedResults = localStorage.getItem('testResults');
     if (savedResults) {
-      setTestResults(JSON.parse(savedResults));
+      const results = JSON.parse(savedResults);
+      setTestResults(results);
+      
+      // Forward to CSV system if not already done
+      if (!csvForwarded && results) {
+        try {
+          submissionForwardingService.forwardSubmission({
+            ...results,
+            userId: currentUser?.id || currentUser?.email || `anonymous_${Date.now()}`,
+            userName: currentUser?.displayName || currentUser?.email || 'Anonymous User',
+            testType: results.testType === 'aptitude' ? 'Aptitude Test' : 'Problem Solving Test',
+            submittedAt: results.submittedAt
+          });
+          setCsvForwarded(true);
+          console.log('✅ Real submission forwarded to admin CSV from SubmissionPage');
+        } catch (error) {
+          console.error('❌ Failed to forward submission to CSV from SubmissionPage:', error);
+        }
+      }
     }
-  }, [pauseMonitoring]);
+  }, [pauseMonitoring, csvForwarded, currentUser]);
 
   if (!testResults) {
     return (

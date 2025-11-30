@@ -4,7 +4,7 @@ import { useSimpleAuth } from '../context/SimpleAuthContext';
 import './Navbar.css';
 
 const Navbar = () => {
-  const { currentUser, userRole, loading, logout, isStudent, isAdmin, isSuperAdmin } = useSimpleAuth();
+  const { currentUser, userRole, loading, logout, isStudent, isAdmin, isSuperAdmin, promoteToAdmin } = useSimpleAuth();
   const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -134,6 +134,25 @@ const Navbar = () => {
                 <span className="item-icon">👤</span>
                 <span>Profile</span>
               </Link>
+              
+              {userRole === 'student' && (
+                <button 
+                  onClick={() => {
+                    const success = promoteToAdmin();
+                    if (success) {
+                      setIsProfileOpen(false);
+                      alert('✅ Promoted to admin! Page will refresh...');
+                      setTimeout(() => window.location.reload(), 500);
+                    }
+                  }}
+                  className="dropdown-item"
+                  style={{ backgroundColor: '#28a745', color: 'white' }}
+                >
+                  <span className="item-icon">🔧</span>
+                  <span>Become Admin</span>
+                </button>
+              )}
+              
               <button 
                 onClick={handleLogout}
                 disabled={isLoggingOut}

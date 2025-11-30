@@ -320,6 +320,18 @@ export function SimpleAuthProvider({ children }) {
   const isAdmin = () => userRole === USER_ROLES.ADMIN;
   const isSuperAdmin = () => userRole === USER_ROLES.SUPER_ADMIN;
 
+  // Temporary admin promotion for testing (remove in production)
+  const promoteToAdmin = () => {
+    if (currentUser) {
+      console.log('🔧 Temporarily promoting user to admin for testing');
+      setUserRole(USER_ROLES.ADMIN);
+      // Also update localStorage
+      localStorage.setItem('user_role', USER_ROLES.ADMIN);
+      return true;
+    }
+    return false;
+  };
+
   const value = {
     currentUser,
     userRole,
@@ -334,7 +346,8 @@ export function SimpleAuthProvider({ children }) {
     USER_ROLES,
     getAllUsers,
     updateLastActive,
-    isOnline
+    isOnline,
+    promoteToAdmin
   };
 
   if (loading) {

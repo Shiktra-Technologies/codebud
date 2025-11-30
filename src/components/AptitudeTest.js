@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProctor } from '../context/ProctorContext';
+import { useSimpleAuth } from '../context/SimpleAuthContext';
 import ViolationModal from './ViolationModal';
 import ViolationWarningPopup from './ViolationWarningPopup';
 import { generateViolationAnalysis } from '../utils/violationAnalysis';
+import submissionForwardingService from '../services/submissionForwardingService';
 import './AptitudeTest.css';
 
 const AptitudeTest = () => {
   const navigate = useNavigate();
+  const { currentUser } = useSimpleAuth();
   const { startMonitoring, pauseMonitoring, stopMonitoring, proctorState, completeTestCleanup } = useProctor();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -418,6 +421,21 @@ const AptitudeTest = () => {
 
     // Save results
     localStorage.setItem('testResults', JSON.stringify(results));
+
+    // Forward results to admin CSV system for real-time updates
+    try {
+      submissionForwardingService.forwardSubmission({
+        ...results,
+        userId: currentUser?.id || currentUser?.email || `anonymous_${Date.now()}`,
+        userName: currentUser?.displayName || currentUser?.email || 'Anonymous User',
+        testType: 'Aptitude Test',
+        submittedAt: results.submittedAt
+      });
+      console.log('✅ Real test submission forwarded to admin CSV system');
+    } catch (error) {
+      console.error('❌ Failed to forward test submission to CSV:', error);
+      // Don't fail the entire submission if CSV forwarding fails
+    }
 
     // Automatically cleanup - exit fullscreen and turn off camera
     setTimeout(() => {
