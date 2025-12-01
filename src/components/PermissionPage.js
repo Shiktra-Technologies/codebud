@@ -197,13 +197,70 @@ const PermissionPage = () => {
           ))}
         </div>
 
-        <div className="current-step">
-          <div className="step-icon">
-            {steps[currentStep].icon}
-          </div>
-          <h2>{steps[currentStep].title}</h2>
-          <p>{steps[currentStep].description}</p>
-
+        <div className="main-content">
+          {steps.map((step, index) => (
+            <div 
+              key={index} 
+              className={`step-card ${index === currentStep ? 'active' : ''} ${step.completed ? 'completed' : ''}`}
+            >
+              <div className="step-icon">
+                {step.icon}
+              </div>
+              <h3>{step.title}</h3>
+              <p>{step.description}</p>
+              
+              {(permissionStatus.camera === 'denied' || permissionStatus.microphone === 'denied') && index === 0 && (
+                <div className="permission-denied-help">
+                  <h3>🚨 Permissions Blocked</h3>
+                  <p>Camera or microphone access has been blocked. To fix this:</p>
+                  {environmentInfo && (
+                    <>
+                      <p><strong>For {environmentInfo.browser}:</strong></p>
+                      <ol>
+                        <li>{getPermissionInstructions(environmentInfo.browser).camera}</li>
+                      </ol>
+                    </>
+                  )}
+                  <p><strong>General steps:</strong></p>
+                  <ol>
+                    <li>Look for a <strong>camera/microphone icon</strong> in your browser's address bar</li>
+                    <li>Click on it and change the setting to <strong>"Allow"</strong></li>
+                    <li>Click the "Retry Permissions" button below</li>
+                  </ol>
+                  <button 
+                    className="retry-btn" 
+                    onClick={() => window.location.reload()}
+                    style={{
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      marginTop: '8px',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    🔄 Retry Permissions
+                  </button>
+                </div>
+              )}
+              
+              <button 
+                className={`step-btn ${step.completed ? 'completed' : ''}`}
+                onClick={() => {
+                  setCurrentStep(index);
+                  handleStepAction();
+                }}
+                disabled={loading && currentStep === index}
+              >
+                {loading && currentStep === index ? 'Loading...' : 
+                 step.completed ? '✓ Completed' : 
+                 `Grant ${step.title}`}
+              </button>
+            </div>
+          ))}
+          
           <div className="permissions-info">
             <h3>Why do we need these permissions?</h3>
             <ul>
@@ -211,70 +268,28 @@ const PermissionPage = () => {
               <li>🖥️ <strong>Fullscreen:</strong> To prevent access to other applications during the test</li>
               <li>🔒 <strong>Tab Monitoring:</strong> Switching tabs will automatically submit your test</li>
             </ul>
-          </div>
-
-          {(permissionStatus.camera === 'denied' || permissionStatus.microphone === 'denied') && (
-            <div className="permission-denied-help">
-              <h3>🚨 Permissions Blocked</h3>
-              <p>Camera or microphone access has been blocked. To fix this:</p>
-              {environmentInfo && (
-                <>
-                  <p><strong>For {environmentInfo.browser}:</strong></p>
-                  <ol>
-                    <li>{getPermissionInstructions(environmentInfo.browser).camera}</li>
-                  </ol>
-                </>
-              )}
-              <p><strong>General steps:</strong></p>
-              <ol>
-                <li>Look for a <strong>camera/microphone icon</strong> in your browser's address bar (usually on the left side)</li>
-                <li>Click on it and change the setting to <strong>"Allow"</strong></li>
-                <li>Click the "Retry Permissions" button below</li>
-              </ol>
-              <button 
-                className="retry-btn" 
-                onClick={() => window.location.reload()}
-                style={{
-                  background: '#f6ad55',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 20px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  marginTop: '10px'
-                }}
-              >
-                🔄 Retry Permissions
-              </button>
+            
+            <div className="warning-box">
+              <div style={{ marginBottom: '0.5rem' }}>
+                <strong>⚠️ Important: Once the test starts:</strong>
+              </div>
+              <div style={{ fontSize: '0.9em', lineHeight: '1.4' }}>
+                • Do not switch tabs or applications<br />
+                • Do not exit fullscreen mode<br />
+                • Do not open developer tools<br />
+                • Any violation will automatically submit your test
+              </div>
             </div>
-          )}
 
-          <div className="warning-box">
-            ⚠️ <strong>Important:</strong> Once the test starts:
-            <br />• Do not switch tabs or applications
-            <br />• Do not exit fullscreen mode
-            <br />• Do not open developer tools
-            <br />• Any violation will automatically submit your test
+            {allPermissionsGranted && (
+              <button 
+                className="start-test-btn"
+                onClick={() => navigate(testInfo.nextRoute)}
+              >
+                Start {testInfo.title} 🚀
+              </button>
+            )}
           </div>
-
-          <button 
-            className="permission-btn" 
-            onClick={handleStepAction}
-            disabled={loading}
-          >
-            {loading ? 'Loading...' : 
-             steps[currentStep].completed ? 'Continue' : 
-             `Grant ${steps[currentStep].title}`}
-          </button>
-
-          {allPermissionsGranted && (
-            <button 
-              className="start-test-btn"
-              onClick={() => navigate(testInfo.nextRoute)}
-            >
-              Start {testInfo.title} 🚀
-            </button>
-          )}
         </div>
 
         <div className="footer">

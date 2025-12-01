@@ -156,28 +156,33 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: var(--spacing-10) var(--spacing-8) var(--spacing-20);  /* Add bottom padding for fixed progress bar */
+  justify-content: flex-start;
+  padding: var(--spacing-5) var(--spacing-6);
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
   position: relative;
   z-index: 2;
+  padding-bottom: 90px; /* Less space needed for minimal progress bar */
+  box-sizing: border-box;
 }
 
 /* ==================== QUESTION SECTION ==================== */
 
 .question-section {
   background: rgba(255, 255, 255, 0.98);
-  border-radius: var(--radius-3xl);
-  padding: var(--spacing-12) var(--spacing-10);
-  margin-bottom: var(--spacing-8);
-  box-shadow: var(--shadow-2xl);
+  border-radius: var(--radius-2xl);
+  padding: var(--spacing-5) var(--spacing-6);
+  margin-bottom: 0; /* Remove bottom margin to eliminate extra space */
+  box-shadow: var(--shadow-lg);
   backdrop-filter: blur(20px);
-  border: 2px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   animation: fadeInUp var(--transition-slow) ease-out;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  flex: none; /* Remove flex: 1 to prevent stretching */
+  max-height: calc(100vh - 300px); /* Constrain height to prevent overflow */
+  overflow-y: auto; /* Allow scrolling within question section if needed */
 }
 
 .question-section::before {
@@ -240,10 +245,13 @@
 
 .question-text {
   color: #1f2937;  /* Dark gray for visibility on white background */
-  font-size: var(--text-2xl);
-  margin-bottom: var(--spacing-8);
+  font-size: var(--text-xl);
+  margin-bottom: var(--spacing-4);
   line-height: var(--leading-relaxed);
   font-weight: var(--font-semibold);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 /* ==================== OPTIONS ==================== */
@@ -251,47 +259,35 @@
 .options {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-4);
+  gap: var(--spacing-2);
+  max-height: 60vh; /* Constrain options height */
+  overflow-y: auto; /* Allow scrolling if too many options */
 }
 
 .option {
   display: flex;
-  align-items: center;
-  padding: var(--spacing-5) var(--spacing-6);
+  align-items: flex-start;
+  padding: var(--spacing-3) var(--spacing-4);
   background: var(--gray-50);
-  border: 3px solid var(--gray-200);
-  border-radius: var(--radius-2xl);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-xl);
   cursor: pointer;
   transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
-}
-
-.option::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--gradient-primary);
-  opacity: 0;
-  transition: opacity var(--transition-base);
-  z-index: 0;
+  min-height: 45px; /* Minimum height for touch targets */
 }
 
 .option:hover {
   border-color: var(--primary-400);
   background: var(--primary-50);
-  transform: translateX(8px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .option.selected {
   border-color: var(--primary-600);
   background: white;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-}
-
-.option.selected::before {
-  opacity: 0.05;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .option input[type="radio"] {
@@ -341,11 +337,15 @@
 }
 
 .option-text {
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
   color: #6b7280;  /* Medium gray for option text */
   flex: 1;
   line-height: var(--leading-relaxed);
   transition: all var(--transition-base);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  margin-left: var(--spacing-3); /* Space from radio button */
 }
 
 .option:hover .option-text,
@@ -362,6 +362,17 @@
   align-items: center;
   gap: var(--spacing-6);
   animation: fadeInUp var(--transition-slow) ease-out 0.2s backwards;
+  margin-top: var(--spacing-3); /* Small gap after question section */
+  position: sticky;
+  bottom: 20px; /* Position above minimal progress bar */
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-2xl);
+  padding: var(--spacing-4) var(--spacing-6);
+  margin-bottom: var(--spacing-4);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-lg);
 }
 
 .nav-btn {
@@ -454,18 +465,13 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  padding: var(--spacing-4) var(--spacing-6);
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: transparent;
+  padding: var(--spacing-2);
   z-index: 100;
 }
 
 .progress-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-3);
+  display: none; /* Hide the progress info text */
 }
 
 .progress-text {
@@ -481,12 +487,12 @@
 }
 
 .progress-bar {
-  height: 4px;
-  background: #e5e7eb;
+  height: 3px;
+  background: rgba(229, 231, 235, 0.5);
   border-radius: var(--radius-full);
   overflow: visible;
   position: relative;
-  margin: var(--spacing-1) 0;
+  margin: 0;
 }
 
 .progress-fill {
@@ -496,6 +502,7 @@
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
 }
 
 .progress-fill::after {
@@ -508,40 +515,7 @@
 }
 
 .progress-dots {
-  position: absolute;
-  top: -2px;
-  left: 0;
-  right: 0;
-  height: 8px;
-  pointer-events: none;
-}
-
-.progress-dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #d1d5db;
-  border: 2px solid #ffffff;
-  transform: translateX(-50%);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.progress-dot.completed {
-  background: #3b82f6;
-  transform: translateX(-50%) scale(1.2);
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-}
-
-.progress-dot.answered {
-  background: #10b981;
-  border-color: #ffffff;
-}
-
-.progress-dot.completed.answered {
-  background: #059669;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+  display: none; /* Hide the progress dots for cleaner look */
 }
 
 /* ==================== QUESTION PALETTE ==================== */
@@ -704,19 +678,25 @@
   }
 
   .test-content {
-    padding: var(--spacing-6) var(--spacing-4);
+    padding: var(--spacing-4) var(--spacing-4);
+    padding-bottom: 100px; /* Less space needed for minimal progress bar */
+    min-height: calc(100vh - 160px);
   }
 
   .question-section {
-    padding: var(--spacing-8) var(--spacing-6);
+    padding: var(--spacing-4) var(--spacing-4);
+    max-height: calc(100vh - 250px); /* Adjust for mobile */
+    margin-bottom: 0; /* Keep consistent with desktop */
   }
 
   .question-text {
-    font-size: var(--text-xl);
+    font-size: var(--text-lg);
+    margin-bottom: var(--spacing-4);
   }
 
   .option {
-    padding: var(--spacing-4);
+    padding: var(--spacing-3) var(--spacing-4);
+    min-height: 45px;
   }
 
   .option-text {
@@ -724,13 +704,19 @@
   }
 
   .navigation {
-    flex-direction: column;
-    gap: var(--spacing-4);
+    flex-direction: row;
+    gap: var(--spacing-3);
+    bottom: 20px; /* Adjust for minimal progress bar */
+    padding: var(--spacing-3) var(--spacing-4);
+    margin-top: var(--spacing-2); /* Smaller gap on mobile */
+    margin-bottom: var(--spacing-3);
   }
 
   .nav-btn {
-    width: 100%;
+    flex: 1;
     justify-content: center;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--text-base);
   }
 
   .completion-stats {
@@ -749,7 +735,17 @@
   }
 
   .question-text {
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
+    line-height: 1.5;
+  }
+
+  .test-content {
+    padding-bottom: 120px; /* Less space needed for minimal progress bar */
+  }
+
+  .question-section {
+    padding: var(--spacing-3);
+    max-height: calc(100vh - 280px);
   }
 
   .option-letter {

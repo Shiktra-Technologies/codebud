@@ -1016,27 +1016,28 @@
   }
 }
 
-/* Scrollbar styling */
+/* Hidden Scrollbar - Clean Design */
 .problem-content::-webkit-scrollbar,
 .test-cases::-webkit-scrollbar {
-  width: 6px;
+  width: 0px;
+  background: transparent;
 }
 
 .problem-content::-webkit-scrollbar-track,
 .test-cases::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
+  background: transparent;
+  border-radius: 0;
 }
 
 .problem-content::-webkit-scrollbar-thumb,
 .test-cases::-webkit-scrollbar-thumb {
-  background: rgba(124, 58, 237, 0.5);
-  border-radius: 3px;
+  background: transparent;
+  border-radius: 0;
 }
 
 .problem-content::-webkit-scrollbar-thumb:hover,
 .test-cases::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 58, 237, 0.7);
+  background: transparent;
 }
 
 /* Enhanced focus styles */

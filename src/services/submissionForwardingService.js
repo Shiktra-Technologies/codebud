@@ -114,11 +114,25 @@ class SubmissionForwardingService {
     const deviceInfo = this.getDeviceInfo();
     const proctoring = submission.violationAnalysis || {};
     
+    // Enhanced user name resolution
+    const userName = submission.userName || 
+                    submission.displayName || 
+                    submission.user_name ||
+                    submission.users?.display_name ||
+                    submission.users?.email?.split('@')[0] ||
+                    'Unknown Student';
+                    
+    const userEmail = submission.userEmail || 
+                     submission.email || 
+                     submission.user_email ||
+                     submission.users?.email ||
+                     'No email provided';
+    
     return {
       // Basic Info
       timestamp: new Date(submission.submittedAt || Date.now()).toISOString(),
-      studentName: submission.userName || submission.displayName || 'Anonymous User',
-      studentEmail: submission.userEmail || submission.email || 'No email provided',
+      studentName: userName,
+      studentEmail: userEmail,
       sessionId: submission.sessionId || this.generateSessionId(),
       
       // Test Results

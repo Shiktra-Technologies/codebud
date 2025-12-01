@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSimpleAuth } from '../context/SimpleAuthContext';
-import { isUserActive, formatLastSeen } from '../utils/userActivity';
+import { isUserActive } from '../utils/userActivity';
 import realTimeService from '../services/realTimeService';
 import jobService from '../services/jobService';
 import leaderboardService from '../services/leaderboardService';
@@ -15,6 +15,7 @@ const AdminDashboard = () => {
   const { currentUser, getAllUsers } = useSimpleAuth();
   const [activeTab, setActiveTab] = useState('students');
   const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
   // Real-time data states
@@ -161,6 +162,7 @@ const AdminDashboard = () => {
   // Real-time data fetching
   const fetchRealTimeData = useCallback(async () => {
     try {
+      setIsLoading(true);
       console.log('🔄 Fetching real-time data...');
       
       // Fetch real users
@@ -278,12 +280,14 @@ const AdminDashboard = () => {
 
       setRealTimeStatus('connected');
       setLoading(false);
+      setIsLoading(false);
       
     } catch (error) {
       console.error('Error fetching real-time data:', error);
       setError('Failed to fetch real-time data');
       setRealTimeStatus('error');
       setLoading(false);
+      setIsLoading(false);
     }
   }, [getAllUsers, currentUser]);
 
@@ -958,20 +962,9 @@ const AdminDashboard = () => {
         (payload) => {
           console.log('🆕 New submission received via Supabase real-time:', payload.new);
           
-          // Add new submission to testResults state
-          const newSubmission = {
-            ...payload.new,
-            user_name: payload.new.users?.display_name || 'Unknown Student',
-            user_email: payload.new.users?.email || 'No email'
-          };
-          
-          setTestResults(prev => {
-            // Check if submission already exists to avoid duplicates
-            const exists = prev.some(sub => sub.id === newSubmission.id);
-            if (exists) return prev;
-            
-            return [...prev, newSubmission];
-          });
+          // Instead of trying to access joined data that doesn't exist in real-time,
+          // just refresh the submissions to get the proper user data from the view
+          loadTestResults();
           
           // Refresh CSV data if on CSV reports tab
           if (activeTab === 'csv-reports') {
@@ -988,18 +981,9 @@ const AdminDashboard = () => {
         (payload) => {
           console.log('📝 Submission updated via Supabase real-time:', payload.new);
           
-          // Update existing submission in testResults state
-          const updatedSubmission = {
-            ...payload.new,
-            user_name: payload.new.users?.display_name || 'Unknown Student',
-            user_email: payload.new.users?.email || 'No email'
-          };
-          
-          setTestResults(prev => 
-            prev.map(sub => 
-              sub.id === updatedSubmission.id ? updatedSubmission : sub
-            )
-          );
+          // Instead of trying to access joined data that doesn't exist in real-time,
+          // just refresh the submissions to get the proper user data from the view
+          loadTestResults();
           
           // Refresh CSV data if on CSV reports tab
           if (activeTab === 'csv-reports') {
@@ -1200,19 +1184,6 @@ const AdminDashboard = () => {
           style={{ 
             padding: '10px 15px', 
             margin: '0 5px', 
-            backgroundColor: activeTab === 'live-activity' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'live-activity' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('live-activity')}
-        >
-          🔴 Live Activity
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
             backgroundColor: activeTab === 'leaderboard' ? '#007bff' : '#f8f9fa',
             color: activeTab === 'leaderboard' ? 'white' : 'black',
             border: '1px solid #dee2e6',
@@ -1308,159 +1279,290 @@ const AdminDashboard = () => {
 
         {activeTab === 'active-users' && (
           <div>
-            <h2>Active Users & Their Submissions ({activeUsers.length})</h2>
-            {activeUsers.length === 0 ? (
+            {/* Header with status and refresh */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '25px'
+            }}>
+              <h2 style={{ margin: '0', color: '#212529' }}>
+                🟢 Active Users & Their Submissions ({activeUsers.length})
+              </h2>
+              <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <div style={{
+                  padding: '8px 15px',
+                  backgroundColor: realTimeStatus === 'connected' ? '#d4edda' : '#f8d7da',
+                  color: realTimeStatus === 'connected' ? '#155724' : '#721c24',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  border: `1px solid ${realTimeStatus === 'connected' ? '#c3e6cb' : '#f5c6cb'}`
+                }}>
+                  {realTimeStatus === 'connected' ? '🟢 LIVE' : '🔴 OFFLINE'}
+                </div>
+                <button
+                  onClick={fetchRealTimeData}
+                  disabled={isLoading}
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: isLoading ? '#6c757d' : '#17a2b8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  🔄 {isLoading ? 'Refreshing...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+
+            {isLoading ? (
               <div style={{ 
                 textAlign: 'center', 
-                padding: '40px', 
+                padding: '60px', 
                 backgroundColor: '#f8f9fa', 
-                borderRadius: '8px',
-                border: '2px dashed #dee2e6'
+                borderRadius: '12px',
+                border: '1px solid #dee2e6'
               }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🟢</div>
-                <h3 style={{ color: '#6c757d' }}>No Active Users</h3>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                <h3 style={{ color: '#6c757d' }}>Loading Active Users...</h3>
                 <p style={{ color: '#6c757d', margin: '0' }}>
-                  Users who are currently online will appear here with their recent submissions
+                  Fetching real-time user activity and submissions
                 </p>
               </div>
+            ) : activeUsers.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '60px', 
+                backgroundColor: '#ffffff', 
+                borderRadius: '12px',
+                border: '2px dashed #dee2e6',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{ fontSize: '64px', marginBottom: '20px' }}>🟢</div>
+                <h3 style={{ color: '#495057', marginBottom: '12px' }}>No Active Users</h3>
+                <p style={{ color: '#6c757d', margin: '0', fontSize: '16px' }}>
+                  Users who are currently online will appear here with their recent submissions
+                </p>
+                <div style={{
+                  marginTop: '20px',
+                  padding: '12px 20px',
+                  backgroundColor: '#e7f3ff',
+                  borderRadius: '8px',
+                  color: '#0066cc',
+                  fontSize: '14px'
+                }}>
+                  💡 Users are considered active if they've been online in the last 5 minutes
+                </div>
+              </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {activeUsers.map(user => {
-                  // Get user's recent submissions
-                  const userSubmissions = testResults.filter(submission => 
-                    submission.userId === user.id || submission.studentEmail === user.email
-                  ).slice(0, 5); // Show last 5 submissions
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                {activeUsers.map((user, index) => {
+                  // Get user's recent submissions with better filtering
+                  const userSubmissions = testResults.filter(submission => {
+                    const matchesUserId = submission.userId === user.id;
+                    const matchesEmail = submission.studentEmail === user.email || submission.userEmail === user.email;
+                    const matchesUserName = submission.userName === user.displayName;
+                    return matchesUserId || matchesEmail || matchesUserName;
+                  }).slice(0, 5); // Show last 5 submissions
+
+                  const lastActivity = user.lastSeen ? new Date(user.lastSeen) : null;
+                  const isRecentlyActive = lastActivity && (Date.now() - lastActivity.getTime()) < 5 * 60 * 1000; // 5 minutes
 
                   return (
-                    <div key={user.id} style={{ 
-                      border: '1px solid #dee2e6', 
-                      borderRadius: '12px', 
+                    <div key={user.id || index} style={{ 
+                      border: `2px solid ${isRecentlyActive ? '#28a745' : '#dee2e6'}`, 
+                      borderRadius: '15px', 
                       padding: '0',
                       backgroundColor: 'white',
                       overflow: 'hidden',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      boxShadow: isRecentlyActive ? '0 4px 12px rgba(40, 167, 69, 0.2)' : '0 4px 8px rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s ease'
                     }}>
                       {/* User Header */}
                       <div style={{
-                        background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                        background: isRecentlyActive 
+                          ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
+                          : 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
                         color: 'white',
-                        padding: '20px',
+                        padding: '25px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '15px'
+                        gap: '20px'
                       }}>
                         <div style={{
-                          width: '60px',
-                          height: '60px',
+                          width: '70px',
+                          height: '70px',
                           borderRadius: '50%',
-                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          backgroundColor: 'rgba(255,255,255,0.25)',
                           color: 'white',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '24px',
+                          fontSize: '28px',
                           fontWeight: 'bold',
-                          border: '3px solid rgba(255,255,255,0.3)'
+                          border: '3px solid rgba(255,255,255,0.4)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                         }}>
-                          {user.displayName?.charAt(0) || 'U'}
+                          {user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <h3 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>{user.displayName}</h3>
-                          <p style={{ margin: '0 0 4px 0', opacity: 0.9, fontSize: '14px' }}>{user.email}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <h3 style={{ margin: '0 0 8px 0', fontSize: '22px', fontWeight: '700' }}>
+                            {user.displayName || user.email || 'Unknown User'}
+                          </h3>
+                          <p style={{ margin: '0 0 10px 0', opacity: 0.9, fontSize: '15px' }}>
+                            {user.email || 'No email provided'}
+                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
                             <span style={{ 
-                              backgroundColor: 'rgba(40, 167, 69, 0.9)', 
-                              padding: '4px 12px', 
+                              backgroundColor: isRecentlyActive 
+                                ? 'rgba(255, 255, 255, 0.25)' 
+                                : 'rgba(40, 167, 69, 0.9)', 
+                              padding: '6px 14px', 
                               borderRadius: '20px', 
                               fontSize: '12px',
-                              fontWeight: '600'
+                              fontWeight: '700',
+                              border: '1px solid rgba(255,255,255,0.3)'
                             }}>
-                              🟢 {user.currentActivity || 'Active'}
+                              {isRecentlyActive ? '🟢 LIVE' : '🔵 ACTIVE'} {user.currentActivity || 'Online'}
                             </span>
-                            <span style={{ fontSize: '12px', opacity: 0.8 }}>
-                              {formatLastSeen(user.lastSeen)}
+                            <span style={{ fontSize: '13px', opacity: 0.85, fontWeight: '500' }}>
+                              Last seen: {formatLastSeen(user.lastSeen)}
                             </span>
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{userSubmissions.length}</div>
-                          <div style={{ fontSize: '12px', opacity: 0.8 }}>Submissions</div>
+                          <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '4px' }}>
+                            {userSubmissions.length}
+                          </div>
+                          <div style={{ fontSize: '13px', opacity: 0.85, fontWeight: '600' }}>
+                            Submission{userSubmissions.length !== 1 ? 's' : ''}
+                          </div>
+                          {userSubmissions.length > 0 && (
+                            <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '4px' }}>
+                              Avg: {Math.round(userSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0) / userSubmissions.length)}%
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       {/* User Submissions */}
-                      <div style={{ padding: '20px' }}>
+                      <div style={{ padding: '25px' }}>
                         {userSubmissions.length === 0 ? (
                           <div style={{ 
                             textAlign: 'center', 
-                            padding: '30px',
+                            padding: '40px',
                             color: '#6c757d',
                             backgroundColor: '#f8f9fa',
-                            borderRadius: '8px',
+                            borderRadius: '12px',
                             border: '2px dashed #dee2e6'
                           }}>
-                            <div style={{ fontSize: '32px', marginBottom: '10px' }}>📝</div>
-                            <p style={{ margin: '0', fontSize: '14px' }}>No submissions yet</p>
+                            <div style={{ fontSize: '40px', marginBottom: '15px' }}>📝</div>
+                            <h4 style={{ margin: '0 0 8px 0', color: '#495057' }}>No submissions yet</h4>
+                            <p style={{ margin: '0', fontSize: '14px', color: '#6c757d' }}>
+                              This user hasn't submitted any tests yet
+                            </p>
                           </div>
                         ) : (
                           <>
-                            <h4 style={{ 
-                              margin: '0 0 15px 0', 
-                              color: '#495057',
-                              fontSize: '16px',
-                              display: 'flex',
+                            <div style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
                               alignItems: 'center',
-                              gap: '8px'
+                              marginBottom: '20px',
+                              padding: '15px 20px',
+                              backgroundColor: '#f8f9fa',
+                              borderRadius: '10px',
+                              border: '1px solid #e9ecef'
                             }}>
-                              📊 Recent Submissions ({userSubmissions.length})
-                            </h4>
+                              <h4 style={{ 
+                                margin: '0', 
+                                color: '#495057',
+                                fontSize: '17px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                fontWeight: '700'
+                              }}>
+                                📊 Recent Submissions
+                              </h4>
+                              <div style={{ display: 'flex', gap: '15px', fontSize: '13px', fontWeight: '600' }}>
+                                <span style={{ color: '#28a745' }}>
+                                  ✅ {userSubmissions.filter(s => s.passed).length} Passed
+                                </span>
+                                <span style={{ color: '#dc3545' }}>
+                                  ❌ {userSubmissions.filter(s => !s.passed).length} Failed
+                                </span>
+                              </div>
+                            </div>
+                            
                             <div style={{ 
                               display: 'grid', 
-                              gap: '12px'
+                              gap: '15px'
                             }}>
-                              {userSubmissions.map((submission, index) => (
-                                <div key={submission.id || index} style={{
-                                  border: '1px solid #e9ecef',
-                                  borderRadius: '8px',
-                                  padding: '15px',
+                              {userSubmissions.map((submission, submissionIndex) => (
+                                <div key={submission.id || submissionIndex} style={{
+                                  border: `2px solid ${submission.passed ? '#28a745' : '#dc3545'}`,
+                                  borderRadius: '12px',
+                                  padding: '18px',
                                   backgroundColor: submission.passed ? '#d4edda' : '#f8d7da',
                                   display: 'flex',
                                   justifyContent: 'space-between',
-                                  alignItems: 'center'
+                                  alignItems: 'center',
+                                  transition: 'all 0.2s ease',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                                 }}>
                                   <div style={{ flex: 1 }}>
                                     <div style={{ 
-                                      fontWeight: '600', 
-                                      marginBottom: '4px',
-                                      color: submission.passed ? '#155724' : '#721c24'
+                                      fontWeight: '700', 
+                                      marginBottom: '6px',
+                                      color: submission.passed ? '#155724' : '#721c24',
+                                      fontSize: '15px'
                                     }}>
-                                      {submission.testType || 'Test'} - {submission.problemTitle || 'Problem'}
+                                      {submission.testType || 'Test'} - {submission.problemTitle || submission.problemStatement?.substring(0, 50) || 'Problem'}
+                                      {submission.problemStatement && submission.problemStatement.length > 50 && '...'}
                                     </div>
                                     <div style={{ 
-                                      fontSize: '12px', 
+                                      fontSize: '13px', 
                                       color: submission.passed ? '#155724' : '#721c24',
-                                      opacity: 0.8
+                                      opacity: 0.8,
+                                      display: 'flex',
+                                      gap: '15px',
+                                      alignItems: 'center'
                                     }}>
-                                      {new Date(submission.submittedAt || submission.timestamp).toLocaleString()}
+                                      <span>📅 {new Date(submission.submittedAt || submission.timestamp).toLocaleString()}</span>
+                                      {submission.timeSpent && (
+                                        <span>⏱️ {Math.round(submission.timeSpent / 60)} min</span>
+                                      )}
                                     </div>
                                   </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <span style={{
-                                      padding: '4px 12px',
-                                      borderRadius: '20px',
+                                      padding: '6px 16px',
+                                      borderRadius: '25px',
                                       fontSize: '12px',
-                                      fontWeight: '600',
+                                      fontWeight: '700',
                                       backgroundColor: submission.passed ? '#28a745' : '#dc3545',
-                                      color: 'white'
+                                      color: 'white',
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                                     }}>
-                                      {submission.passed ? '✅ Passed' : '❌ Failed'}
+                                      {submission.passed ? '✅ PASSED' : '❌ FAILED'}
                                     </span>
                                     <span style={{
-                                      fontSize: '18px',
+                                      fontSize: '20px',
                                       fontWeight: 'bold',
-                                      color: submission.passed ? '#28a745' : '#dc3545'
+                                      color: submission.passed ? '#28a745' : '#dc3545',
+                                      minWidth: '50px',
+                                      textAlign: 'right'
                                     }}>
-                                      {submission.score}%
+                                      {submission.score || 0}%
                                     </span>
                                   </div>
                                 </div>
@@ -1715,183 +1817,6 @@ const AdminDashboard = () => {
               </div>
             );
             })()}
-          </div>
-        )}
-
-        {activeTab === 'live-activity' && (
-          <div>
-            <h2>🔴 Live Activity Monitor</h2>
-            <p style={{ color: '#666', marginBottom: '20px' }}>
-              Real-time view of active users and their latest submissions as they happen
-            </p>
-            
-            {/* Live Stats Bar */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '15px',
-              marginBottom: '25px'
-            }}>
-              <div style={{
-                padding: '20px',
-                backgroundColor: '#e8f5e8',
-                borderRadius: '10px',
-                textAlign: 'center',
-                border: '2px solid #28a745'
-              }}>
-                <div style={{ fontSize: '32px', color: '#28a745', fontWeight: 'bold' }}>
-                  {activeUsers.length}
-                </div>
-                <div style={{ color: '#155724', fontWeight: '600' }}>Active Users</div>
-              </div>
-              <div style={{
-                padding: '20px',
-                backgroundColor: '#fff3cd',
-                borderRadius: '10px',
-                textAlign: 'center',
-                border: '2px solid #ffc107'
-              }}>
-                <div style={{ fontSize: '32px', color: '#e09900', fontWeight: 'bold' }}>
-                  {testResults.filter(s => {
-                    const submissionTime = new Date(s.submittedAt || s.timestamp);
-                    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-                    return submissionTime > fiveMinutesAgo;
-                  }).length}
-                </div>
-                <div style={{ color: '#856404', fontWeight: '600' }}>Recent Submissions</div>
-              </div>
-              <div style={{
-                padding: '20px',
-                backgroundColor: '#d1ecf1',
-                borderRadius: '10px',
-                textAlign: 'center',
-                border: '2px solid #17a2b8'
-              }}>
-                <div style={{ fontSize: '32px', color: '#138496', fontWeight: 'bold' }}>
-                  {Math.round((testResults.filter(s => s.passed).length / Math.max(testResults.length, 1)) * 100)}%
-                </div>
-                <div style={{ color: '#0c5460', fontWeight: '600' }}>Pass Rate</div>
-              </div>
-            </div>
-
-            {/* Real-time Activity Stream */}
-            <div style={{
-              border: '2px solid #007bff',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              backgroundColor: 'white'
-            }}>
-              <div style={{
-                background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
-                color: 'white',
-                padding: '15px 20px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px'
-              }}>
-                <span style={{ 
-                  width: '12px', 
-                  height: '12px', 
-                  backgroundColor: '#28a745', 
-                  borderRadius: '50%',
-                  animation: 'pulse 1.5s ease-in-out infinite'
-                }}></span>
-                Live Activity Stream
-              </div>
-              
-              <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                {/* Combine active users and recent submissions */}
-                {[...activeUsers.map(user => ({
-                  type: 'user_active',
-                  timestamp: user.lastSeen || Date.now(),
-                  user,
-                  id: `active_${user.id}`
-                })), ...testResults.slice(0, 50).map(submission => ({
-                  type: 'submission',
-                  timestamp: submission.submittedAt || submission.timestamp,
-                  submission,
-                  user: students.find(s => s.id === submission.userId || s.email === submission.studentEmail),
-                  id: submission.id || `sub_${Math.random()}`
-                }))].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 100).map((activity, index) => (
-                  <div key={activity.id} style={{
-                    padding: '15px 20px',
-                    borderBottom: '1px solid #e9ecef',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '15px',
-                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa'
-                  }}>
-                    {/* Activity Icon */}
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: activity.type === 'user_active' ? '#28a745' : activity.submission?.passed ? '#007bff' : '#dc3545',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '18px',
-                      flexShrink: 0
-                    }}>
-                      {activity.type === 'user_active' ? '👤' : activity.submission?.passed ? '✅' : '❌'}
-                    </div>
-                    
-                    {/* Activity Details */}
-                    <div style={{ flex: 1 }}>
-                      {activity.type === 'user_active' ? (
-                        <>
-                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                            {activity.user.displayName || activity.user.email} is active
-                          </div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>
-                            Current activity: {activity.user.currentActivity || 'browsing'} • {formatLastSeen(activity.timestamp)}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                            {activity.user?.displayName || activity.submission?.studentName || 'Unknown User'} submitted {activity.submission?.testType || 'test'}
-                          </div>
-                          <div style={{ fontSize: '12px', color: '#666', display: 'flex', gap: '15px' }}>
-                            <span>Score: {activity.submission?.score || 0}%</span>
-                            <span>Status: {activity.submission?.passed ? 'Passed' : 'Failed'}</span>
-                            <span>{formatLastSeen(activity.timestamp)}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    
-                    {/* Activity Badge */}
-                    <div style={{
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      backgroundColor: activity.type === 'user_active' ? '#d4edda' : activity.submission?.passed ? '#cce7ff' : '#f8d7da',
-                      color: activity.type === 'user_active' ? '#155724' : activity.submission?.passed ? '#004085' : '#721c24'
-                    }}>
-                      {activity.type === 'user_active' ? 'ACTIVE' : activity.submission?.passed ? 'PASSED' : 'FAILED'}
-                    </div>
-                  </div>
-                ))}
-                
-                {activeUsers.length === 0 && testResults.length === 0 && (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '60px 20px',
-                    color: '#6c757d'
-                  }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📡</div>
-                    <h3>Waiting for Live Activity...</h3>
-                    <p style={{ margin: '0' }}>
-                      User activity and submissions will appear here in real-time
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 
@@ -2596,48 +2521,77 @@ const CSVReportsSection = ({
 
       {/* CSV Report Information */}
       <div style={{ 
-        background: '#f8f9fa', 
-        padding: '20px', 
-        borderRadius: '10px', 
-        marginBottom: '20px',
-        border: '1px solid #dee2e6'
+        background: '#ffffff', 
+        padding: '25px', 
+        borderRadius: '12px', 
+        marginBottom: '25px',
+        border: '2px solid #e9ecef',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
-        <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>📋 Comprehensive Submission Report</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', fontSize: '14px' }}>
-          <div>
-            <strong>👤 Student Information:</strong>
-            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+        <h3 style={{ margin: '0 0 20px 0', color: '#212529', fontSize: '18px', fontWeight: '600' }}>📋 Comprehensive Submission Report</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', fontSize: '14px' }}>
+          <div style={{ 
+            padding: '15px', 
+            background: '#f8f9fa', 
+            borderRadius: '8px', 
+            border: '1px solid #e9ecef'
+          }}>
+            <strong style={{ color: '#495057', fontSize: '15px' }}>👤 Student Information:</strong>
+            <ul style={{ margin: '8px 0 0 20px', color: '#6c757d', lineHeight: '1.6' }}>
               <li>Student Name & Email</li>
               <li>Session ID & Timestamps</li>
               <li>Test Type & Version</li>
             </ul>
           </div>
-          <div>
-            <strong>📊 Performance Data:</strong>
-            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+          <div style={{ 
+            padding: '15px', 
+            background: '#f8f9fa', 
+            borderRadius: '8px', 
+            border: '1px solid #e9ecef'
+          }}>
+            <strong style={{ color: '#495057', fontSize: '15px' }}>📊 Performance Data:</strong>
+            <ul style={{ margin: '8px 0 0 20px', color: '#6c757d', lineHeight: '1.6' }}>
               <li>Score, Percentage, Time Spent</li>
               <li>Question-by-question answers</li>
               <li>Individual question timing</li>
             </ul>
           </div>
-          <div>
-            <strong>💻 Device & Environment:</strong>
-            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+          <div style={{ 
+            padding: '15px', 
+            background: '#f8f9fa', 
+            borderRadius: '8px', 
+            border: '1px solid #e9ecef'
+          }}>
+            <strong style={{ color: '#495057', fontSize: '15px' }}>💻 Device & Environment:</strong>
+            <ul style={{ margin: '8px 0 0 20px', color: '#6c757d', lineHeight: '1.6' }}>
               <li>Device Type (Mobile/Desktop/Tablet)</li>
               <li>Browser & Operating System</li>
               <li>Screen Resolution & User Agent</li>
             </ul>
           </div>
-          <div>
-            <strong>🔒 Security & Proctoring:</strong>
-            <ul style={{ margin: '5px 0 0 20px', color: '#666' }}>
+          <div style={{ 
+            padding: '15px', 
+            background: '#f8f9fa', 
+            borderRadius: '8px', 
+            border: '1px solid #e9ecef'
+          }}>
+            <strong style={{ color: '#495057', fontSize: '15px' }}>🔒 Security & Proctoring:</strong>
+            <ul style={{ margin: '8px 0 0 20px', color: '#6c757d', lineHeight: '1.6' }}>
               <li>Violation counts & details</li>
               <li>Security assessment & trust score</li>
               <li>Proctoring event timeline</li>
             </ul>
           </div>
         </div>
-        <div style={{ marginTop: '15px', padding: '10px', background: '#e7f3ff', borderRadius: '5px', fontSize: '13px', color: '#0066cc' }}>
+        <div style={{ 
+          marginTop: '20px', 
+          padding: '15px', 
+          background: '#d1ecf1', 
+          borderRadius: '8px', 
+          fontSize: '14px', 
+          color: '#0c5460',
+          border: '1px solid #bee5eb'
+        }}>
           💡 <strong>Total Columns:</strong> 45+ data points per submission including detailed JSON analysis for comprehensive reporting
         </div>
       </div>
@@ -2651,90 +2605,127 @@ const CSVReportsSection = ({
           marginBottom: '30px' 
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: '#007bff',
             color: 'white',
             padding: '20px',
             borderRadius: '10px',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 2px 8px rgba(0,123,255,0.2)',
+            border: '1px solid #0056b3'
           }}>
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>{csvStats.totalSubmissions}</h3>
-            <p style={{ margin: 0, opacity: 0.9 }}>Total Submissions</p>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '28px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>{csvStats.totalSubmissions}</h3>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>Total Submissions</p>
           </div>
           <div style={{
-            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            background: '#28a745',
             color: 'white',
             padding: '20px',
             borderRadius: '10px',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 2px 8px rgba(40,167,69,0.2)',
+            border: '1px solid #1e7e34'
           }}>
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>{csvStats.averageScore}%</h3>
-            <p style={{ margin: 0, opacity: 0.9 }}>Average Score</p>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '28px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>{csvStats.averageScore}%</h3>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>Average Score</p>
           </div>
           <div style={{
-            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            background: '#dc3545',
             color: 'white',
             padding: '20px',
             borderRadius: '10px',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 2px 8px rgba(220,53,69,0.2)',
+            border: '1px solid #c82333'
           }}>
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>{csvStats.totalViolations}</h3>
-            <p style={{ margin: 0, opacity: 0.9 }}>Total Violations</p>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '28px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>{csvStats.totalViolations}</h3>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>Total Violations</p>
           </div>
           <div style={{
-            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            background: '#17a2b8',
             color: 'white',
             padding: '20px',
             borderRadius: '10px',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 2px 8px rgba(23,162,184,0.2)',
+            border: '1px solid #117a8b'
           }}>
-            <h3 style={{ margin: '0 0 10px 0', fontSize: '12px' }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', fontWeight: 'bold', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
               {csvStats.realTimeStatus === 'Active' ? '🟢 Active' : '🔴 Inactive'}
             </h3>
-            <p style={{ margin: 0, opacity: 0.9 }}>Real-time Status</p>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>Real-time Status</p>
           </div>
         </div>
       )}
 
       {/* Search Filters */}
       <div style={{
-        background: '#f8f9fa',
-        padding: '20px',
+        background: '#ffffff',
+        padding: '25px',
         borderRadius: '10px',
         marginBottom: '20px',
-        border: '1px solid #dee2e6'
+        border: '2px solid #e9ecef',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
-        <h3 style={{ marginBottom: '15px' }}>🔍 Filter & Export Options</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        <h3 style={{ marginBottom: '20px', color: '#212529', fontSize: '18px', fontWeight: '600' }}>🔍 Filter & Export Options</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Student Name:</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>Student Name:</label>
             <input
               type="text"
               value={searchCriteria.searchText}
               onChange={(e) => setSearchCriteria({...searchCriteria, searchText: e.target.value})}
               placeholder="Search by student name or email..."
-              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+              style={{ 
+                width: '100%', 
+                padding: '10px 12px', 
+                borderRadius: '6px', 
+                border: '2px solid #ced4da',
+                fontSize: '14px',
+                color: '#495057',
+                backgroundColor: '#fff',
+                transition: 'border-color 0.2s',
+                outline: 'none'
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#007bff'}
+              onBlur={(e) => e.target.style.borderColor = '#ced4da'}
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Start Date:</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>Start Date:</label>
             <input
               type="date"
               value={searchCriteria.startDate}
               onChange={(e) => setSearchCriteria({...searchCriteria, startDate: e.target.value})}
-              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+              style={{ 
+                width: '100%', 
+                padding: '10px 12px', 
+                borderRadius: '6px', 
+                border: '2px solid #ced4da',
+                fontSize: '14px',
+                color: '#495057',
+                backgroundColor: '#fff'
+              }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>End Date:</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>End Date:</label>
             <input
               type="date"
               value={searchCriteria.endDate}
               onChange={(e) => setSearchCriteria({...searchCriteria, endDate: e.target.value})}
-              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+              style={{ 
+                width: '100%', 
+                padding: '10px 12px', 
+                borderRadius: '6px', 
+                border: '2px solid #ced4da',
+                fontSize: '14px',
+                color: '#495057',
+                backgroundColor: '#fff'
+              }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Min Score:</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>Min Score:</label>
             <input
               type="number"
               min="0"
@@ -2742,11 +2733,19 @@ const CSVReportsSection = ({
               value={searchCriteria.minScore}
               onChange={(e) => setSearchCriteria({...searchCriteria, minScore: e.target.value})}
               placeholder="0"
-              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+              style={{ 
+                width: '100%', 
+                padding: '10px 12px', 
+                borderRadius: '6px', 
+                border: '2px solid #ced4da',
+                fontSize: '14px',
+                color: '#495057',
+                backgroundColor: '#fff'
+              }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Max Score:</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>Max Score:</label>
             <input
               type="number"
               min="0"
@@ -2754,15 +2753,31 @@ const CSVReportsSection = ({
               value={searchCriteria.maxScore}
               onChange={(e) => setSearchCriteria({...searchCriteria, maxScore: e.target.value})}
               placeholder="30"
-              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+              style={{ 
+                width: '100%', 
+                padding: '10px 12px', 
+                borderRadius: '6px', 
+                border: '2px solid #ced4da',
+                fontSize: '14px',
+                color: '#495057',
+                backgroundColor: '#fff'
+              }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Device Type:</label>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>Device Type:</label>
             <select
               value={searchCriteria.deviceType}
               onChange={(e) => setSearchCriteria({...searchCriteria, deviceType: e.target.value})}
-              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+              style={{ 
+                width: '100%', 
+                padding: '10px 12px', 
+                borderRadius: '6px', 
+                border: '2px solid #ced4da',
+                fontSize: '14px',
+                color: '#495057',
+                backgroundColor: '#fff'
+              }}
             >
               <option value="">All Devices</option>
               <option value="Desktop">Desktop</option>
@@ -2771,17 +2786,34 @@ const CSVReportsSection = ({
             </select>
           </div>
         </div>
-        <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+        <div style={{ 
+          marginTop: '20px', 
+          display: 'flex', 
+          gap: '15px',
+          padding: '20px',
+          background: '#f8f9fa',
+          borderRadius: '8px',
+          border: '1px solid #dee2e6'
+        }}>
           <button
             onClick={() => onSearch(searchCriteria)}
             disabled={csvLoading}
             style={{
-              padding: '10px 20px',
-              backgroundColor: '#17a2b8',
-              color: 'white',
+              padding: '12px 24px',
+              backgroundColor: csvLoading ? '#6c757d' : '#17a2b8',
+              color: '#ffffff',
               border: 'none',
-              borderRadius: '5px',
-              cursor: csvLoading ? 'not-allowed' : 'pointer'
+              borderRadius: '8px',
+              cursor: csvLoading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+              minWidth: '160px',
+              justifyContent: 'center'
             }}
           >
             🔍 Search & Preview
@@ -2790,12 +2822,21 @@ const CSVReportsSection = ({
             onClick={() => onDownload(searchCriteria)}
             disabled={csvLoading}
             style={{
-              padding: '10px 20px',
-              backgroundColor: '#28a745',
-              color: 'white',
+              padding: '12px 24px',
+              backgroundColor: csvLoading ? '#6c757d' : '#28a745',
+              color: '#ffffff',
               border: 'none',
-              borderRadius: '5px',
-              cursor: csvLoading ? 'not-allowed' : 'pointer'
+              borderRadius: '8px',
+              cursor: csvLoading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+              minWidth: '180px',
+              justifyContent: 'center'
             }}
           >
             📥 Export Filtered CSV
@@ -2827,26 +2868,80 @@ const CSVReportsSection = ({
             <div style={{ marginBottom: '10px', fontSize: '14px', color: '#666' }}>
               Showing all {recentSubmissions.length} submissions
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ background: '#f8f9fa' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white' }}>
+              <thead style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
                 <tr>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Student Name</th>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Email</th>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Score</th>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Percentage</th>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Device</th>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Violations</th>
-                  <th style={{ padding: '12px', borderBottom: '1px solid #dee2e6', textAlign: 'left' }}>Submitted</th>
+                  <th style={{ 
+                    padding: '16px 12px', 
+                    textAlign: 'left', 
+                    fontWeight: '600', 
+                    color: '#212529',
+                    fontSize: '14px',
+                    borderRight: '1px solid #dee2e6'
+                  }}>Student Name</th>
+                  <th style={{ 
+                    padding: '16px 12px', 
+                    textAlign: 'left', 
+                    fontWeight: '600', 
+                    color: '#212529',
+                    fontSize: '14px',
+                    borderRight: '1px solid #dee2e6'
+                  }}>Email</th>
+                  <th style={{ 
+                    padding: '16px 12px', 
+                    textAlign: 'left', 
+                    fontWeight: '600', 
+                    color: '#212529',
+                    fontSize: '14px',
+                    borderRight: '1px solid #dee2e6'
+                  }}>Score</th>
+                  <th style={{ 
+                    padding: '16px 12px', 
+                    textAlign: 'left', 
+                    fontWeight: '600', 
+                    color: '#212529',
+                    fontSize: '14px',
+                    borderRight: '1px solid #dee2e6'
+                  }}>Percentage</th>
+                  <th style={{ 
+                    padding: '16px 12px', 
+                    textAlign: 'left', 
+                    fontWeight: '600', 
+                    color: '#212529',
+                    fontSize: '14px',
+                    borderRight: '1px solid #dee2e6'
+                  }}>Device</th>
+                  <th style={{ 
+                    padding: '16px 12px', 
+                    textAlign: 'left', 
+                    fontWeight: '600', 
+                    color: '#212529',
+                    fontSize: '14px',
+                    borderRight: '1px solid #dee2e6'
+                  }}>Violations</th>
+                  <th style={{ 
+                    padding: '16px 12px', 
+                    textAlign: 'left', 
+                    fontWeight: '600', 
+                    color: '#212529',
+                    fontSize: '14px'
+                  }}>Submitted</th>
                 </tr>
               </thead>
               <tbody>
                 {recentSubmissions.map((submission, index) => (
-                  <tr key={index} style={{ backgroundColor: index % 2 === 0 ? 'white' : '#f8f9fa' }}>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <tr key={index} style={{ 
+                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.closest('tr').style.backgroundColor = '#e3f2fd'}
+                  onMouseLeave={(e) => e.target.closest('tr').style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa'}
+                  >
+                    <td style={{ padding: '14px 12px', borderBottom: '1px solid #dee2e6', borderRight: '1px solid #dee2e6' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{
-                          width: '32px',
-                          height: '32px',
+                          width: '36px',
+                          height: '36px',
                           borderRadius: '50%',
                           backgroundColor: '#007bff',
                           color: 'white',
@@ -2854,52 +2949,62 @@ const CSVReportsSection = ({
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: '14px',
-                          fontWeight: 'bold'
+                          fontWeight: 'bold',
+                          border: '2px solid #0056b3'
                         }}>
                           {(submission.userName || submission.displayName || 'U').charAt(0).toUpperCase()}
                         </div>
-                        <span style={{ fontWeight: '500' }}>
+                        <span style={{ fontWeight: '500', color: '#212529', fontSize: '14px' }}>
                           {submission.userName || submission.displayName || 'Anonymous User'}
                         </span>
                       </div>
                     </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      <span style={{ color: '#666', fontSize: '14px' }}>
+                    <td style={{ padding: '14px 12px', borderBottom: '1px solid #dee2e6', borderRight: '1px solid #dee2e6' }}>
+                      <span style={{ color: '#6c757d', fontSize: '13px' }}>
                         {submission.userEmail || submission.email || 'No email provided'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                    <td style={{ padding: '14px 12px', borderBottom: '1px solid #dee2e6', borderRight: '1px solid #dee2e6' }}>
                       <span style={{ 
-                        color: submission.score >= 24 ? '#28a745' : submission.score >= 18 ? '#ffc107' : '#dc3545',
-                        fontWeight: 'bold'
+                        color: submission.score >= 24 ? '#28a745' : submission.score >= 18 ? '#fd7e14' : '#dc3545',
+                        fontWeight: 'bold',
+                        fontSize: '14px'
                       }}>
                         {submission.score}/30
                       </span>
                     </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      {submission.percentage}%
+                    <td style={{ padding: '14px 12px', borderBottom: '1px solid #dee2e6', borderRight: '1px solid #dee2e6' }}>
+                      <span style={{ 
+                        color: '#212529', 
+                        fontWeight: '500',
+                        fontSize: '14px'
+                      }}>
+                        {submission.percentage}%
+                      </span>
                     </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                    <td style={{ padding: '14px 12px', borderBottom: '1px solid #dee2e6', borderRight: '1px solid #dee2e6' }}>
                       <span style={{
                         background: submission.deviceType === 'Desktop' ? '#007bff' : 
-                                   submission.deviceType === 'Mobile' ? '#28a745' : '#ffc107',
+                                   submission.deviceType === 'Mobile' ? '#28a745' : '#fd7e14',
                         color: 'white',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        fontSize: '12px'
+                        padding: '4px 10px',
+                        borderRadius: '14px',
+                        fontSize: '12px',
+                        fontWeight: '500'
                       }}>
-                        {submission.deviceType}
+                        {submission.deviceType || 'Unknown'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
+                    <td style={{ padding: '14px 12px', borderBottom: '1px solid #dee2e6', borderRight: '1px solid #dee2e6' }}>
                       <span style={{
                         color: submission.totalViolations > 0 ? '#dc3545' : '#28a745',
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        fontSize: '14px'
                       }}>
-                        {submission.totalViolations}
+                        {submission.totalViolations || 0}
                       </span>
                     </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6', fontSize: '12px' }}>
+                    <td style={{ padding: '14px 12px', borderBottom: '1px solid #dee2e6', fontSize: '12px', color: '#6c757d' }}>
                       {new Date(submission.timestamp).toLocaleString()}
                     </td>
                   </tr>

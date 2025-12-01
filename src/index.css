@@ -1,3 +1,28 @@
+/* ==================== GLOBAL SCROLLBAR HIDING ==================== */
+/* Hide scrollbars across all browsers for a clean design */
+::-webkit-scrollbar {
+  display: none;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Ensure scrolling still works while hiding the scrollbar */
+html, body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 /* ==================== MODERN DESIGN SYSTEM ==================== */
 /* Ultra-modern design system inspired by premium web experiences */
 
@@ -555,24 +580,35 @@ code {
   }
 }
 
-/* Scrollbar Styling - Dark Theme */
+/* Hidden Scrollbar - Clean Design */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 0px;
+  height: 0px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-700);
-  border-radius: var(--radius-full);
-  border: 2px solid var(--bg-secondary);
+  background: transparent;
+  border-radius: 0;
+  border: none;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-600);
+  background: transparent;
+}
+
+/* For Firefox - Hide scrollbar */
+* {
+  scrollbar-width: none;
+}
+
+/* For IE/Edge - Hide scrollbar */
+body {
+  -ms-overflow-style: none;
 }
 
 /* Selection Styling */

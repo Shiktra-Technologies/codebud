@@ -14,7 +14,7 @@ body {
   font-feature-settings: 'cv11', 'ss01';
   line-height: 1.6;
   color: var(--text-primary);
-  background: var(--bg-primary);
+  background: transparent;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -23,7 +23,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+  background: transparent;
   padding-top: 64px; /* Space for fixed navbar */
 }
 
@@ -34,22 +34,23 @@ body {
   }
 }
 
-/* Professional Scrollbar */
+/* Hidden Scrollbar - Clean Design */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 0px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--gray-100);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-300);
-  border-radius: 4px;
+  background: transparent;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-400);
+  background: transparent;
 }
 
 /* Professional Button System */

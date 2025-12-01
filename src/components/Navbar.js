@@ -56,18 +56,6 @@ const Navbar = () => {
 
         {/* Navigation Links */}
         <div className="navbar-nav">
-          <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
-            <span className="nav-icon">🏠</span>
-            <span className="nav-text">Dashboard</span>
-          </Link>
-          
-          {isStudent() && (
-            <Link to="/problems" className={`nav-link ${isActive('/problems') ? 'active' : ''}`}>
-              <span className="nav-icon">💻</span>
-              <span className="nav-text">Problems</span>
-            </Link>
-          )}
-
           {isAdmin() && (
             <Link to="/admin" className={`nav-link ${isActive('/admin') ? 'active' : ''}`}>
               <span className="nav-icon">�‍💼</span>
@@ -134,24 +122,6 @@ const Navbar = () => {
                 <span className="item-icon">👤</span>
                 <span>Profile</span>
               </Link>
-              
-              {userRole === 'student' && (
-                <button 
-                  onClick={() => {
-                    const success = promoteToAdmin();
-                    if (success) {
-                      setIsProfileOpen(false);
-                      alert('✅ Promoted to admin! Page will refresh...');
-                      setTimeout(() => window.location.reload(), 500);
-                    }
-                  }}
-                  className="dropdown-item"
-                  style={{ backgroundColor: '#28a745', color: 'white' }}
-                >
-                  <span className="item-icon">🔧</span>
-                  <span>Become Admin</span>
-                </button>
-              )}
               
               <button 
                 onClick={handleLogout}

@@ -218,25 +218,26 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom Scrollbar */
+/* Hidden Scrollbar - Clean Design */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 0px;
+  height: 0px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-full);
+  background: transparent;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-400);
-  border-radius: var(--radius-full);
-  border: 2px solid var(--gray-100);
+  background: transparent;
+  border-radius: 0;
+  border: none;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-500);
+  background: transparent;
 }
 
 /* ==================== BACK BUTTON ==================== */

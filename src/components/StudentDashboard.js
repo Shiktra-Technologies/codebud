@@ -158,6 +158,26 @@ const StudentDashboard = () => {
     }
   };
 
+  const calculateLeaderboard = () => {
+    // Prioritize real leaderboard data from actual submissions
+    if (leaderboardData.length > 0) {
+      return leaderboardData.map(user => ({
+        id: user.userId || user.id,
+        name: user.userName || user.displayName || 'Anonymous',
+        email: user.userEmail || user.email,
+        score: user.totalScore || 0,
+        testsCompleted: user.testsCompleted || 0,
+        averageScore: user.averageScore || '0%',
+        avatar: getAvatarEmoji(user.userName || user.displayName),
+        lastSubmission: user.lastSubmission,
+        isPlaceholder: false
+      }));
+    }
+    
+    // If no real leaderboard data, return empty array
+    return [];
+  };
+
   const handleJobApplication = async (jobId) => {
     try {
       if (!currentUser) {
@@ -322,26 +342,7 @@ const StudentDashboard = () => {
             </div>
           </div>
           
-          <div className="hero-visual">
-            <div className="visual-container">
-              <div className="visual-card card-1">
-                <div className="card-icon">🧠</div>
-                <div className="card-title">Assessments</div>
-              </div>
-              <div className="visual-card card-2">
-                <div className="card-icon">📚</div>
-                <div className="card-title">Courses</div>
-              </div>
-              <div className="visual-card card-3">
-                <div className="card-icon">🏆</div>
-                <div className="card-title">Leaderboard</div>
-              </div>
-              <div className="visual-card card-4">
-                <div className="card-icon">�</div>
-                <div className="card-title">Jobs</div>
-              </div>
-            </div>
-          </div>
+
         </div>
       </section>
 
@@ -491,121 +492,173 @@ const StudentDashboard = () => {
           {/* Leaderboard Section */}
           {activeSection === 'leaderboard' && (
             <div className="leaderboard-content">
-              <div className="section-header">
-                <h2 className="section-title">Global Leaderboard</h2>
-                <p className="section-description">
-                  See how you rank among your peers
-                </p>
-              </div>
+              <h2 style={{ color: '#333', marginBottom: '8px' }}>🏆 Student Leaderboard</h2>
+              <p style={{ color: '#666', marginBottom: '20px' }}>
+                Top performing students based on assessment scores and completion rates
+              </p>
 
-              <div className="leaderboard-container">
-                <div className="leaderboard-header">
-                  <div className="rank-col">Rank</div>
-                  <div className="name-col">Student</div>
-                  <div className="score-col">Score</div>
+              <div style={{
+                background: 'white',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
+                  color: 'white',
+                  padding: '15px 20px',
+                  fontWeight: 'bold'
+                }}>
+                  Student Rankings
                 </div>
-                <div className="leaderboard-list">
-                  {leaderboardLoading ? (
+                
+                <div style={{ padding: '0' }}>
+                  {calculateLeaderboard().length === 0 ? (
                     <div style={{ 
-                      padding: '40px', 
                       textAlign: 'center', 
-                      color: '#bb86fc' 
+                      padding: '60px', 
+                      color: '#6c757d'
                     }}>
-                      <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
-                      Loading leaderboard...
-                    </div>
-                  ) : leaderboard.length > 0 ? leaderboard.map((entry) => (
-                    <div 
-                      key={`${entry.rank}-${entry.name}`}
-                      className={`leaderboard-item ${entry.isCurrentUser ? 'current-user' : ''} ${entry.isPlaceholder ? 'placeholder' : ''}`}
-                      style={{ 
-                        opacity: entry.isPlaceholder ? 0.6 : 1,
-                        fontStyle: entry.isPlaceholder ? 'italic' : 'normal'
-                      }}
-                    >
-                      <div className="rank-col">
-                        <span className="rank-number">
-                          {entry.isPlaceholder ? '?' : `#${entry.rank}`}
-                        </span>
-                        {!entry.isPlaceholder && entry.rank <= 3 && (
-                          <span className="rank-medal">
-                            {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="name-col">
-                        <span className="avatar">{entry.avatar}</span>
-                        <div className="name-info">
-                          <span className="name">{entry.name}</span>
-                          {!entry.isPlaceholder && entry.testsCompleted && (
-                            <span className="tests-completed">
-                              {entry.testsCompleted} test{entry.testsCompleted !== 1 ? 's' : ''} completed
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="score-col">
-                        <span className="score">
-                          {entry.isPlaceholder ? '-' : entry.score.toLocaleString()}
-                        </span>
-                        {!entry.isPlaceholder && entry.averageScore && (
-                          <span className="avg-score">
-                            Avg: {entry.averageScore}
-                          </span>
-                        )}
+                      <div style={{ fontSize: '64px', marginBottom: '20px' }}>🏆</div>
+                      <h3 style={{ color: '#495057', marginBottom: '12px' }}>No Rankings Available</h3>
+                      <p style={{ margin: '0 0 20px 0', fontSize: '16px' }}>
+                        Student rankings will appear here once assessments are completed
+                      </p>
+                      <div style={{
+                        padding: '15px 25px',
+                        backgroundColor: '#e7f3ff',
+                        borderRadius: '8px',
+                        color: '#0066cc',
+                        fontSize: '14px',
+                        maxWidth: '400px',
+                        margin: '0 auto'
+                      }}>
+                        💡 Complete an assessment to see your ranking and compete with other students!
                       </div>
                     </div>
-                  )) : (
-                    <div className="no-data">
-                      <p>No test submissions found yet.</p>
-                      <p>Complete an assessment to see your ranking!</p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid #dee2e6', backgroundColor: '#f8f9fa' }}>
+                            <th style={{ padding: '15px 12px', textAlign: 'left', fontWeight: '700', color: '#495057' }}>Rank</th>
+                            <th style={{ padding: '15px 12px', textAlign: 'left', fontWeight: '700', color: '#495057' }}>Student</th>
+                            <th style={{ padding: '15px 12px', textAlign: 'center', fontWeight: '700', color: '#495057' }}>Score</th>
+                            <th style={{ padding: '15px 12px', textAlign: 'center', fontWeight: '700', color: '#495057' }}>Tests Completed</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {calculateLeaderboard().map((student, index) => {
+                            const isCurrentUser = currentUser && (
+                              student.id === currentUser.uid || 
+                              student.id === currentUser.id || 
+                              student.email === currentUser.email
+                            );
+                            
+                            return (
+                              <tr key={student.id || index} style={{ 
+                                borderBottom: '1px solid #dee2e6',
+                                backgroundColor: isCurrentUser ? '#e3f2fd' : (index < 3 ? '#fff3cd' : 'white'),
+                                transition: 'background-color 0.2s ease'
+                              }}>
+                                <td style={{ padding: '15px 12px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ 
+                                      fontWeight: 'bold',
+                                      color: '#333',
+                                      fontSize: '16px'
+                                    }}>
+                                      #{index + 1}
+                                    </span>
+                                    {index === 0 && <span style={{ fontSize: '20px' }}>🥇</span>}
+                                    {index === 1 && <span style={{ fontSize: '20px' }}>🥈</span>}
+                                    {index === 2 && <span style={{ fontSize: '20px' }}>🥉</span>}
+                                    {isCurrentUser && (
+                                      <span style={{
+                                        backgroundColor: '#2196f3',
+                                        color: 'white',
+                                        padding: '2px 8px',
+                                        borderRadius: '12px',
+                                        fontSize: '10px',
+                                        fontWeight: '600'
+                                      }}>
+                                        YOU
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '15px 12px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{
+                                      width: '40px',
+                                      height: '40px',
+                                      borderRadius: '50%',
+                                      backgroundColor: isCurrentUser ? '#2196f3' : '#007bff',
+                                      color: 'white',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: student.avatar?.length > 1 ? '20px' : '16px',
+                                      fontWeight: 'bold'
+                                    }}>
+                                      {student.avatar}
+                                    </div>
+                                    <div>
+                                      <div style={{ 
+                                        fontWeight: isCurrentUser ? '700' : '500',
+                                        color: isCurrentUser ? '#1976d2' : '#333',
+                                        fontSize: '15px'
+                                      }}>
+                                        {student.name}
+                                      </div>
+                                      <div style={{ fontSize: '12px', color: '#666' }}>{student.email}</div>
+                                      {student.lastSubmission && (
+                                        <div style={{ fontSize: '11px', color: '#999' }}>
+                                          Last: {new Date(student.lastSubmission).toLocaleDateString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td style={{ padding: '15px 12px', textAlign: 'center' }}>
+                                  <div>
+                                    <span style={{
+                                      padding: '6px 12px',
+                                      borderRadius: '15px',
+                                      backgroundColor: isCurrentUser ? '#bbdefb' : '#e3f2fd',
+                                      color: isCurrentUser ? '#0d47a1' : '#1976d2',
+                                      fontSize: '14px',
+                                      fontWeight: 'bold'
+                                    }}>
+                                      {student.score.toLocaleString()}
+                                    </span>
+                                    {student.averageScore && (
+                                      <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                                        Avg: {student.averageScore}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '15px 12px', textAlign: 'center' }}>
+                                  <span style={{ 
+                                    color: '#333',
+                                    fontWeight: '500',
+                                    fontSize: '15px'
+                                  }}>
+                                    {student.testsCompleted}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Demo Section for Testing */}
-              <div className="demo-section" style={{ marginTop: '2rem', padding: '1rem', background: '#2a2a2a', borderRadius: '8px' }}>
-                <h4 style={{ marginBottom: '1rem', color: '#bb86fc' }}>🎯 Real-time Leaderboard Demo</h4>
-                <p style={{ fontSize: '0.9rem', marginBottom: '1rem', color: '#ccc' }}>
-                  Simulate new test submissions to see the leaderboard update in real-time:
-                </p>
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <button 
-                    className="job-btn primary" 
-                    onClick={() => {
-                      const users = ['John Doe', 'Sarah Wilson', 'Mike Chen', 'Lisa Park'];
-                      const testTypes = ['aptitude', 'technical'];
-                      const randomUser = users[Math.floor(Math.random() * users.length)];
-                      const randomTest = testTypes[Math.floor(Math.random() * testTypes.length)];
-                      const randomScore = Math.floor(Math.random() * 30) + 70; // 70-100
-                      
-                      sampleDataService.simulateTestSubmission(
-                        `demo_user_${Date.now()}`,
-                        randomUser,
-                        `${randomUser.toLowerCase().replace(' ', '.')}@example.com`,
-                        randomTest,
-                        randomScore
-                      );
-                      
-                      // Refresh leaderboard display
-                      loadLeaderboard();
-                    }}
-                  >
-                    📈 Simulate Test Submission
-                  </button>
-                  <button 
-                    className="job-btn secondary" 
-                    onClick={() => {
-                      sampleDataService.clearAllSubmissions();
-                      sampleDataService.addSampleSubmissionsToLocalStorage();
-                      loadLeaderboard();
-                    }}
-                  >
-                    🔄 Reset to Sample Data
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 

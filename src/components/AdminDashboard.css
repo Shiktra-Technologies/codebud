@@ -1644,21 +1644,22 @@
 }
 
 .storage-rules pre::-webkit-scrollbar {
-  height: 8px;
+  height: 0px;
+  background: transparent;
 }
 
 .storage-rules pre::-webkit-scrollbar-track {
-  background: var(--gray-800);
-  border-radius: var(--radius-full);
+  background: transparent;
+  border-radius: 0;
 }
 
 .storage-rules pre::-webkit-scrollbar-thumb {
-  background: var(--green-600);
-  border-radius: var(--radius-full);
+  background: transparent;
+  border-radius: 0;
 }
 
 .storage-rules pre::-webkit-scrollbar-thumb:hover {
-  background: var(--green-500);
+  background: transparent;
 }
 
 /* ==================== ACTIVE USERS SECTION ==================== */
