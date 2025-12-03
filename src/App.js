@@ -18,6 +18,7 @@ import ProblemSolver from './components/ProblemSolver';
 import SubmissionPage from './components/SubmissionPage';
 import ActivityTracker from './components/ActivityTracker';
 import CSVForwardingTest from './components/CSVForwardingTest';
+import DSATest from './components/DSATest';
 import './App.css';
 
 function App() {
@@ -74,6 +75,11 @@ function App() {
               <Route path="/submitted" element={
                 <PrivateRoute requirePermission="canViewOwnResults">
                   <SubmissionPage />
+                </PrivateRoute>
+              } />
+              <Route path="/dsa-test" element={
+                <PrivateRoute>
+                  <DSATest />
                 </PrivateRoute>
               } />
               <Route path="/profile" element={
