@@ -7,6 +7,19 @@
   box-sizing: border-box;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
 /* Remove conflicting variables - using index.css design system */
 
 body {
@@ -24,13 +37,33 @@ body {
   display: flex;
   flex-direction: column;
   background: transparent;
+  margin: 0;
+  padding: 0;
   padding-top: 64px; /* Space for fixed navbar */
+}
+
+/* Add padding only for pages that need navbar spacing */
+.App.with-navbar {
+  padding-top: 64px;
+}
+
+/* Remove padding for auth pages */
+.App .auth-container {
+  margin-top: -64px; /* Compensate for App padding-top */
 }
 
 /* Responsive navbar spacing */
 @media (max-width: 768px) {
   .App {
     padding-top: 56px;
+  }
+  
+  .App.with-navbar {
+    padding-top: 56px;
+  }
+  
+  .App .auth-container {
+    margin-top: -56px;
   }
 }
 
