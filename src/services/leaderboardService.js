@@ -340,8 +340,16 @@ export const leaderboardService = {
         }
         
         this.broadcastChannel.onmessage = (event) => {
-          console.log('📨 Received leaderboard update from another tab');
-          this.handleIncomingUpdate(event.data);
+          try {
+            console.log('📨 Received leaderboard update from another tab');
+            this.handleIncomingUpdate(event.data);
+          } catch (error) {
+            console.error('Error handling leaderboard broadcast message:', error);
+          }
+        };
+        
+        this.broadcastChannel.onmessageerror = (event) => {
+          console.warn('Leaderboard broadcast message error:', event);
         };
       }
 

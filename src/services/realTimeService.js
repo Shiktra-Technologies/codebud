@@ -24,19 +24,23 @@ class RealTimeService {
    */
   initializeCrossDeviceSync() {
     // Listen for storage events from other devices
-    window.addEventListener('storage', (event) => {
-      if (event.key === 'cross_device_sync' && event.newValue) {
-        try {
-          const syncData = JSON.parse(event.newValue);
-          if (syncData.deviceId !== this.deviceId && syncData.type === 'leaderboard_update') {
-            console.log('📱 Received leaderboard update from another device');
-            this.handleCrossDeviceUpdate(syncData);
+    try {
+      window.addEventListener('storage', (event) => {
+        if (event && event.key === 'cross_device_sync' && event.newValue) {
+          try {
+            const syncData = JSON.parse(event.newValue);
+            if (syncData && syncData.deviceId !== this.deviceId && syncData.type === 'leaderboard_update') {
+              console.log('📱 Received leaderboard update from another device');
+              this.handleCrossDeviceUpdate(syncData);
+            }
+          } catch (error) {
+            console.error('Error processing cross-device sync:', error);
           }
-        } catch (error) {
-          console.error('Error processing cross-device sync:', error);
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.warn('Could not set up cross-device sync:', error);
+    }
   }
 
   /**
@@ -65,12 +69,23 @@ class RealTimeService {
     
     // Create BroadcastChannel for cross-tab communication
     if (useBroadcast && !this.channels.has(collectionName)) {
-      const channel = new BroadcastChannel(`realtime_${collectionName}`);
-      channel.onmessage = (event) => {
-        console.log(`📨 Received broadcast for ${collectionName}:`, event.data);
-        callback(event.data);
-      };
-      this.channels.set(collectionName, channel);
+      try {
+        const channel = new BroadcastChannel(`realtime_${collectionName}`);
+        channel.onmessage = (event) => {
+          try {
+            console.log(`📨 Received broadcast for ${collectionName}:`, event.data);
+            callback(event.data);
+          } catch (error) {
+            console.error(`Error handling broadcast message for ${collectionName}:`, error);
+          }
+        };
+        channel.onmessageerror = (event) => {
+          console.warn(`Message error for ${collectionName}:`, event);
+        };
+        this.channels.set(collectionName, channel);
+      } catch (error) {
+        console.warn(`Could not create BroadcastChannel for ${collectionName}:`, error);
+      }
     }
 
     // Set up localStorage listener
