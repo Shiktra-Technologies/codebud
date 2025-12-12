@@ -48,17 +48,24 @@ const Login = ({ onToggle }) => {
         navigate('/', { replace: true });
       }
     } catch (error) {
+      console.error('Login error:', error);
       let errorMessage = 'Failed to sign in: ';
       if (error.message.includes('Invalid super admin secret code')) {
         errorMessage = 'Invalid super admin secret code. Please check and try again.';
       } else if (error.message.includes('Access denied')) {
         errorMessage = error.message; // Use the full role validation error message
-      } else if (error.message.includes('invalid-credential')) {
-        errorMessage = 'Invalid email or password.';
+      } else if (error.message.includes('Email not confirmed')) {
+        errorMessage = 'Please confirm your email address before signing in. Check your inbox for a confirmation link.';
+      } else if (error.message.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.message.includes('invalid-credential') || error.message.includes('Invalid Credentials')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
       } else if (error.message.includes('user-not-found')) {
         errorMessage = 'No account found with this email.';
       } else if (error.message.includes('wrong-password')) {
         errorMessage = 'Incorrect password.';
+      } else if (error.message.includes('Email link is invalid or has expired')) {
+        errorMessage = 'Email confirmation link has expired. Please request a new one.';
       } else {
         errorMessage += error.message;
       }

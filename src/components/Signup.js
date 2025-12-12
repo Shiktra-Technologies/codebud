@@ -11,6 +11,7 @@ const Signup = ({ onToggle }) => {
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState('student');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const { signup, USER_ROLES } = useSimpleAuth();
 
@@ -27,16 +28,33 @@ const Signup = ({ onToggle }) => {
 
     try {
       setError('');
+      setSuccessMessage('');
       setLoading(true);
       
       const userRole = role === 'admin' ? USER_ROLES.ADMIN : USER_ROLES.STUDENT;
-      await signup(email, password, userRole);
+      const result = await signup(email, password, userRole);
       
-      // Navigate directly to the appropriate dashboard based on selected role
+      // Check if email confirmation is required
+      if (result?.needsEmailConfirmation) {
+        setSuccessMessage(
+          '✅ Account created successfully! Please check your email to confirm your account before signing in.'
+        );
+        setLoading(false);
+        return;
+      }
+      
+      // If no email confirmation needed, navigate to dashboard
       const dashboardPath = userRole === USER_ROLES.ADMIN ? '/admin' : '/student';
       navigate(dashboardPath, { replace: true });
     } catch (error) {
-      setError('Failed to create account: ' + error.message);
+      console.error('Signup error:', error);
+      let errorMsg = 'Failed to create account: ';
+      if (error.message.includes('User already registered')) {
+        errorMsg = 'An account with this email already exists. Please sign in instead.';
+      } else {
+        errorMsg += error.message;
+      }
+      setError(errorMsg);
     }
     setLoading(false);
   };
@@ -54,6 +72,7 @@ const Signup = ({ onToggle }) => {
         </div>
         
         {error && <div className="error-message">{error}</div>}
+        {successMessage && <div className="success-message">{successMessage}</div>}
         
         {/* Role Selection */}
         <div className="login-type-selection">

@@ -37,7 +37,9 @@ class SubmissionForwardingService {
 
   async loadExistingSubmissions() {
     try {
-      const submissions = await supabaseService.getAllSubmissionsForAdmin();
+      const result = await supabaseService.getAllSubmissionsForAdmin();
+      // Handle the response object structure {success, data, count}
+      const submissions = result?.data || [];
       this.csvData = submissions.map(submission => this.formatSubmissionForCSV(submission));
       console.log(`📋 Loaded ${submissions.length} existing submissions`);
     } catch (error) {

@@ -94,11 +94,24 @@ export function SimpleAuthProvider({ children }) {
       options: {
         data: {
           role: role
-        }
+        },
+        // Set emailRedirectTo for better UX (optional)
+        emailRedirectTo: `${window.location.origin}/auth`
       }
     });
 
     if (error) throw error;
+    
+    // Check if email confirmation is required
+    if (data?.user && !data.session) {
+      console.log('📧 Email confirmation required for:', email);
+      // Return special indicator that email confirmation is needed
+      return { 
+        ...data, 
+        needsEmailConfirmation: true,
+        message: 'Please check your email to confirm your account before signing in.'
+      };
+    }
     
     // Store role in localStorage as fallback
     if (data.user) {
