@@ -11,6 +11,7 @@ import { getAllSubmissionsFromSupabase } from '../services/submissionService';
 import { supabase } from '../config/supabaseConfig';
 import RealTimeLoader from './RealTimeLoader';
 import './AdminDashboard.css';
+import './AdminDashboard_premium.css';
 
 const AdminDashboard = () => {
   const { currentUser, getAllUsers } = useSimpleAuth();
@@ -83,19 +84,15 @@ const AdminDashboard = () => {
   };
 
   // Job posting functions
-  const loadJobPostings = useCallback(() => {
+  const loadJobPostings = () => {
     const jobs = jobService.getJobPostings();
     setJobPostings(jobs);
-  }, []);
+  };
 
-  const loadLeaderboard = useCallback(() => {
-    try {
-      const leaderboard = leaderboardService.getTopUsers(10);
-      setLeaderboardData(leaderboard);
-    } catch (error) {
-      console.error('Error loading leaderboard:', error);
-    }
-  }, []);
+  const loadLeaderboard = () => {
+    const leaderboard = leaderboardService.getTopUsers(10);
+    setLeaderboardData(leaderboard);
+  };
 
   const handleJobSubmit = (e) => {
     e.preventDefault();
@@ -775,39 +772,25 @@ const AdminDashboard = () => {
 
     // Register for real-time leaderboard updates
     const handleLeaderboardUpdate = (updatedLeaderboard) => {
-      try {
-        console.log('📊 Admin dashboard received leaderboard update');
-        if (updatedLeaderboard) {
-          setLeaderboardData(updatedLeaderboard);
-        }
-      } catch (error) {
-        console.error('Error handling leaderboard update:', error);
-      }
+      console.log('📊 Admin dashboard received leaderboard update');
+      setLeaderboardData(updatedLeaderboard);
     };
 
     leaderboardService.onLeaderboardUpdate(handleLeaderboardUpdate);
 
     // Listen for custom leaderboard update events
     const handleCustomLeaderboardUpdate = (event) => {
-      try {
-        console.log('📊 Admin dashboard received custom leaderboard update event');
-        if (event && event.detail && event.detail.data) {
-          setLeaderboardData(event.detail.data);
-        }
-      } catch (error) {
-        console.error('Error handling custom leaderboard update:', error);
+      console.log('📊 Admin dashboard received custom leaderboard update event');
+      if (event.detail && event.detail.data) {
+        setLeaderboardData(event.detail.data);
       }
     };
 
     // Listen for cross-device updates
     const handleCrossDeviceUpdate = (event) => {
-      try {
-        console.log('📱 Admin dashboard received cross-device update');
-        if (event && event.detail && event.detail.type === 'leaderboard_update') {
-          loadLeaderboard(); // Refresh leaderboard data
-        }
-      } catch (error) {
-        console.error('Error handling cross-device update:', error);
+      console.log('📱 Admin dashboard received cross-device update');
+      if (event.detail && event.detail.type === 'leaderboard_update') {
+        loadLeaderboard(); // Refresh leaderboard data
       }
     };
 
@@ -816,61 +799,49 @@ const AdminDashboard = () => {
 
     // Set up real-time subscriptions
     const unsubscribeSubmissions = realTimeService.subscribe('submissions', (payload) => {
-      try {
-        console.log('📋 Real-time submissions update:', payload);
-        const newData = Array.isArray(payload) ? payload : payload.data || [];
-        if (newData.length > 0) {
-          // Merge with existing data instead of replacing it
-          setTestResults(prev => {
-            const combined = [...newData, ...prev];
-            const unique = combined.filter((item, index, self) => {
-              if (!item) return false;
-              return index === self.findIndex(s => {
-                if (s.id && item.id) return s.id === item.id;
-                const sKey = `${s.userId || s.studentEmail || 'anon'}_${s.submittedAt || s.timestamp}`;
-                const itemKey = `${item.userId || item.studentEmail || 'anon'}_${item.submittedAt || item.timestamp}`;
-                return sKey === itemKey;
-              });
+      console.log('📋 Real-time submissions update:', payload);
+      const newData = Array.isArray(payload) ? payload : payload.data || [];
+      if (newData.length > 0) {
+        // Merge with existing data instead of replacing it
+        setTestResults(prev => {
+          const combined = [...newData, ...prev];
+          const unique = combined.filter((item, index, self) => {
+            if (!item) return false;
+            return index === self.findIndex(s => {
+              if (s.id && item.id) return s.id === item.id;
+              const sKey = `${s.userId || s.studentEmail || 'anon'}_${s.submittedAt || s.timestamp}`;
+              const itemKey = `${item.userId || item.studentEmail || 'anon'}_${item.submittedAt || item.timestamp}`;
+              return sKey === itemKey;
             });
-            // Sort by timestamp (newest first)
-            unique.sort((a, b) => new Date(b.submittedAt || b.timestamp || 0) - new Date(a.submittedAt || a.timestamp || 0));
-            return unique;
           });
-          setRealTimeStatus('connected');
-        }
-      } catch (error) {
-        console.error('Error handling submissions update:', error);
+          // Sort by timestamp (newest first)
+          unique.sort((a, b) => new Date(b.submittedAt || b.timestamp || 0) - new Date(a.submittedAt || a.timestamp || 0));
+          return unique;
+        });
+        setRealTimeStatus('connected');
       }
     }, { pollInterval: 5000 }); // Reduced frequency to prevent jumping
 
     const unsubscribeUsers = realTimeService.subscribe('activeUsers', (payload) => {
-      try {
-        console.log('👥 Real-time users update:', payload);
-        const data = Array.isArray(payload) ? payload : payload.data || [];
-        if (data.length > 0) {
-          // Apply the same filtering logic: exclude current admin, only show students
-          const filteredActiveUsers = data
-            .filter(user => user.id !== currentUser?.id) // Exclude current admin user
-            .filter(user => user.role === 'student' || !user.role); // Only show student users
-          setActiveUsers(filteredActiveUsers);
-          setRealTimeStatus('connected');
-        }
-      } catch (error) {
-        console.error('Error handling users update:', error);
+      console.log('👥 Real-time users update:', payload);
+      const data = Array.isArray(payload) ? payload : payload.data || [];
+      if (data.length > 0) {
+        // Apply the same filtering logic: exclude current admin, only show students
+        const filteredActiveUsers = data
+          .filter(user => user.id !== currentUser?.id) // Exclude current admin user
+          .filter(user => user.role === 'student' || !user.role); // Only show student users
+        setActiveUsers(filteredActiveUsers);
+        setRealTimeStatus('connected');
       }
     }, { pollInterval: 10000 }); // Reduced frequency
 
     const unsubscribeActivity = realTimeService.subscribe('activities', (payload) => {
-      try {
-        console.log('📊 Real-time activity update:', payload);
-        // Update activity status without refetching all data to prevent jumping
-        const data = Array.isArray(payload) ? payload : payload.data || [];
-        if (data.length > 0) {
-          // Just update the status without full data refetch
-          setRealTimeStatus('connected');
-        }
-      } catch (error) {
-        console.error('Error handling activity update:', error);
+      console.log('📊 Real-time activity update:', payload);
+      // Update activity status without refetching all data to prevent jumping
+      const data = Array.isArray(payload) ? payload : payload.data || [];
+      if (data.length > 0) {
+        // Just update the status without full data refetch
+        setRealTimeStatus('connected');
       }
     }, { pollInterval: 15000 }); // Much reduced frequency for activity updates
 
@@ -881,19 +852,15 @@ const AdminDashboard = () => {
 
     // Cleanup subscriptions
     return () => {
-      try {
-        console.log('🧹 Cleaning up real-time subscriptions');
-        if (unsubscribeSubmissions) unsubscribeSubmissions();
-        if (unsubscribeUsers) unsubscribeUsers();
-        if (unsubscribeActivity) unsubscribeActivity();
-        leaderboardService.offLeaderboardUpdate(handleLeaderboardUpdate);
-        window.removeEventListener('leaderboard_updated', handleCustomLeaderboardUpdate);
-        window.removeEventListener('cross_device_update', handleCrossDeviceUpdate);
-      } catch (error) {
-        console.error('Error during cleanup:', error);
-      }
+      console.log('🧹 Cleaning up real-time subscriptions');
+      unsubscribeSubmissions();
+      unsubscribeUsers();
+      unsubscribeActivity();
+      leaderboardService.offLeaderboardUpdate(handleLeaderboardUpdate);
+      window.removeEventListener('leaderboard_updated', handleCustomLeaderboardUpdate);
+      window.removeEventListener('cross_device_update', handleCrossDeviceUpdate);
     };
-  }, [currentUser, fetchRealTimeData, loadLeaderboard]);
+  }, [currentUser, fetchRealTimeData]);
 
   // Manual refresh function
   const handleRefresh = useCallback(() => {
@@ -1056,7 +1023,11 @@ const AdminDashboard = () => {
 
   // Show loading state while fetching initial data
   if (loading && students.length === 0) {
-    return <RealTimeLoader />;
+    return (
+      <div className="admin-dashboard">
+        <RealTimeLoader />
+      </div>
+    );
   }
 
   return (
