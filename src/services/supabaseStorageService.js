@@ -125,7 +125,7 @@ export const uploadSubmissionFile = async (userId, testType, submissionId, fileN
 
     if (error) throw error;
 
-    console.log('✅ File uploaded successfully:', fileName);
+    console.log('[SUCCESS] File uploaded successfully:', fileName);
     return {
       success: true,
       path: data.path,
@@ -136,7 +136,7 @@ export const uploadSubmissionFile = async (userId, testType, submissionId, fileN
       uploadedAt: new Date().toISOString()
     };
   } catch (error) {
-    console.error('❌ Error uploading file:', error);
+    console.error('[ERROR] Error uploading file:', error);
     return {
       success: false,
       error: error.message,
@@ -191,7 +191,7 @@ export const getFileDownloadURL = async (filePath) => {
 
     return data.signedUrl;
   } catch (error) {
-    console.error('❌ Error getting download URL:', error);
+    console.error('[ERROR] Error getting download URL:', error);
     throw error;
   }
 };
@@ -255,7 +255,7 @@ export const getUserSubmissionFiles = async (userId, testType = null) => {
     console.log(`✅ Retrieved ${filesWithUrls.length} files for user ${userId}`);
     return filesWithUrls;
   } catch (error) {
-    console.error('❌ Error getting user submission files:', error);
+    console.error('[ERROR] Error getting user submission files:', error);
     return [];
   }
 };
@@ -317,7 +317,7 @@ export const getAllSubmissionFiles = async () => {
     console.log(`✅ Retrieved ${processedFiles.length} total submission files`);
     return processedFiles;
   } catch (error) {
-    console.error('❌ Error getting all submission files:', error);
+    console.error('[ERROR] Error getting all submission files:', error);
     return [];
   }
 };
@@ -335,10 +335,10 @@ export const deleteSubmissionFile = async (filePath) => {
 
     if (error) throw error;
 
-    console.log('✅ File deleted successfully:', filePath);
+    console.log('[SUCCESS] File deleted successfully:', filePath);
     return { success: true, path: filePath };
   } catch (error) {
-    console.error('❌ Error deleting file:', error);
+    console.error('[ERROR] Error deleting file:', error);
     return { success: false, error: error.message };
   }
 };
@@ -377,7 +377,7 @@ export const getStorageStats = async () => {
 
     return stats;
   } catch (error) {
-    console.error('❌ Error getting storage stats:', error);
+    console.error('[ERROR] Error getting storage stats:', error);
     return {
       totalFiles: 0,
       totalSize: 0,

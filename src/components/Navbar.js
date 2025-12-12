@@ -16,11 +16,11 @@ const Navbar = () => {
     try {
       setIsLoggingOut(true);
       setIsProfileOpen(false);
-      console.log('🚪 Starting logout process...');
+      console.log('[LOGOUT] Starting logout process...');
       await logout();
-      console.log('✅ Logout successful');
+      console.log('[LOGOUT] Logout successful');
     } catch (error) {
-      console.error('❌ Failed to logout:', error);
+      console.error('[LOGOUT] Failed to logout:', error);
     } finally {
       setIsLoggingOut(false);
     }
@@ -50,32 +50,30 @@ const Navbar = () => {
       <div className="navbar-container">
         {/* Brand */}
         <Link to="/" className="navbar-brand">
-          <div className="brand-logo">💻</div>
+          <div className="brand-logo">CB</div>
           <span className="brand-text">CodeBud</span>
         </Link>
 
-        {/* Navigation Links */}
-        <div className="navbar-nav">
+        {/* Center Admin Badge */}
+        <div className="navbar-center">
           {isAdmin() && (
-            <Link to="/admin" className={`nav-link ${isActive('/admin') ? 'active' : ''}`}>
-              <span className="nav-icon">�‍💼</span>
-              <span className="nav-text">Admin</span>
+            <Link to="/admin" className="admin-badge-link">
+              <div className="admin-badge-container">
+                <svg className="admin-badge-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
+                </svg>
+                <span className="admin-badge-text">ADMIN</span>
+              </div>
             </Link>
           )}
         </div>
 
+        {/* Navigation Links - Empty for clean design */}
+        <div className="navbar-nav">
+        </div>
+
         {/* User Section */}
         <div className="navbar-user" ref={profileRef}>
-          {/* Role Badge */}
-          {userRole && (
-            <div className="role-badge">
-              <span className={`role-tag ${userRole}`}>
-                {userRole === 'super_admin' ? 'Super Admin' :
-                 userRole === 'admin' ? 'Admin' : 'Student'}
-              </span>
-            </div>
-          )}
-
           {/* User Profile */}
           <button 
             className="user-profile"
@@ -119,8 +117,8 @@ const Navbar = () => {
                 className="dropdown-item"
                 onClick={() => setIsProfileOpen(false)}
               >
-                <span className="item-icon">👤</span>
-                <span>Profile</span>
+                <span className="item-icon">Profile</span>
+                <span></span>
               </Link>
               
               <button 
@@ -128,8 +126,8 @@ const Navbar = () => {
                 disabled={isLoggingOut}
                 className="dropdown-item logout"
               >
-                <span className="item-icon">{isLoggingOut ? '⏳' : '🚪'}</span>
-                <span>{isLoggingOut ? 'Signing Out...' : 'Sign Out'}</span>
+                <span className="item-icon">{isLoggingOut ? 'Loading...' : 'Sign Out'}</span>
+                <span></span>
               </button>
             </div>
           )}

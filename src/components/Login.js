@@ -115,16 +115,16 @@ const Login = ({ onToggle }) => {
               className={`role-button ${loginType === 'user' ? 'active' : ''}`}
               onClick={() => handleLoginTypeChange('user')}
             >
-              <div className="role-icon">👤</div>
-              <div className="role-label">Student</div>
+              <div className="role-icon">Student</div>
+              <div className="role-label"></div>
             </button>
             <button
               type="button"
               className={`role-button ${loginType === 'admin' ? 'active' : ''}`}
               onClick={() => handleLoginTypeChange('admin')}
             >
-              <div className="role-icon">👨‍💼</div>
-              <div className="role-label">Admin</div>
+              <div className="role-icon">Admin</div>
+              <div className="role-label"></div>
             </button>
             {showSecretField && (
               <button
@@ -132,8 +132,8 @@ const Login = ({ onToggle }) => {
                 className={`role-button ${loginType === 'super_admin' ? 'active' : ''}`}
                 onClick={() => handleLoginTypeChange('super_admin')}
               >
-                <div className="role-icon">🔐</div>
-                <div className="role-label">Super Admin</div>
+                <div className="role-icon">Super Admin</div>
+                <div className="role-label"></div>
               </button>
             )}
           </div>

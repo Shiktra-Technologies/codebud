@@ -29,7 +29,7 @@ const generateSubmissionKey = (userId, submissionData) => {
  */
 export const submitTestToSupabase = async (userId, submissionData) => {
   if (!supabase) {
-    console.error('❌ Supabase client not initialized');
+    console.error('[ERROR] Supabase client not initialized');
     return { success: false, error: 'Database connection not available' };
   }
 
@@ -62,7 +62,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
   
   // Add to cache to prevent future duplicates
   recentSubmissions.set(submissionKey, now);
-  console.log('✅ Local cache: Submission key added:', submissionKey);
+  console.log('[SUCCESS] Local cache: Submission key added:', submissionKey);
 
   try {
     // Validate required data
@@ -143,7 +143,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
         .single();
 
       if (createError) {
-        console.error('❌ Failed to create user:', {
+        console.error('[ERROR] Failed to create user:', {
           error: createError,
           attempted_data: userRecord
         });
@@ -152,7 +152,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
         // The fallback logic will handle the missing user data
         console.warn('⚠️ Proceeding with submission despite user creation failure');
       } else {
-        console.log('✅ Created user record successfully:', {
+        console.log('[SUCCESS] Created user record successfully:', {
           email: newUser.email,
           display_name: newUser.display_name
         });
@@ -208,7 +208,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
         if (fetchError) {
           console.warn('⚠️ Could not fetch existing submission details:', fetchError);
         } else {
-          console.log('✅ Returning existing submission instead of creating duplicate');
+          console.log('[SUCCESS] Returning existing submission instead of creating duplicate');
           return { 
             success: true, 
             data: existingData,
@@ -237,7 +237,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     };
 
     console.log('💾 Inserting to submission_csv table...');
-    console.log('📊 Record to insert:', {
+    console.log('[DATA] Record to insert:', {
       user_id: submissionRecord.user_id.substring(0, 8) + '...',
       test_type: submissionRecord.test_type,
       score: submissionRecord.score,
@@ -258,7 +258,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
       .single();
 
     if (error) {
-      console.error('❌ Supabase insert failed:', {
+      console.error('[ERROR] Supabase insert failed:', {
         code: error.code,
         message: error.message,
         details: error.details,
@@ -271,7 +271,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
       throw new Error('No data returned from database insert');
     }
 
-    console.log('✅ SUCCESS! Submission saved to Supabase:', {
+    console.log('[SUCCESS] SUCCESS! Submission saved to Supabase:', {
       id: data.id,
       userEmail: data.users?.email,
       testType: data.test_type,
@@ -293,7 +293,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
       const existing = JSON.parse(localStorage.getItem('all_submissions') || '[]');
       existing.push(localSubmission);
       localStorage.setItem('all_submissions', JSON.stringify(existing));
-      console.log('✅ Backup saved to localStorage');
+      console.log('[SUCCESS] Backup saved to localStorage');
     } catch (localError) {
       console.warn('⚠️ localStorage backup failed:', localError);
     }
@@ -307,7 +307,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
 
   } catch (error) {
     console.error('🚨 === SUBMISSION FAILED ===');
-    console.error('❌ Error:', error.message);
+    console.error('[ERROR] Error:', error.message);
     console.error('📊 Error details:', error);
     
     // Fallback to localStorage only
@@ -331,9 +331,9 @@ export const submitTestToSupabase = async (userId, submissionData) => {
       const existing = JSON.parse(localStorage.getItem('all_submissions') || '[]');
       existing.push(fallbackSubmission);
       localStorage.setItem('all_submissions', JSON.stringify(existing));
-      console.log('✅ Fallback submission saved to localStorage');
+      console.log('[SUCCESS] Fallback submission saved to localStorage');
     } catch (localError) {
-      console.error('❌ Even localStorage fallback failed:', localError);
+      console.error('[ERROR] Even localStorage fallback failed:', localError);
     }
 
     return { 
@@ -386,12 +386,12 @@ export const getUserDisplayName = async (userId) => {
  */
 export const getAllSubmissionsFromSupabase = async () => {
   if (!supabase) {
-    console.error('❌ Supabase client not initialized');
+    console.error('[ERROR] Supabase client not initialized');
     return { success: false, error: 'Database connection not available', data: [] };
   }
 
   try {
-    console.log('📊 Fetching all submissions with user details...');
+    console.log('[DATA] Fetching all submissions with user details...');
     
     // Try different approaches to get user data, starting with the most reliable
     let data, error;
@@ -428,7 +428,7 @@ export const getAllSubmissionsFromSupabase = async () => {
     
     if (error || !joinWorked) {
       if (error) {
-        console.error('❌ Join query failed:', {
+        console.error('[ERROR] Join query failed:', {
           code: error.code,
           message: error.message,
           details: error.details
@@ -458,14 +458,14 @@ export const getAllSubmissionsFromSupabase = async () => {
         .order('submitted_at', { ascending: false });
       
       if (submissionsError) {
-        console.error('❌ Submissions query failed:', submissionsError);
+        console.error('[ERROR] Submissions query failed:', submissionsError);
         throw submissionsError;
       }
       
       console.log(`📊 Retrieved ${submissionsOnly.length} submissions`);
       
       if (submissionsOnly.length === 0) {
-        console.log('📋 No submissions found');
+        console.log('[LIST] No submissions found');
         return { success: true, data: [], count: 0 };
       }
       
@@ -647,7 +647,7 @@ export const getAllSubmissionsFromSupabase = async () => {
     };
 
   } catch (error) {
-    console.error('❌ Error fetching submissions from Supabase:', error);
+    console.error('[ERROR] Error fetching submissions from Supabase:', error);
     
     // NO localStorage fallback - only show real database data
     console.log('� Only showing real Supabase data - no localStorage fallback');

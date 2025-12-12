@@ -84,6 +84,70 @@
   color: var(--text-white);
 }
 
+/* ==================== CENTER ADMIN BADGE ==================== */
+.navbar-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-badge-link {
+  text-decoration: none;
+  display: block;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-badge-link:hover .admin-badge-container {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3),
+              0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+.admin-badge-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.15) 0%,
+    rgba(220, 38, 38, 0.1) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 24px;
+  backdrop-filter: blur(12px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.admin-badge-icon {
+  width: 16px;
+  height: 16px;
+  color: #ef4444;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.8));
+  }
+}
+
+.admin-badge-text {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #ef4444;
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+  font-family: var(--font-mono);
+}
+
 /* Navigation Links */
 .navbar-nav {
   display: flex;
@@ -408,6 +472,26 @@
   .role-badge {
     display: none;
   }
+  
+  /* Admin badge responsive */
+  .navbar-center {
+    position: static;
+    transform: none;
+    margin: 0 auto;
+  }
+  
+  .admin-badge-container {
+    padding: 6px 14px;
+  }
+  
+  .admin-badge-text {
+    font-size: 11px;
+  }
+  
+  .admin-badge-icon {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -421,5 +505,14 @@
   
   .nav-link {
     padding: 6px;
+  }
+  
+  /* Hide admin badge on very small screens */
+  .admin-badge-text {
+    display: none;
+  }
+  
+  .admin-badge-container {
+    padding: 8px;
   }
 }

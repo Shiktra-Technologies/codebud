@@ -10,6 +10,65 @@
   color: var(--text-primary);
 }
 
+/* ==================== GLOBAL TEXT VISIBILITY FIXES ==================== */
+
+/* Force all text to be visible with light colors */
+.admin-dashboard *,
+.admin-dashboard h1,
+.admin-dashboard h2,
+.admin-dashboard h3,
+.admin-dashboard h4,
+.admin-dashboard h5,
+.admin-dashboard h6,
+.admin-dashboard p,
+.admin-dashboard span,
+.admin-dashboard div,
+.admin-dashboard label,
+.admin-dashboard li,
+.admin-dashboard td,
+.admin-dashboard th {
+  color: var(--text-primary) !important;
+}
+
+/* Override any dark/black inline text colors */
+.admin-dashboard [style*="color: black"],
+.admin-dashboard [style*="color: #000"],
+.admin-dashboard [style*="color: rgb(0, 0, 0)"],
+.admin-dashboard [style*="color: rgba(0, 0, 0"],
+.admin-dashboard [style*="color: #333"],
+.admin-dashboard [style*="color: #666"],
+.admin-dashboard [style*="color: rgb(51, 51, 51)"],
+.admin-dashboard [style*="color: rgb(102, 102, 102)"] {
+  color: var(--text-primary) !important;
+}
+
+/* Table text visibility */
+.admin-dashboard table,
+.admin-dashboard table *,
+.admin-dashboard table th,
+.admin-dashboard table td,
+.admin-dashboard table tbody tr,
+.admin-dashboard table tbody td,
+.admin-dashboard table tbody td * {
+  color: var(--text-primary) !important;
+}
+
+/* Form element text */
+.admin-dashboard input,
+.admin-dashboard select,
+.admin-dashboard textarea,
+.admin-dashboard label,
+.admin-dashboard button {
+  color: var(--text-primary) !important;
+}
+
+/* Placeholder text */
+.admin-dashboard input::placeholder,
+.admin-dashboard textarea::placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 0.7 !important;
+}
+
 .admin-dashboard h1,
 .admin-dashboard h2,
 .admin-dashboard h3 {
@@ -37,17 +96,28 @@
 /* Tab buttons */
 .admin-dashboard button {
   background: var(--bg-elevated) !important;
-  color: var(--text-secondary) !important;
+  color: var(--text-primary) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--radius-md) !important;
   transition: all var(--transition-fast) !important;
   font-family: var(--font-sans) !important;
+  font-weight: 500 !important;
+}
+
+/* Button text visibility */
+.admin-dashboard button,
+.admin-dashboard button * {
+  color: var(--text-primary) !important;
 }
 
 .admin-dashboard button:hover {
   background: var(--bg-hover) !important;
   border-color: var(--border-light) !important;
-  color: var(--text-primary) !important;
+  color: var(--text-white) !important;
+}
+
+.admin-dashboard button:hover * {
+  color: var(--text-white) !important;
 }
 
 /* Active tab button - blue background override */
@@ -310,6 +380,781 @@
 .admin-dashboard div[style*="borderBottom: 1px solid #eee"],
 .admin-dashboard div[style*="border-bottom: 1px solid #eee"] {
   border-bottom-color: var(--border-subtle) !important;
+}
+
+/* ==================== PREMIUM FORMS & SECTIONS ==================== */
+
+/* Job Posting Form Header (Purple gradient) */
+.admin-dashboard div[style*="background: linear-gradient(135deg, #28a745"] {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600)) !important;
+  color: white !important;
+}
+
+/* CSV Reports Header */
+.admin-dashboard div[style*="💼"] h2,
+.admin-dashboard div[style*="📊"] h2 {
+  color: var(--text-white) !important;
+}
+
+/* Form Container Backgrounds */
+.admin-dashboard > div:nth-child(3) > div > div[style*="background: white"],
+.admin-dashboard > div:nth-child(3) > div > div[style*="backgroundColor: white"] {
+  background: var(--bg-surface) !important;
+}
+
+/* All form sections with rounded corners */
+.admin-dashboard div[style*="borderRadius: 8px"],
+.admin-dashboard div[style*="border-radius: 8px"],
+.admin-dashboard div[style*="borderRadius: 12px"],
+.admin-dashboard div[style*="border-radius: 12px"] {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+/* CSV Stats Cards - Override bright colors with dark theme */
+.admin-dashboard div[style*="backgroundColor: #007bff"],
+.admin-dashboard div[style*="background-color: #007bff"],
+.admin-dashboard div[style*="backgroundColor: rgb(0, 123, 255)"] {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1)) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: var(--text-white) !important;
+}
+
+.admin-dashboard div[style*="backgroundColor: #28a745"],
+.admin-dashboard div[style*="background-color: #28a745"],
+.admin-dashboard div[style*="backgroundColor: rgb(40, 167, 69)"] {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1)) !important;
+  border: 1px solid rgba(34, 197, 94, 0.3) !important;
+  color: var(--text-white) !important;
+}
+
+.admin-dashboard div[style*="backgroundColor: #dc3545"],
+.admin-dashboard div[style*="background-color: #dc3545"],
+.admin-dashboard div[style*="backgroundColor: rgb(220, 53, 69)"] {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1)) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: var(--text-white) !important;
+}
+
+.admin-dashboard div[style*="backgroundColor: #17a2b8"],
+.admin-dashboard div[style*="background-color: #17a2b8"],
+.admin-dashboard div[style*="backgroundColor: rgb(23, 162, 184)"] {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(6, 182, 212, 0.1)) !important;
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+  color: var(--text-white) !important;
+}
+
+/* Stats card text inside colored boxes */
+.admin-dashboard div[style*="fontSize: 42px"],
+.admin-dashboard div[style*="font-size: 42px"],
+.admin-dashboard div[style*="fontSize: 36px"],
+.admin-dashboard div[style*="font-size: 36px"] {
+  color: white !important;
+  font-family: var(--font-mono) !important;
+  font-weight: var(--font-bold) !important;
+}
+
+/* CSV Info Box Light Blue */
+.admin-dashboard div[style*="backgroundColor: #e7f3ff"],
+.admin-dashboard div[style*="background-color: #e7f3ff"] {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Debug section light backgrounds */
+.admin-dashboard div[style*="backgroundColor: #fffacd"],
+.admin-dashboard div[style*="background-color: #fffacd"],
+.admin-dashboard div[style*="backgroundColor: lightyellow"] {
+  background: rgba(234, 179, 8, 0.1) !important;
+  border: 1px solid rgba(234, 179, 8, 0.3) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Light green success backgrounds */
+.admin-dashboard div[style*="backgroundColor: #d1fae5"],
+.admin-dashboard div[style*="background-color: #d1fae5"],
+.admin-dashboard div[style*="backgroundColor: lightgreen"] {
+  background: var(--success-bg) !important;
+  border: 1px solid var(--success-border) !important;
+  color: var(--success-text) !important;
+}
+
+/* Job posting card borders */
+.admin-dashboard div[style*="borderLeft: 4px solid #007bff"],
+.admin-dashboard div[style*="border-left: 4px solid #007bff"] {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-left: 4px solid var(--primary-500) !important;
+}
+
+.admin-dashboard div[style*="borderLeft: 4px solid #28a745"],
+.admin-dashboard div[style*="border-left: 4px solid #28a745"] {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-left: 4px solid var(--success-500) !important;
+}
+
+/* Small text in stats */
+.admin-dashboard div[style*="fontSize: 14px"] span,
+.admin-dashboard div[style*="font-size: 14px"] span {
+  color: var(--text-secondary) !important;
+}
+
+/* Form section titles with gradients */
+.admin-dashboard div[style*="fontWeight: bold"] {
+  font-weight: var(--font-semibold) !important;
+}
+
+/* Icon containers in CSV section */
+.admin-dashboard div[style*="width: 60px"][style*="height: 60px"] {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* Category section titles */
+.admin-dashboard div[style*="fontSize: 16px"][style*="fontWeight: 600"],
+.admin-dashboard div[style*="font-size: 16px"][style*="font-weight: 600"] {
+  color: var(--text-primary) !important;
+}
+
+/* List items in CSV info */
+.admin-dashboard ul li {
+  color: var(--text-secondary) !important;
+}
+
+.admin-dashboard ul li::marker {
+  color: var(--primary-500) !important;
+}
+
+/* Highlighted warning box */
+.admin-dashboard div[style*="backgroundColor: #fff3cd"],
+.admin-dashboard div[style*="background-color: #fff3cd"] {
+  background: var(--warning-bg) !important;
+  border: 1px solid var(--warning-border) !important;
+  color: var(--warning-text) !important;
+}
+
+/* Job posting empty state */
+.admin-dashboard div[style*="textAlign: center"][style*="padding: 60px"] {
+  background: var(--bg-elevated) !important;
+  border: 1px dashed var(--border-light) !important;
+}
+
+/* Small badges and chips */
+.admin-dashboard span[style*="backgroundColor: #6c757d"],
+.admin-dashboard span[style*="background-color: #6c757d"] {
+  background: var(--bg-elevated) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* CSV Table containers */
+.admin-dashboard div[style*="overflowX: auto"],
+.admin-dashboard div[style*="overflow-x: auto"] {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+/* Debug code blocks */
+.admin-dashboard code {
+  background: var(--bg-elevated) !important;
+  color: var(--primary-400) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+}
+
+/* Leaderboard podium cards */
+.admin-dashboard div[style*="background: linear-gradient(135deg, #ffd700"] {
+  background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
+  border: 1px solid rgba(255, 215, 0, 0.3) !important;
+}
+
+.admin-dashboard div[style*="background: linear-gradient(135deg, #c0c0c0"] {
+  background: linear-gradient(135deg, #c0c0c0, #d3d3d3) !important;
+  border: 1px solid rgba(192, 192, 192, 0.3) !important;
+}
+
+.admin-dashboard div[style*="background: linear-gradient(135deg, #cd7f32"] {
+  background: linear-gradient(135deg, #cd7f32, #b8860b) !important;
+  border: 1px solid rgba(205, 127, 50, 0.3) !important;
+}
+
+/* Fix leaderboard text on gradient */
+.admin-dashboard div[style*="background: linear-gradient"] h3,
+.admin-dashboard div[style*="background: linear-gradient"] p,
+.admin-dashboard div[style*="background: linear-gradient"] span {
+  color: #1a1a1a !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+}
+
+/* Section dividers */
+.admin-dashboard hr {
+  border-color: var(--border-subtle) !important;
+  opacity: 1 !important;
+}
+
+/* Pill badges */
+.admin-dashboard span[style*="borderRadius: 12px"],
+.admin-dashboard span[style*="border-radius: 12px"],
+.admin-dashboard span[style*="borderRadius: 20px"],
+.admin-dashboard span[style*="border-radius: 20px"] {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Active/Success pill badges */
+.admin-dashboard span[style*="backgroundColor: #d4edda"][style*="borderRadius"],
+.admin-dashboard span[style*="background-color: #d4edda"][style*="border-radius"] {
+  background: var(--success-bg) !important;
+  border-color: var(--success-border) !important;
+  color: var(--success-text) !important;
+}
+
+/* Error/Inactive pill badges */
+.admin-dashboard span[style*="backgroundColor: #f8d7da"][style*="borderRadius"],
+.admin-dashboard span[style*="background-color: #f8d7da"][style*="border-radius"] {
+  background: var(--error-bg) !important;
+  border-color: var(--error-border) !important;
+  color: var(--error-text) !important;
+}
+
+/* Tooltip containers */
+.admin-dashboard div[style*="position: absolute"][style*="backgroundColor: rgba"] {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid var(--border-light) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Grid layouts should respect dark theme */
+.admin-dashboard div[style*="display: grid"] {
+  gap: var(--spacing-4) !important;
+}
+
+/* Flex layouts */
+.admin-dashboard div[style*="display: flex"] {
+  gap: var(--spacing-3) !important;
+}
+
+/* ==================== CSV REPORTS COMPLETE DARK THEME ==================== */
+
+/* CSV Search Container - Force dark background */
+.admin-dashboard div[style*="🔍"] {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+/* Remove all white borders from CSV section */
+.admin-dashboard > div:nth-child(3) > div,
+.admin-dashboard > div:nth-child(3) > div > div {
+  border: none !important;
+}
+
+/* CSV section containers - force dark */
+.admin-dashboard > div:nth-child(3) > div > div[style*="background"],
+.admin-dashboard > div:nth-child(3) > div > div[style*="border"] {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* Stats cards container - remove white borders */
+.admin-dashboard div:has(> div[style*="Total Submissions"]) {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Individual stat cards - keep gradient but fix borders */
+.admin-dashboard div[style*="Total Submissions"],
+.admin-dashboard div[style*="Average Score"],
+.admin-dashboard div[style*="Total Violations"],
+.admin-dashboard div[style*="Real-time Status"] {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Search form container white background fix */
+.admin-dashboard div:has(input[placeholder*="Search by student"]) {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  padding: 24px !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+/* Filter section parent container */
+.admin-dashboard div:has(> div > input[placeholder*="Search by student"]) {
+  background: var(--bg-canvas) !important;
+  border: none !important;
+}
+
+/* CSV Reports main container */
+.admin-dashboard > div:nth-child(3) {
+  background: var(--bg-canvas) !important;
+}
+
+/* All white/light backgrounds in CSV section */
+.admin-dashboard div[style*="All Submissions"] ~ div,
+.admin-dashboard div:has(> div[style*="STUDENT NAME"]) {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* CSV Submissions Table Container */
+.admin-dashboard div[style*="Showing all"] {
+  background: var(--bg-elevated) !important;
+  color: var(--text-secondary) !important;
+  padding: 12px 20px !important;
+}
+
+/* Bright blue section headers */
+.admin-dashboard div[style*="backgroundColor: #007bff"][style*="color: white"],
+.admin-dashboard div[style*="background-color: #007bff"][style*="color: white"],
+.admin-dashboard div[style*="backgroundColor: rgb(0, 123, 255)"] {
+  background: var(--primary-500) !important;
+  color: white !important;
+}
+
+/* CSV table with specific headers */
+.admin-dashboard table {
+  background: transparent !important;
+}
+
+.admin-dashboard table thead {
+  background: var(--bg-elevated) !important;
+}
+
+.admin-dashboard table tbody {
+  background: var(--bg-surface) !important;
+}
+
+/* Table header cells */
+.admin-dashboard table th {
+  background: var(--bg-elevated) !important;
+  color: var(--text-tertiary) !important;
+  text-transform: uppercase !important;
+  font-size: 11px !important;
+  letter-spacing: 0.5px !important;
+  font-weight: 600 !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+/* Table data cells */
+.admin-dashboard table td {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  padding: 16px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+/* Table row hover */
+.admin-dashboard table tbody tr:hover {
+  background: var(--bg-hover) !important;
+}
+
+.admin-dashboard table tbody tr:hover td {
+  background: var(--bg-hover) !important;
+}
+
+/* Orange badges (Unknown device) */
+.admin-dashboard span[style*="backgroundColor: #ff9800"],
+.admin-dashboard span[style*="background-color: #ff9800"],
+.admin-dashboard span[style*="backgroundColor: rgb(255, 152, 0)"] {
+  background: rgba(251, 146, 60, 0.2) !important;
+  border: 1px solid rgba(251, 146, 60, 0.4) !important;
+  color: #fb923c !important;
+  padding: 4px 12px !important;
+  border-radius: var(--radius-full) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* Red score text (0/30) */
+.admin-dashboard td span[style*="color: red"],
+.admin-dashboard td span[style*="color: #ff0000"],
+.admin-dashboard td span[style*="color: rgb(255, 0, 0)"] {
+  color: #f87171 !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+}
+
+/* Green violation count (0) */
+.admin-dashboard td span[style*="color: green"],
+.admin-dashboard td span[style*="color: #00ff00"],
+.admin-dashboard td span[style*="color: rgb(0, 255, 0)"] {
+  color: #34d399 !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+}
+
+/* Red violation count (1+) */
+.admin-dashboard td span[style*="color: red"] {
+  color: #f87171 !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+}
+
+/* Avatar circles in table */
+.admin-dashboard table td div[style*="borderRadius: 50%"],
+.admin-dashboard table td div[style*="border-radius: 50%"] {
+  background: var(--primary-500) !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
+}
+
+/* Email text in table */
+.admin-dashboard table td span[style*="color: #666"] {
+  color: var(--text-tertiary) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+}
+
+/* Student name text */
+.admin-dashboard table td div[style*="fontWeight: 500"],
+.admin-dashboard table td div[style*="font-weight: 500"] {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+}
+
+/* Search input field specific */
+.admin-dashboard input[placeholder*="Search by student name"],
+.admin-dashboard input[placeholder*="student name or email"] {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  padding: 10px 16px !important;
+}
+
+/* Date inputs */
+.admin-dashboard input[type="date"],
+.admin-dashboard input[type="number"] {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  padding: 10px 16px !important;
+  color-scheme: dark !important;
+}
+
+/* Select dropdown for Device Type */
+.admin-dashboard select {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  padding: 10px 16px !important;
+}
+
+.admin-dashboard select option {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Search button */
+.admin-dashboard button[style*="🔍"] {
+  background: var(--primary-500) !important;
+  border: none !important;
+  color: white !important;
+}
+
+/* Export button */
+.admin-dashboard button[style*="📤"] {
+  background: var(--success-500) !important;
+  border: none !important;
+  color: white !important;
+}
+
+/* CSV label text (Student Name:, Start Date:, etc) */
+.admin-dashboard div[style*="marginBottom: 5px"] {
+  color: var(--text-secondary) !important;
+}
+
+/* Form grid containers in CSV */
+.admin-dashboard > div:nth-child(3) > div > div > div[style*="display: grid"] {
+  background: var(--bg-surface) !important;
+  padding: 24px !important;
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+/* CSV info banner with icon */
+.admin-dashboard div[style*="💡"] {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Percentage column */
+.admin-dashboard table td:has(+ td) {
+  font-family: var(--font-mono) !important;
+}
+
+/* ==================== CSV FILTERS & EXPORT SECTION COMPLETE DARK THEME ==================== */
+
+/* Filter dropdown/select for submissions */
+.admin-dashboard select[style*="padding: 8px"],
+.admin-dashboard select[style*="padding: 10px"] {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  font-size: 14px !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.admin-dashboard select:hover {
+  border-color: var(--border-light) !important;
+  background: var(--bg-hover) !important;
+}
+
+.admin-dashboard select:focus {
+  border-color: var(--primary-500) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Filter section container */
+.admin-dashboard div[style*="marginBottom: 15px"],
+.admin-dashboard div[style*="margin-bottom: 15px"] {
+  background: var(--bg-surface) !important;
+}
+
+/* Export buttons container at top right */
+.admin-dashboard div:has(> button[style*="Refresh Data"]),
+.admin-dashboard div:has(> button[style*="Download"]) {
+  display: flex !important;
+  gap: var(--spacing-2) !important;
+}
+
+/* Refresh Data button (Green) */
+.admin-dashboard button[style*="backgroundColor: #28a745"]:not([style*="linear-gradient"]) {
+  background: var(--success-500) !important;
+  border: 1px solid var(--success-500) !important;
+  color: white !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 500 !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.admin-dashboard button[style*="backgroundColor: #28a745"]:hover {
+  background: var(--success-600) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3) !important;
+}
+
+/* Download Full CSV button (Blue) */
+.admin-dashboard button[style*="backgroundColor: #007bff"]:not([style*="linear-gradient"]) {
+  background: var(--primary-500) !important;
+  border: 1px solid var(--primary-500) !important;
+  color: white !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 500 !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.admin-dashboard button[style*="backgroundColor: #007bff"]:hover {
+  background: var(--primary-600) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3) !important;
+}
+
+/* Search & Preview button (Cyan/Info) */
+.admin-dashboard button[style*="backgroundColor: #17a2b8"] {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.9), rgba(8, 145, 178, 0.9)) !important;
+  border: 1px solid rgba(6, 182, 212, 0.5) !important;
+  color: white !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 500 !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.admin-dashboard button[style*="backgroundColor: #17a2b8"]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3) !important;
+}
+
+/* Export Filtered CSV button (Orange) */
+.admin-dashboard button[style*="backgroundColor: #fd7e14"],
+.admin-dashboard button[style*="background-color: #fd7e14"] {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.9), rgba(249, 115, 22, 0.9)) !important;
+  border: 1px solid rgba(251, 146, 60, 0.5) !important;
+  color: white !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 500 !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.admin-dashboard button[style*="backgroundColor: #fd7e14"]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3) !important;
+}
+
+/* Disabled button states */
+.admin-dashboard button:disabled,
+.admin-dashboard button[disabled] {
+  background: var(--bg-elevated) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-tertiary) !important;
+  cursor: not-allowed !important;
+  opacity: 0.5 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Filter label text */
+.admin-dashboard label[style*="display: block"] {
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  margin-bottom: var(--spacing-1) !important;
+}
+
+/* Filter section title */
+.admin-dashboard div:has(> select) > div:first-child {
+  color: var(--text-secondary) !important;
+}
+
+/* CSV Reports header section */
+.admin-dashboard h2:has(+ div > button) {
+  color: var(--text-white) !important;
+}
+
+/* Button loading state with spinner */
+.admin-dashboard button:disabled:has(span) {
+  background: var(--bg-elevated) !important;
+}
+
+/* Button icons (emojis) */
+.admin-dashboard button span {
+  margin-right: 6px !important;
+}
+
+/* Filter dropdowns in form grid */
+.admin-dashboard div[style*="display: grid"] select {
+  width: 100% !important;
+}
+
+/* Clear/Reset buttons if any */
+.admin-dashboard button[style*="backgroundColor: #6c757d"],
+.admin-dashboard button[style*="background-color: #6c757d"] {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.admin-dashboard button[style*="backgroundColor: #6c757d"]:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--border-light) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Checkbox inputs if present */
+.admin-dashboard input[type="checkbox"] {
+  accent-color: var(--primary-500) !important;
+  width: 18px !important;
+  height: 18px !important;
+  cursor: pointer !important;
+}
+
+/* Radio inputs if present */
+.admin-dashboard input[type="radio"] {
+  accent-color: var(--primary-500) !important;
+  cursor: pointer !important;
+}
+
+/* Filter section divider */
+.admin-dashboard div[style*="borderTop: 1px solid"],
+.admin-dashboard div[style*="border-top: 1px solid"] {
+  border-color: var(--border-subtle) !important;
+}
+
+/* Button group containers */
+.admin-dashboard div[style*="gap: 10px"],
+.admin-dashboard div[style*="gap: 15px"] {
+  gap: var(--spacing-2) !important;
+}
+
+/* Submission count text */
+.admin-dashboard div:has(~ table) p {
+  color: var(--text-primary) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* Any paragraph text */
+.admin-dashboard p,
+.admin-dashboard p * {
+  color: var(--text-primary) !important;
+}
+
+/* ==================== REMOVE ALL WHITE BORDERS & BACKGROUNDS ==================== */
+
+/* Target any div with white/light background */
+.admin-dashboard div[style*="background: white"],
+.admin-dashboard div[style*="background: #fff"],
+.admin-dashboard div[style*="background: #ffffff"],
+.admin-dashboard div[style*="backgroundColor: white"],
+.admin-dashboard div[style*="backgroundColor: #fff"],
+.admin-dashboard div[style*="backgroundColor: #ffffff"],
+.admin-dashboard div[style*="background-color: white"],
+.admin-dashboard div[style*="background-color: #fff"],
+.admin-dashboard div[style*="background-color: #ffffff"] {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+/* Target containers with specific border colors */
+.admin-dashboard div[style*="border: 1px solid white"],
+.admin-dashboard div[style*="border: 2px solid white"],
+.admin-dashboard div[style*="border: 1px solid #fff"],
+.admin-dashboard div[style*="borderColor: white"],
+.admin-dashboard div[style*="border-color: white"] {
+  border-color: var(--border-subtle) !important;
+}
+
+/* CSV section specific white container fixes */
+.admin-dashboard div[style*="borderRadius: 8px"][style*="border: 1px"],
+.admin-dashboard div[style*="border-radius: 8px"][style*="border: 1px"] {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+/* Parent containers that might have white backgrounds */
+.admin-dashboard > div > div[style*="padding: 20px"] {
+  background: var(--bg-canvas) !important;
+}
+
+/* Form containers with rounded corners */
+.admin-dashboard div[style*="borderRadius"][style*="padding"] {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+/* Any remaining light/white containers */
+.admin-dashboard div[style*="background: rgb(255, 255, 255)"],
+.admin-dashboard div[style*="backgroundColor: rgb(255, 255, 255)"] {
+  background: var(--bg-surface) !important;
+}
+
+/* Nested white containers */
+.admin-dashboard div[style*="background: white"] > div {
+  background: transparent !important;
+}
+
+/* Border fix for stats cards wrapper */
+.admin-dashboard > div:nth-child(3) > div:first-child {
+  border: none !important;
+  background: transparent !important;
 }
 
 /* ==================== SIDEBAR NAVIGATION ==================== */
@@ -606,6 +1451,26 @@
   color: var(--text-white);
   line-height: 1;
   margin-bottom: var(--spacing-2);
+}
+
+/* Stats card text visibility - force bright colors */
+.admin-stat-card h3,
+.admin-stat-card h3 *,
+.admin-dashboard > div:nth-child(2) > div > div h3,
+.admin-dashboard > div:nth-child(2) > div > div h3 * {
+  color: var(--text-white) !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.3) !important;
+}
+
+/* Stats card labels */
+.admin-stat-card p,
+.admin-stat-card span,
+.admin-dashboard > div:nth-child(2) > div > div p,
+.admin-dashboard > div:nth-child(2) > div > div span {
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
 }
 
 .admin-stat-trend {

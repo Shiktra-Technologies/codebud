@@ -214,12 +214,12 @@ const AdminDashboard = () => {
         const tableCheck = await checkSubmissionCSVTable();
         
         if (tableCheck.exists) {
-          console.log('✅ submission_csv table exists - using Supabase data only');
+          console.log('[SUCCESS] submission_csv table exists - using Supabase data only');
           
           // Get submissions from Supabase using new clean service
-          console.log('🔍 Calling getAllSubmissionsFromSupabase...');
+          console.log('[CHECK] Calling getAllSubmissionsFromSupabase...');
           const result = await getAllSubmissionsFromSupabase();
-          console.log('📋 getAllSubmissionsFromSupabase result:', { 
+          console.log('[LIST] getAllSubmissionsFromSupabase result:', { 
             success: result.success, 
             dataLength: result.data?.length,
             error: result.error 
@@ -228,15 +228,15 @@ const AdminDashboard = () => {
           if (result.success && result.data) {
             console.log(`✅ Loaded ${result.data.length} submissions from Supabase submission_csv_with_users table`);
             if (result.data.length > 0) {
-              console.log('🔍 Sample submission:', result.data[0]);
+              console.log('[CHECK] Sample submission:', result.data[0]);
             }
             uniqueSubmissions = result.data;
           } else {
-            console.log('📊 No submissions in Supabase table yet');
+            console.log('[DATA] No submissions in Supabase table yet');
             uniqueSubmissions = [];
           }
         } else {
-          console.warn('📊 submission_csv table does not exist');
+          console.warn('[DATA] submission_csv table does not exist');
           uniqueSubmissions = [];
         }
       } catch (error) {
@@ -340,16 +340,16 @@ const AdminDashboard = () => {
 
   // Test Supabase function
   const testSupabaseSubmissions = async () => {
-    console.log('🧪 Testing Supabase submission_csv table...');
+    console.log('[TEST] Testing Supabase submission_csv table...');
     try {
       // First check table structure
-      console.log('🔍 Checking submission_csv table structure...');
+      console.log('[CHECK] Checking submission_csv table structure...');
       const { checkSubmissionCSVTable } = await import('../services/supabaseService');
       const tableCheck = await checkSubmissionCSVTable();
-      console.log('📊 Table check result:', tableCheck);
+      console.log('[DATA] Table check result:', tableCheck);
       
       if (tableCheck.exists) {
-        console.log('✅ submission_csv table exists! Testing full functionality...');
+        console.log('[SUCCESS] submission_csv table exists! Testing full functionality...');
         
         // Clear old localStorage data since we have Supabase now
         const oldData = {
@@ -359,7 +359,7 @@ const AdminDashboard = () => {
         };
         
         if (oldData.test_results > 0 || oldData.pending_submissions > 0 || oldData.submission_forwarding > 0) {
-          console.log('🧹 Clearing old localStorage data:', oldData);
+          console.log('[CLEANUP] Clearing old localStorage data:', oldData);
           localStorage.removeItem('test_results');
           localStorage.removeItem('pending_submissions'); 
           localStorage.removeItem('submission_forwarding');
@@ -367,16 +367,16 @@ const AdminDashboard = () => {
         }
         
         // Test retrieving existing submissions from Supabase
-        console.log('📋 Retrieving submissions from submission_csv table...');
+        console.log('[LIST] Retrieving submissions from submission_csv table...');
         const submissions = await getAllSubmissions();
-        console.log('📊 Current submissions in Supabase:', submissions);
+        console.log('[DATA] Current submissions in Supabase:', submissions);
         
         // Test database connectivity only - no test submissions
         if (currentUser && currentUser.id) {
-          console.log('🔍 Testing database connectivity...');
+          console.log('[CHECK] Testing database connectivity...');
           
           // Check if the user exists in the users table
-          console.log('👤 Checking if user exists in users table...');
+          console.log('[USER] Checking if user exists in users table...');
           const { data: userCheck, error: userCheckError } = await supabase
             .from('users')
             .select('id, email, role')
@@ -384,11 +384,11 @@ const AdminDashboard = () => {
             .single();
             
           if (userCheckError) {
-            console.error('❌ User does not exist in users table:', userCheckError);
-            console.log('🔧 This is likely why submissions would fail');
+            console.error('[ERROR] User does not exist in users table:', userCheckError);
+            console.log('[DEBUG] This is likely why submissions would fail');
             
             // Try to create the user for future submissions
-            console.log('🔨 Attempting to create user record for future submissions...');
+            console.log('[BUILD] Attempting to create user record for future submissions...');
             const { data: newUser, error: createError } = await supabase
               .from('users')
               .insert([{
@@ -402,20 +402,20 @@ const AdminDashboard = () => {
               .single();
               
             if (createError) {
-              console.error('❌ Failed to create user:', createError);
+              console.error('[ERROR] Failed to create user:', createError);
               console.log('⚠️ Students will not be able to submit tests until user record exists');
             } else {
-              console.log('✅ User created successfully:', newUser);
-              console.log('✅ Ready to receive real student submissions');
+              console.log('[SUCCESS] User created successfully:', newUser);
+              console.log('[SUCCESS] Ready to receive real student submissions');
             }
           } else {
-            console.log('✅ User exists in users table:', userCheck);
-            console.log('✅ Ready to receive real student submissions');
+            console.log('[SUCCESS] User exists in users table:', userCheck);
+            console.log('[SUCCESS] Ready to receive real student submissions');
           }
           
-          console.log('🎯 Database connectivity test complete - no test submissions created');
+          console.log('[TARGET] Database connectivity test complete - no test submissions created');
         } else {
-          console.warn('⚠️ No current user - cannot test database connectivity');
+          console.warn('[WARNING] No current user - cannot test database connectivity');
         }
         
         // Import and make test function available globally
@@ -426,16 +426,16 @@ const AdminDashboard = () => {
         // Import and make test functions available globally
         import('../utils/testSubmissionFlow').then(({ testSubmissionFlow }) => {
           window.testSubmissionFlow = testSubmissionFlow;
-          console.log('✅ testSubmissionFlow() is now available globally');
+          console.log('[SUCCESS] testSubmissionFlow() is now available globally');
         }).catch(console.error);
 
         // Make debugging functions available globally
         window.debugSubmissionFlow = async () => {
-          console.log('🔍 === DEBUGGING SUBMISSION FLOW ===');
+          console.log('[CHECK] === DEBUGGING SUBMISSION FLOW ===');
           
           // Check current auth user
           const { data: { user }, error: authError } = await supabase.auth.getUser();
-          console.log('👤 Current auth user:', user ? { id: user.id, email: user.email } : 'None', authError);
+          console.log('[USER] Current auth user:', user ? { id: user.id, email: user.email } : 'None', authError);
           
           // Check users table
           if (user) {
@@ -452,14 +452,14 @@ const AdminDashboard = () => {
             .from('submission_csv')
             .select('*')
             .limit(5);
-          console.log('📊 Recent submissions:', submissions || [], submissionsError);
+          console.log('[DATA] Recent submissions:', submissions || [], submissionsError);
           
-          console.log('🔍 === DEBUGGING COMPLETE ===');
+          console.log('[CHECK] === DEBUGGING COMPLETE ===');
         };
         
         window.clearAllLocalStorageData = () => {
           localStorage.clear();
-          console.log('🧹 Cleared ALL localStorage data. Refresh the page.');
+          console.log('[CLEANUP] Cleared ALL localStorage data. Refresh the page.');
         };
         
         console.log('💡 To clear ALL localStorage: clearAllLocalStorageData()');
@@ -467,13 +467,13 @@ const AdminDashboard = () => {
       }
       
       if (!tableCheck.exists) {
-        console.log('🔨 Attempting to create submission_csv table...');
+        console.log('[BUILD] Attempting to create submission_csv table...');
         const createResult = await createSubmissionCSVTable();
         console.log('🏗️ Table creation result:', createResult);
         
         if (!createResult.success) {
-          console.error('❌ Table does not exist. Please create it manually.');
-          console.log('📋 SQL Script to run in Supabase dashboard:');
+          console.error('[ERROR] Table does not exist. Please create it manually.');
+          console.log('[LIST] SQL Script to run in Supabase dashboard:');
           const { getSubmissionCSVTableScript } = await import('../services/supabaseService');
           console.log(getSubmissionCSVTableScript());
           
@@ -495,18 +495,18 @@ const AdminDashboard = () => {
           window.clearLargeLocalStorageData = () => {
             localStorage.removeItem('submission_forwarding');
             localStorage.removeItem('pending_submissions');
-            console.log('🧹 Cleared large localStorage data. Refresh the page.');
+            console.log('[CLEANUP] Cleared large localStorage data. Refresh the page.');
           };
           
           console.log('💡 If you see too many submissions, run: clearLargeLocalStorageData()');
           
-          console.warn('⚠️ Using localStorage fallback until table is created');
+          console.warn('[WARNING] Using localStorage fallback until table is created');
           return;
         }
       }
       
       if (!tableCheck.exists) {
-        console.error('❌ Submissions table does not exist - need to create it');
+        console.error('[ERROR] Submissions table does not exist - need to create it');
         return;
       }
       
@@ -561,15 +561,15 @@ const AdminDashboard = () => {
         }
       }
       
-      console.log('✅ Insert results summary:', insertResults);
+      console.log('[SUCCESS] Insert results summary:', insertResults);
       
       // Wait a moment for database to update
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Test retrieving submissions from both tables
-      console.log('📋 Retrieving submissions from submission_csv_with_users...');
+      console.log('[LIST] Retrieving submissions from submission_csv_with_users...');
       const retrieveResult = await getAllSubmissions();
-      console.log('✅ Submissions retrieved:', {
+      console.log('[SUCCESS] Submissions retrieved:', {
         count: retrieveResult?.data?.length || 0,
         submissions: retrieveResult?.data?.slice(0, 3).map(s => ({
           userName: s.user_name || s.userName || s.display_name || s.name || 'Unknown',
@@ -586,7 +586,7 @@ const AdminDashboard = () => {
       }
       
     } catch (error) {
-      console.error('❌ Supabase test failed:', error);
+      console.error('[ERROR] Supabase test failed:', error);
     }
   };
 
@@ -744,7 +744,7 @@ const AdminDashboard = () => {
     localStorage.setItem('admin_csv_data', JSON.stringify(csvData));
 
     console.log(`✅ Created ${testSubmissions.length} test submissions in localStorage`);
-    console.log('📊 Submissions with names:');
+    console.log('[DATA] Submissions with names:');
     testSubmissions.forEach(sub => {
       console.log(`  • ${sub.user_name} - ${sub.test_type} - ${sub.score}/${sub.total_questions}`);
     });
@@ -772,7 +772,7 @@ const AdminDashboard = () => {
 
     // Register for real-time leaderboard updates
     const handleLeaderboardUpdate = (updatedLeaderboard) => {
-      console.log('📊 Admin dashboard received leaderboard update');
+      console.log('[DATA] Admin dashboard received leaderboard update');
       setLeaderboardData(updatedLeaderboard);
     };
 
@@ -780,7 +780,7 @@ const AdminDashboard = () => {
 
     // Listen for custom leaderboard update events
     const handleCustomLeaderboardUpdate = (event) => {
-      console.log('📊 Admin dashboard received custom leaderboard update event');
+      console.log('[DATA] Admin dashboard received custom leaderboard update event');
       if (event.detail && event.detail.data) {
         setLeaderboardData(event.detail.data);
       }
@@ -799,7 +799,7 @@ const AdminDashboard = () => {
 
     // Set up real-time subscriptions
     const unsubscribeSubmissions = realTimeService.subscribe('submissions', (payload) => {
-      console.log('📋 Real-time submissions update:', payload);
+      console.log('[LIST] Real-time submissions update:', payload);
       const newData = Array.isArray(payload) ? payload : payload.data || [];
       if (newData.length > 0) {
         // Merge with existing data instead of replacing it
@@ -836,7 +836,7 @@ const AdminDashboard = () => {
     }, { pollInterval: 10000 }); // Reduced frequency
 
     const unsubscribeActivity = realTimeService.subscribe('activities', (payload) => {
-      console.log('📊 Real-time activity update:', payload);
+      console.log('[DATA] Real-time activity update:', payload);
       // Update activity status without refetching all data to prevent jumping
       const data = Array.isArray(payload) ? payload : payload.data || [];
       if (data.length > 0) {
@@ -852,7 +852,7 @@ const AdminDashboard = () => {
 
     // Cleanup subscriptions
     return () => {
-      console.log('🧹 Cleaning up real-time subscriptions');
+      console.log('[CLEANUP] Cleaning up real-time subscriptions');
       unsubscribeSubmissions();
       unsubscribeUsers();
       unsubscribeActivity();
@@ -1005,7 +1005,7 @@ const AdminDashboard = () => {
           table: 'users' 
         }, 
         (payload) => {
-          console.log('👤 User activity update via Supabase real-time:', payload);
+          console.log('[USER] User activity update via Supabase real-time:', payload);
           
           // Refresh user data when user activities change
           fetchRealTimeData();
@@ -1035,9 +1035,9 @@ const AdminDashboard = () => {
       {error && (
         <div className="warning-banner">
           <div className="warning-content">
-            <span className="warning-icon">⚠️</span>
+            <span className="warning-icon">!</span>
             <span className="warning-text">{error}</span>
-            <button className="warning-dismiss" onClick={() => setError('')}>✕</button>
+            <button className="warning-dismiss" onClick={() => setError('')}>×</button>
           </div>
         </div>
       )}
@@ -1059,9 +1059,9 @@ const AdminDashboard = () => {
                                realTimeStatus === 'connecting' ? '#ffc107' : '#dc3545'
               }}></div>
               <span style={{ fontSize: '14px', color: '#666' }}>
-                {realTimeStatus === 'connected' ? '🔄 Live Data' : 
-                 realTimeStatus === 'connecting' ? '🔄 Connecting...' : 
-                 realTimeStatus === 'refreshing' ? '🔄 Refreshing...' : '❌ Connection Error'}
+                {realTimeStatus === 'connected' ? 'Live Data' : 
+                 realTimeStatus === 'connecting' ? 'Connecting...' : 
+                 realTimeStatus === 'refreshing' ? 'Refreshing...' : 'Connection Error'}
               </span>
             </div>
             <button 
@@ -1077,7 +1077,7 @@ const AdminDashboard = () => {
                 marginRight: '8px'
               }}
             >
-              🔄 Refresh
+              Refresh
             </button>
             <button 
               onClick={() => {
@@ -1100,7 +1100,7 @@ const AdminDashboard = () => {
                 // Trigger real-time update
                 realTimeService.broadcastUpdate('submissions', [testSubmission, ...existing]); // Broadcast all submissions
                 
-                console.log('🧪 Generated test submission:', testSubmission);
+                console.log('[TEST] Generated test submission:', testSubmission);
               }}
               style={{
                 padding: '8px 16px',
@@ -1112,12 +1112,12 @@ const AdminDashboard = () => {
                 fontSize: '14px'
               }}
             >
-              🧪 Test Submission
+              Test Submission
             </button>
           </div>
         </div>
         <p style={{ color: '#28a745', fontSize: '14px', margin: '0' }}>
-          📡 Real-time updates every 2-5 seconds • {students.length} students • {activeUsers.length} active • {testResults.length} submissions
+          Real-time updates every 2-5 seconds • {students.length} students • {activeUsers.length} active • {testResults.length} submissions
         </p>
       </div>
 
@@ -1173,7 +1173,7 @@ const AdminDashboard = () => {
           }}
           onClick={() => setActiveTab('leaderboard')}
         >
-          🏆 Leaderboard
+          Leaderboard
         </button>
         <button 
           style={{ 
@@ -1186,7 +1186,7 @@ const AdminDashboard = () => {
           }}
           onClick={() => setActiveTab('job-posting')}
         >
-          💼 Job Posting
+          Job Posting
         </button>
 
         <button
@@ -1200,7 +1200,7 @@ const AdminDashboard = () => {
           }}
           onClick={() => setActiveTab('csv-reports')}
         >
-          📊 CSV Reports
+          CSV Reports
         </button>
         
         <button
@@ -1214,7 +1214,7 @@ const AdminDashboard = () => {
           }}
           onClick={() => setActiveTab('debug')}
         >
-          🔧 Debug
+          Debug
         </button>
       </div>
 
@@ -2275,12 +2275,12 @@ const AdminDashboard = () => {
                 
                 <button
                   onClick={() => {
-                    console.log('🧹 Clearing all localStorage test data...');
+                    console.log('[CLEANUP] Clearing all localStorage test data...');
                     localStorage.removeItem('all_submissions');
                     localStorage.removeItem('test_results');
                     localStorage.removeItem('admin_submissions');
                     localStorage.removeItem('admin_csv_data');
-                    console.log('✅ localStorage cleared, refreshing dashboard...');
+                    console.log('[SUCCESS] localStorage cleared, refreshing dashboard...');
                     fetchRealTimeData();
                     alert('Cleared all test data! Dashboard will now show only real submissions from submission_csv_with_users table.');
                   }}
@@ -2338,7 +2338,7 @@ const AdminDashboard = () => {
                 <button
                   onClick={async () => {
                     try {
-                      console.log('🧪 Testing direct submission_csv_with_users query...');
+                      console.log('[TEST] Testing direct submission_csv_with_users query...');
                       const { data: directQuery, error: directError } = await supabase
                         .from('submission_csv_with_users')
                         .select('*')

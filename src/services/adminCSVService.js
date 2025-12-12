@@ -8,7 +8,7 @@ import { getAllSubmissionsFromSupabase } from './submissionService';
 class AdminCSVService {
   constructor() {
     this.listeners = new Set();
-    console.log('📊 Admin CSV Service initialized - Real Supabase data only');
+    console.log('[DATA] Admin CSV Service initialized - Real Supabase data only');
   }
 
   /**
@@ -69,7 +69,7 @@ class AdminCSVService {
       console.log(`✅ CSV downloaded: ${submissions.length} submissions`);
       return true;
     } catch (error) {
-      console.error('❌ Failed to download CSV:', error);
+      console.error('[ERROR] Failed to download CSV:', error);
       alert('Failed to download CSV: ' + error.message);
       return false;
     }
@@ -184,7 +184,7 @@ class AdminCSVService {
       console.log(`✅ Found ${submissions.length} submissions matching criteria`);
       return submissions;
     } catch (error) {
-      console.error('❌ Failed to search submissions:', error);
+      console.error('[ERROR] Failed to search submissions:', error);
       return [];
     }
   }
@@ -220,7 +220,7 @@ class AdminCSVService {
       console.log(`✅ Filtered CSV downloaded: ${filteredSubmissions.length} submissions`);
       return true;
     } catch (error) {
-      console.error('❌ Failed to export filtered CSV:', error);
+      console.error('[ERROR] Failed to export filtered CSV:', error);
       alert('Failed to export filtered CSV: ' + error.message);
       return false;
     }
@@ -254,7 +254,7 @@ class AdminCSVService {
         submissionStatus: submission.status || 'completed'
       }));
     } catch (error) {
-      console.error('❌ Failed to get recent submissions:', error);
+      console.error('[ERROR] Failed to get recent submissions:', error);
       return [];
     }
   }
@@ -276,7 +276,7 @@ class AdminCSVService {
         downloadUrl: null
       };
     } catch (error) {
-      console.error('❌ Failed to get current CSV data:', error);
+      console.error('[ERROR] Failed to get current CSV data:', error);
       return {
         content: '',
         lastUpdated: new Date().toISOString(),
@@ -316,7 +316,7 @@ class AdminCSVService {
         realTimeStatus: 'connected'
       };
     } catch (error) {
-      console.error('❌ Failed to get submission statistics:', error);
+      console.error('[ERROR] Failed to get submission statistics:', error);
       return {
         totalSubmissions: 0,
         averageScore: 0,
