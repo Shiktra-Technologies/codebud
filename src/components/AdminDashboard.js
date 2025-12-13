@@ -9,7 +9,7 @@ import adminCSVService from '../services/adminCSVService';
 import { getAllSubmissions } from '../services/supabaseService';
 import { getAllSubmissionsFromSupabase } from '../services/submissionService';
 import { supabase } from '../config/supabaseConfig';
-import RealTimeLoader from './RealTimeLoader';
+import Sidebar from './Sidebar';
 import './AdminDashboard.css';
 import './AdminDashboard_premium.css';
 
@@ -756,10 +756,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     console.log('🚀 Initializing Real-Time Admin Dashboard - Real Data Only');
     
-    // Initialize job service (but don't add sample data)
-    // jobService.initializeSampleData(); // DISABLED - no sample job data
-    // sampleDataService.addSampleSubmissionsToLocalStorage(); // DISABLED - no sample submissions
-    
     console.log('ℹ️ Sample data services disabled - showing only real database data');
 
     // Make test function available globally for manual testing
@@ -769,6 +765,12 @@ const AdminDashboard = () => {
     fetchRealTimeData();
     loadJobPostings();
     loadLeaderboard();
+
+    // Set up polling every 3 seconds for active students and submissions
+    const pollingInterval = setInterval(() => {
+      console.log('🔄 Polling for updates...');
+      fetchRealTimeData();
+    }, 3000); // 3 second polling
 
     // Register for real-time leaderboard updates
     const handleLeaderboardUpdate = (updatedLeaderboard) => {
@@ -852,7 +854,8 @@ const AdminDashboard = () => {
 
     // Cleanup subscriptions
     return () => {
-      console.log('[CLEANUP] Cleaning up real-time subscriptions');
+      console.log('[CLEANUP] Cleaning up real-time subscriptions and polling');
+      clearInterval(pollingInterval);
       unsubscribeSubmissions();
       unsubscribeUsers();
       unsubscribeActivity();
@@ -931,14 +934,14 @@ const AdminDashboard = () => {
 
   // Load CSV data when tab changes to CSV reports
   useEffect(() => {
-    if (activeTab === 'csv-reports' && !csvData) {
+    if (activeTab === 'csv' && !csvData) {
       loadCSVData();
     }
   }, [activeTab, csvData, loadCSVData]);
 
   // Setup real-time CSV updates
   useEffect(() => {
-    if (activeTab === 'csv-reports') {
+    if (activeTab === 'csv') {
       const removeListener = adminCSVService.addUpdateListener((updateData) => {
         console.log('CSV update received:', updateData);
         loadCSVData(); // Refresh data when new submissions arrive
@@ -969,7 +972,7 @@ const AdminDashboard = () => {
           loadTestResults();
           
           // Refresh CSV data if on CSV reports tab
-          if (activeTab === 'csv-reports') {
+          if (activeTab === 'csv') {
             loadCSVData();
           }
         }
@@ -988,7 +991,7 @@ const AdminDashboard = () => {
           loadTestResults();
           
           // Refresh CSV data if on CSV reports tab
-          if (activeTab === 'csv-reports') {
+          if (activeTab === 'csv') {
             loadCSVData();
           }
         }
@@ -1025,13 +1028,29 @@ const AdminDashboard = () => {
   if (loading && students.length === 0) {
     return (
       <div className="admin-dashboard">
-        <RealTimeLoader />
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p className="loading-text">Loading dashboard data...</p>
+        </div>
       </div>
     );
   }
 
+  // Calculate notification counts for sidebar badges
+  const notificationCounts = {
+    submissions: testResults.length > 0 ? testResults.length : undefined
+  };
+
   return (
-    <div className="admin-dashboard">
+    <div className="admin-dashboard-container">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
+        notificationCounts={notificationCounts}
+      />
+      
+      <div className="admin-dashboard-content">
+        <div className="admin-dashboard">
       {error && (
         <div className="warning-banner">
           <div className="warning-content">
@@ -1043,217 +1062,108 @@ const AdminDashboard = () => {
       )}
 
       {/* Header */}
-      <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <div>
-            <h1 style={{ margin: '0 0 5px 0' }}>Real-Time Admin Dashboard</h1>
-            <p style={{ margin: '0', color: '#666' }}>Welcome, {currentUser?.displayName || currentUser?.email || 'Admin'}</p>
+      <div className="admin-header-modern">
+        <div className="admin-header-content-modern">
+          <div className="admin-header-left">
+            <h1 className="admin-title">Admin Dashboard</h1>
+            <p className="admin-subtitle">
+              Welcome back, <span className="admin-email">{currentUser?.email || 'Admin'}</span>
+            </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: realTimeStatus === 'connected' ? '#28a745' : 
-                               realTimeStatus === 'connecting' ? '#ffc107' : '#dc3545'
-              }}></div>
-              <span style={{ fontSize: '14px', color: '#666' }}>
-                {realTimeStatus === 'connected' ? 'Live Data' : 
-                 realTimeStatus === 'connecting' ? 'Connecting...' : 
-                 realTimeStatus === 'refreshing' ? 'Refreshing...' : 'Connection Error'}
-              </span>
+          
+          <div className="admin-header-right">
+            <div className="status-indicators">
+              <div className="status-badge">
+                <div className={`status-dot ${realTimeStatus === 'connected' ? 'active' : ''}`}></div>
+                <span className="status-text">
+                  {realTimeStatus === 'connected' ? 'Live' : 
+                   realTimeStatus === 'connecting' ? 'Connecting' : 
+                   realTimeStatus === 'refreshing' ? 'Refreshing' : 'Error'}
+                </span>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-icon students-icon">👥</div>
+                <div className="stat-info">
+                  <div className="stat-label">Active Students</div>
+                  <div className="stat-value">{activeUsers.length}</div>
+                </div>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-icon submissions-icon">📝</div>
+                <div className="stat-info">
+                  <div className="stat-label">Submissions</div>
+                  <div className="stat-value">{testResults.length}</div>
+                </div>
+              </div>
             </div>
-            <button 
-              onClick={handleRefresh}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                marginRight: '8px'
-              }}
-            >
+            
+            <button onClick={handleRefresh} className="refresh-btn-modern">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
               Refresh
-            </button>
-            <button 
-              onClick={() => {
-                // Simulate a live submission for testing
-                const testSubmission = {
-                  id: `test-${Date.now()}`,
-                  userId: 'test-user-' + Math.random().toString(36).substring(2, 9),
-                  userName: `Test Student ${Math.floor(Math.random() * 100)}`,
-                  problemTitle: ['Two Sum', 'Binary Search', 'Merge Sort', 'Quick Sort'][Math.floor(Math.random() * 4)],
-                  score: Math.floor(Math.random() * 40) + 60, // 60-100
-                  passed: true,
-                  submittedAt: new Date().toISOString()
-                };
-                
-                // Add to localStorage
-                const existing = JSON.parse(localStorage.getItem('test_results') || '[]');
-                existing.unshift(testSubmission);
-                localStorage.setItem('test_results', JSON.stringify(existing)); // Store all submissions
-                
-                // Trigger real-time update
-                realTimeService.broadcastUpdate('submissions', [testSubmission, ...existing]); // Broadcast all submissions
-                
-                console.log('[TEST] Generated test submission:', testSubmission);
-              }}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Test Submission
             </button>
           </div>
         </div>
-        <p style={{ color: '#28a745', fontSize: '14px', margin: '0' }}>
-          Real-time updates every 2-5 seconds • {students.length} students • {activeUsers.length} active • {testResults.length} submissions
-        </p>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div style={{ padding: '0 20px', borderBottom: '1px solid #eee' }}>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'students' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'students' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('students')}
-        >
-          Students ({students.length})
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'active-users' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'active-users' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('active-users')}
-        >
-          Active Users ({activeUsers.length})
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'submissions' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'submissions' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('submissions')}
-        >
-          Submissions ({testResults.length})
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'leaderboard' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'leaderboard' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('leaderboard')}
-        >
-          Leaderboard
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'job-posting' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'job-posting' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('job-posting')}
-        >
-          Job Posting
-        </button>
-
-        <button
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'csv-reports' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'csv-reports' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('csv-reports')}
-        >
-          CSV Reports
-        </button>
-        
-        <button
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'debug' ? '#dc3545' : '#f8f9fa',
-            color: activeTab === 'debug' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('debug')}
-        >
-          Debug
-        </button>
+        <div className="admin-stats-bar">
+          <span className="stats-text">
+            🔄 Auto-updating every 3 seconds • {students.length} total students registered
+          </span>
+        </div>
       </div>
 
       {/* Content Area */}
       <div style={{ padding: '20px' }}>
         {activeTab === 'students' && (
-          <div>
-            <h2>All Students ({students.length})</h2>
+          <div className="tab-content">
+            <div className="tab-header">
+              <h2 className="tab-title">All Students ({students.length})</h2>
+            </div>
             {students.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '40px', 
-                backgroundColor: '#f8f9fa', 
-                borderRadius: '8px',
-                border: '2px dashed #dee2e6'
-              }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>👥</div>
-                <h3 style={{ color: '#6c757d' }}>No Students Found</h3>
-                <p style={{ color: '#6c757d', margin: '0' }}>
+              <div className="empty-state">
+                <div className="empty-icon">👥</div>
+                <h3 className="empty-title">No Students Found</h3>
+                <p className="empty-text">
                   Students will appear here when they sign up and log in to the platform
                 </p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: '15px', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+              <div className="students-grid">
                 {students.map(student => (
-                <div key={student.id} style={{ 
-                  border: '1px solid #dee2e6', 
-                  borderRadius: '8px', 
-                  padding: '15px',
-                  backgroundColor: 'white'
-                }}>
-                  <h3>{student.displayName}</h3>
-                  <p style={{ color: '#666', fontSize: '14px' }}>{student.email}</p>
-                  <p style={{ color: student.isOnline ? 'green' : 'gray' }}>
-                    🟢 {student.isOnline ? 'Online' : 'Offline'} • {student.lastSeenFormatted}
-                  </p>
-                  <p>Tests Completed: {student.testsCompleted}</p>
-                </div>
-              ))}
+                  <div key={student.id} className="student-card">
+                    <div className="student-card-header">
+                      <div className="student-avatar">
+                        {(student.displayName || student.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      {student.isOnline && (
+                        <div className="student-status">
+                          <div className="status-indicator online">
+                            <div className="status-dot"></div>
+                            <span>Online</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="student-card-body">
+                      <h3 className="student-name">{student.displayName || 'Student'}</h3>
+                      <p className="student-email">{student.email}</p>
+                      <div className="student-meta">
+                        <div className="meta-item">
+                          <span className="meta-label">Last Seen:</span>
+                          <span className="meta-value">{student.lastSeenFormatted}</span>
+                        </div>
+                        <div className="meta-item">
+                          <span className="meta-label">Tests:</span>
+                          <span className="meta-value">{student.testsCompleted || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1941,7 +1851,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'job-posting' && (
+        {activeTab === 'jobs' && (
           <div>
             <h2>💼 Job Posting Management</h2>
             <p style={{ color: '#666', marginBottom: '20px' }}>
@@ -2193,7 +2103,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'csv-reports' && (
+        {activeTab === 'csv' && (
           <CSVReportsSection 
             csvData={csvData}
             csvStats={csvStats}
@@ -2448,6 +2358,8 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+      </div>
+    </div>
     </div>
   );
 };
