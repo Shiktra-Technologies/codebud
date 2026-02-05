@@ -126,6 +126,83 @@ export function SimpleAuthProvider({ children }) {
     return data;
   };
 
+  // Test login function for development - bypasses Supabase authentication
+  const testLogin = async (email, password, expectedRole = null) => {
+    console.log('🧪 Test login attempt for email:', email, 'Expected role:', expectedRole);
+    
+    // Import test accounts
+    const { TEST_ACCOUNTS } = await import('../config/testAccounts');
+    
+    // Check if this is a test account
+    const testStudent = TEST_ACCOUNTS.STUDENTS.find(s => s.email === email && s.password === password);
+    const testAdmin = TEST_ACCOUNTS.ADMINS.find(a => a.email === email && a.password === password);
+    
+    if (!testStudent && !testAdmin) {
+      throw new Error('Invalid test account credentials');
+    }
+    
+    const testUser = testStudent || testAdmin;
+    
+    // Validate expected role matches
+    if (expectedRole && testUser.role !== expectedRole) {
+      throw new Error(`Access denied. This test account is registered as ${testUser.role}, but you're trying to login as ${expectedRole}.`);
+    }
+    
+    // Create mock user session
+    const mockUser = {
+      id: `test_${testUser.role}_${Date.now()}`,
+      email: testUser.email,
+      displayName: testUser.displayName,
+      user_metadata: {
+        displayName: testUser.displayName,
+        role: testUser.role,
+        isTestAccount: true
+      },
+      metadata: {
+        creationTime: new Date().toISOString(),
+        lastLoginTime: new Date().toISOString()
+      },
+      profile: testUser.profile || {},
+      isTestAccount: true
+    };
+    
+    // Set user state
+    setCurrentUser(mockUser);
+    setUserRole(testUser.role);
+    
+    // Store in localStorage for persistence
+    localStorage.setItem(`user_role_${mockUser.id}`, testUser.role);
+    localStorage.setItem('authUser', JSON.stringify({
+      id: mockUser.id,
+      email: mockUser.email,
+      displayName: mockUser.displayName
+    }));
+    
+    // Update last active
+    await updateLastActive(mockUser.id);
+    
+    // Store user for real-time tracking
+    localStorage.setItem('authUser', JSON.stringify({
+      id: mockUser.id,
+      email: mockUser.email,
+      displayName: mockUser.displayName
+    }));
+    
+    // Import and initialize real-time tracking for this user
+    import('../services/realTimeService').then(({ default: realTimeService }) => {
+      realTimeService.trackUserActivity(mockUser.id, 'logged in (test account)');
+      // Force refresh active users list
+      setTimeout(() => realTimeService.refreshActiveUsers(), 1000);
+    });
+    
+    console.log('🧪 Test login successful:', testUser.displayName, 'as', testUser.role);
+    
+    // Add a small delay to ensure state is properly set
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    return { user: mockUser, userRole: testUser.role };
+  };
+
   // Simple login with email/password - validates user's registered role
   const login = async (email, password, expectedRole = null) => {
     console.log('🔑 Login attempt for email:', email, 'Expected role:', expectedRole);
@@ -351,6 +428,7 @@ export function SimpleAuthProvider({ children }) {
     loading,
     signup,
     login,
+    testLogin,
     superAdminLogin,
     logout,
     isStudent,

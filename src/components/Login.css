@@ -542,6 +542,55 @@
   outline-offset: 2px;
 }
 
+/* ==================== TEST ACCOUNTS SECTION ==================== */
+.test-accounts-section {
+  margin: var(--spacing-6) 0;
+  padding: var(--spacing-4);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-base);
+  text-align: center;
+}
+
+.test-accounts-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-3) var(--spacing-5);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base) var(--ease-out);
+  width: 100%;
+  box-shadow: var(--shadow-button);
+}
+
+.test-accounts-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-button-hover);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.test-accounts-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-button-active);
+}
+
+.test-accounts-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.test-accounts-note {
+  margin: var(--spacing-2) 0 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

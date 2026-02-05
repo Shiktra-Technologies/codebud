@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSimpleAuth } from '../context/SimpleAuthContext';
+import TestLogin from './TestLogin';
 import './Login.css';
 
 const Login = ({ onToggle }) => {
@@ -12,7 +13,20 @@ const Login = ({ onToggle }) => {
   const [loading, setLoading] = useState(false);
   const [loginType, setLoginType] = useState('user'); // 'user', 'admin', 'super_admin'
   const [showSecretField, setShowSecretField] = useState(false);
-  const { login, superAdminLogin, USER_ROLES } = useSimpleAuth();
+  const [showTestLogin, setShowTestLogin] = useState(false);
+  const { login, testLogin, superAdminLogin, USER_ROLES } = useSimpleAuth();
+
+  // Helper function to check if credentials are for a test account
+  const isTestAccount = async (email, password) => {
+    try {
+      const { TEST_ACCOUNTS } = await import('../config/testAccounts');
+      const isTestStudent = TEST_ACCOUNTS.STUDENTS.some(s => s.email === email && s.password === password);
+      const isTestAdmin = TEST_ACCOUNTS.ADMINS.some(a => a.email === email && a.password === password);
+      return isTestStudent || isTestAdmin;
+    } catch (error) {
+      return false;
+    }
+  };
 
   const redirectToDashboard = (role) => {
     // Use the Home component routing by going to root
@@ -38,9 +52,18 @@ const Login = ({ onToggle }) => {
         // Navigate immediately - Home component will handle the state checking
         navigate('/', { replace: true });
       } else {
-        // Pass the selected role to login function
+        // Check if this is a test account
+        const isTest = await isTestAccount(email, password);
         const selectedRole = loginType === 'admin' ? USER_ROLES.ADMIN : USER_ROLES.STUDENT;
-        await login(email, password, selectedRole);
+        
+        if (isTest) {
+          // Use test login for test accounts
+          console.log('🧪 Detected test account, using test login');
+          await testLogin(email, password, selectedRole);
+        } else {
+          // Use regular login for real accounts
+          await login(email, password, selectedRole);
+        }
         
         // Set flag to indicate this is a post-login redirect
         sessionStorage.setItem('post_login_redirect', 'true');
@@ -212,6 +235,19 @@ const Login = ({ onToggle }) => {
           </>
         )}
 
+        {/* Test Accounts Quick Access Button */}
+        <div className="test-accounts-section">
+          <button 
+            type="button"
+            onClick={() => setShowTestLogin(true)}
+            className="test-accounts-btn"
+            disabled={loading}
+          >
+            🧪 Quick Test Login
+          </button>
+          <p className="test-accounts-note">Use pre-configured test accounts for development</p>
+        </div>
+
         <div className="auth-footer">
           <p className="auth-switch">
             Don't have an account?{' '}
@@ -221,6 +257,11 @@ const Login = ({ onToggle }) => {
           </p>
         </div>
       </div>
+      
+      {/* Test Login Modal */}
+      {showTestLogin && (
+        <TestLogin onClose={() => setShowTestLogin(false)} />
+      )}
     </div>
   );
 };

@@ -19,6 +19,8 @@ import SubmissionPage from './components/SubmissionPage';
 import ActivityTracker from './components/ActivityTracker';
 import CSVForwardingTest from './components/CSVForwardingTest';
 import DSATest from './components/DSATest';
+import TestAccountInfo from './components/TestAccountInfo';
+import TestAccountIndicator from './components/TestAccountIndicator';
 import './App.css';
 
 function App() {
@@ -29,6 +31,8 @@ function App() {
           <div className="App">
             <Navbar />
             <ActivityTracker />
+            <TestAccountInfo />
+            <TestAccountIndicator />
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/" element={<Home />} />
