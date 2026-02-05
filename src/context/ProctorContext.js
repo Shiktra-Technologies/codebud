@@ -84,7 +84,7 @@ export const ProctorProvider = ({ children }) => {
         
         modelRef.current = model;
         setModelsLoaded(true);
-        console.log('✅ Optimized AI model loaded successfully');
+        console.log('[SUCCESS] Optimized AI model loaded successfully');
         
       } catch (error) {
         console.warn('⚠️ AI model loading failed, falling back to basic monitoring:', error);
@@ -162,7 +162,7 @@ export const ProctorProvider = ({ children }) => {
         1000
       );
       
-      console.log('✅ Optimized media permissions granted successfully');
+      console.log('[SUCCESS] Optimized media permissions granted successfully');
       setMediaStream(stream);
       setPermissions(prev => ({
         ...prev,
@@ -172,7 +172,7 @@ export const ProctorProvider = ({ children }) => {
       
       return true;
     } catch (error) {
-      console.error('❌ Media permissions failed:', error);
+      console.error('[ERROR] Media permissions failed:', error);
       
       let errorMessage = 'Failed to access camera and microphone. ';
       if (error.name === 'NotAllowedError') {
@@ -333,7 +333,7 @@ export const ProctorProvider = ({ children }) => {
       }
     }, 50);
     
-    console.log('✅ Optimized cleanup initiated');
+    console.log('[SUCCESS] Optimized cleanup initiated');
   }, [mediaStream]);
 
   // Optimized violation tracking

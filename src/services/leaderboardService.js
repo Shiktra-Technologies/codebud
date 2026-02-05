@@ -21,12 +21,12 @@ export const leaderboardService = {
       const realLeaderboard = this.buildLeaderboardFromSubmissions();
       
       if (realLeaderboard.length > 0) {
-        console.log('📊 Using real submission data for leaderboard');
+        console.log('[DATA] Using real submission data for leaderboard');
         return realLeaderboard;
       }
       
       // Fallback to stored leaderboard data (for backwards compatibility)
-      console.log('📊 Using stored leaderboard data (no real submissions found)');
+      console.log('[DATA] Using stored leaderboard data (no real submissions found)');
       const leaderboardData = JSON.parse(localStorage.getItem(LEADERBOARD_STORAGE_KEY) || '[]');
       return leaderboardData.sort((a, b) => b.totalScore - a.totalScore);
     } catch (error) {
@@ -340,8 +340,16 @@ export const leaderboardService = {
         }
         
         this.broadcastChannel.onmessage = (event) => {
-          console.log('📨 Received leaderboard update from another tab');
-          this.handleIncomingUpdate(event.data);
+          try {
+            console.log('📨 Received leaderboard update from another tab');
+            this.handleIncomingUpdate(event.data);
+          } catch (error) {
+            console.error('Error handling leaderboard broadcast message:', error);
+          }
+        };
+        
+        this.broadcastChannel.onmessageerror = (event) => {
+          console.warn('Leaderboard broadcast message error:', event);
         };
       }
 

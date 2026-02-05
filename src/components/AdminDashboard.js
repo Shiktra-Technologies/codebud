@@ -9,7 +9,9 @@ import adminCSVService from '../services/adminCSVService';
 import { getAllSubmissions } from '../services/supabaseService';
 import { getAllSubmissionsFromSupabase } from '../services/submissionService';
 import { supabase } from '../config/supabaseConfig';
+import Sidebar from './Sidebar';
 import './AdminDashboard.css';
+import './AdminDashboard_premium.css';
 
 const AdminDashboard = () => {
   const { currentUser, getAllUsers } = useSimpleAuth();
@@ -212,12 +214,12 @@ const AdminDashboard = () => {
         const tableCheck = await checkSubmissionCSVTable();
         
         if (tableCheck.exists) {
-          console.log('✅ submission_csv table exists - using Supabase data only');
+          console.log('[SUCCESS] submission_csv table exists - using Supabase data only');
           
           // Get submissions from Supabase using new clean service
-          console.log('🔍 Calling getAllSubmissionsFromSupabase...');
+          console.log('[CHECK] Calling getAllSubmissionsFromSupabase...');
           const result = await getAllSubmissionsFromSupabase();
-          console.log('📋 getAllSubmissionsFromSupabase result:', { 
+          console.log('[LIST] getAllSubmissionsFromSupabase result:', { 
             success: result.success, 
             dataLength: result.data?.length,
             error: result.error 
@@ -226,15 +228,15 @@ const AdminDashboard = () => {
           if (result.success && result.data) {
             console.log(`✅ Loaded ${result.data.length} submissions from Supabase submission_csv_with_users table`);
             if (result.data.length > 0) {
-              console.log('🔍 Sample submission:', result.data[0]);
+              console.log('[CHECK] Sample submission:', result.data[0]);
             }
             uniqueSubmissions = result.data;
           } else {
-            console.log('📊 No submissions in Supabase table yet');
+            console.log('[DATA] No submissions in Supabase table yet');
             uniqueSubmissions = [];
           }
         } else {
-          console.warn('📊 submission_csv table does not exist');
+          console.warn('[DATA] submission_csv table does not exist');
           uniqueSubmissions = [];
         }
       } catch (error) {
@@ -338,16 +340,16 @@ const AdminDashboard = () => {
 
   // Test Supabase function
   const testSupabaseSubmissions = async () => {
-    console.log('🧪 Testing Supabase submission_csv table...');
+    console.log('[TEST] Testing Supabase submission_csv table...');
     try {
       // First check table structure
-      console.log('🔍 Checking submission_csv table structure...');
+      console.log('[CHECK] Checking submission_csv table structure...');
       const { checkSubmissionCSVTable } = await import('../services/supabaseService');
       const tableCheck = await checkSubmissionCSVTable();
-      console.log('📊 Table check result:', tableCheck);
+      console.log('[DATA] Table check result:', tableCheck);
       
       if (tableCheck.exists) {
-        console.log('✅ submission_csv table exists! Testing full functionality...');
+        console.log('[SUCCESS] submission_csv table exists! Testing full functionality...');
         
         // Clear old localStorage data since we have Supabase now
         const oldData = {
@@ -357,7 +359,7 @@ const AdminDashboard = () => {
         };
         
         if (oldData.test_results > 0 || oldData.pending_submissions > 0 || oldData.submission_forwarding > 0) {
-          console.log('🧹 Clearing old localStorage data:', oldData);
+          console.log('[CLEANUP] Clearing old localStorage data:', oldData);
           localStorage.removeItem('test_results');
           localStorage.removeItem('pending_submissions'); 
           localStorage.removeItem('submission_forwarding');
@@ -365,16 +367,16 @@ const AdminDashboard = () => {
         }
         
         // Test retrieving existing submissions from Supabase
-        console.log('📋 Retrieving submissions from submission_csv table...');
+        console.log('[LIST] Retrieving submissions from submission_csv table...');
         const submissions = await getAllSubmissions();
-        console.log('📊 Current submissions in Supabase:', submissions);
+        console.log('[DATA] Current submissions in Supabase:', submissions);
         
         // Test database connectivity only - no test submissions
         if (currentUser && currentUser.id) {
-          console.log('🔍 Testing database connectivity...');
+          console.log('[CHECK] Testing database connectivity...');
           
           // Check if the user exists in the users table
-          console.log('👤 Checking if user exists in users table...');
+          console.log('[USER] Checking if user exists in users table...');
           const { data: userCheck, error: userCheckError } = await supabase
             .from('users')
             .select('id, email, role')
@@ -382,11 +384,11 @@ const AdminDashboard = () => {
             .single();
             
           if (userCheckError) {
-            console.error('❌ User does not exist in users table:', userCheckError);
-            console.log('🔧 This is likely why submissions would fail');
+            console.error('[ERROR] User does not exist in users table:', userCheckError);
+            console.log('[DEBUG] This is likely why submissions would fail');
             
             // Try to create the user for future submissions
-            console.log('🔨 Attempting to create user record for future submissions...');
+            console.log('[BUILD] Attempting to create user record for future submissions...');
             const { data: newUser, error: createError } = await supabase
               .from('users')
               .insert([{
@@ -400,20 +402,20 @@ const AdminDashboard = () => {
               .single();
               
             if (createError) {
-              console.error('❌ Failed to create user:', createError);
+              console.error('[ERROR] Failed to create user:', createError);
               console.log('⚠️ Students will not be able to submit tests until user record exists');
             } else {
-              console.log('✅ User created successfully:', newUser);
-              console.log('✅ Ready to receive real student submissions');
+              console.log('[SUCCESS] User created successfully:', newUser);
+              console.log('[SUCCESS] Ready to receive real student submissions');
             }
           } else {
-            console.log('✅ User exists in users table:', userCheck);
-            console.log('✅ Ready to receive real student submissions');
+            console.log('[SUCCESS] User exists in users table:', userCheck);
+            console.log('[SUCCESS] Ready to receive real student submissions');
           }
           
-          console.log('🎯 Database connectivity test complete - no test submissions created');
+          console.log('[TARGET] Database connectivity test complete - no test submissions created');
         } else {
-          console.warn('⚠️ No current user - cannot test database connectivity');
+          console.warn('[WARNING] No current user - cannot test database connectivity');
         }
         
         // Import and make test function available globally
@@ -424,16 +426,16 @@ const AdminDashboard = () => {
         // Import and make test functions available globally
         import('../utils/testSubmissionFlow').then(({ testSubmissionFlow }) => {
           window.testSubmissionFlow = testSubmissionFlow;
-          console.log('✅ testSubmissionFlow() is now available globally');
+          console.log('[SUCCESS] testSubmissionFlow() is now available globally');
         }).catch(console.error);
 
         // Make debugging functions available globally
         window.debugSubmissionFlow = async () => {
-          console.log('🔍 === DEBUGGING SUBMISSION FLOW ===');
+          console.log('[CHECK] === DEBUGGING SUBMISSION FLOW ===');
           
           // Check current auth user
           const { data: { user }, error: authError } = await supabase.auth.getUser();
-          console.log('👤 Current auth user:', user ? { id: user.id, email: user.email } : 'None', authError);
+          console.log('[USER] Current auth user:', user ? { id: user.id, email: user.email } : 'None', authError);
           
           // Check users table
           if (user) {
@@ -450,14 +452,14 @@ const AdminDashboard = () => {
             .from('submission_csv')
             .select('*')
             .limit(5);
-          console.log('📊 Recent submissions:', submissions || [], submissionsError);
+          console.log('[DATA] Recent submissions:', submissions || [], submissionsError);
           
-          console.log('🔍 === DEBUGGING COMPLETE ===');
+          console.log('[CHECK] === DEBUGGING COMPLETE ===');
         };
         
         window.clearAllLocalStorageData = () => {
           localStorage.clear();
-          console.log('🧹 Cleared ALL localStorage data. Refresh the page.');
+          console.log('[CLEANUP] Cleared ALL localStorage data. Refresh the page.');
         };
         
         console.log('💡 To clear ALL localStorage: clearAllLocalStorageData()');
@@ -465,13 +467,13 @@ const AdminDashboard = () => {
       }
       
       if (!tableCheck.exists) {
-        console.log('🔨 Attempting to create submission_csv table...');
+        console.log('[BUILD] Attempting to create submission_csv table...');
         const createResult = await createSubmissionCSVTable();
         console.log('🏗️ Table creation result:', createResult);
         
         if (!createResult.success) {
-          console.error('❌ Table does not exist. Please create it manually.');
-          console.log('📋 SQL Script to run in Supabase dashboard:');
+          console.error('[ERROR] Table does not exist. Please create it manually.');
+          console.log('[LIST] SQL Script to run in Supabase dashboard:');
           const { getSubmissionCSVTableScript } = await import('../services/supabaseService');
           console.log(getSubmissionCSVTableScript());
           
@@ -493,18 +495,18 @@ const AdminDashboard = () => {
           window.clearLargeLocalStorageData = () => {
             localStorage.removeItem('submission_forwarding');
             localStorage.removeItem('pending_submissions');
-            console.log('🧹 Cleared large localStorage data. Refresh the page.');
+            console.log('[CLEANUP] Cleared large localStorage data. Refresh the page.');
           };
           
           console.log('💡 If you see too many submissions, run: clearLargeLocalStorageData()');
           
-          console.warn('⚠️ Using localStorage fallback until table is created');
+          console.warn('[WARNING] Using localStorage fallback until table is created');
           return;
         }
       }
       
       if (!tableCheck.exists) {
-        console.error('❌ Submissions table does not exist - need to create it');
+        console.error('[ERROR] Submissions table does not exist - need to create it');
         return;
       }
       
@@ -559,15 +561,15 @@ const AdminDashboard = () => {
         }
       }
       
-      console.log('✅ Insert results summary:', insertResults);
+      console.log('[SUCCESS] Insert results summary:', insertResults);
       
       // Wait a moment for database to update
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Test retrieving submissions from both tables
-      console.log('📋 Retrieving submissions from submission_csv_with_users...');
+      console.log('[LIST] Retrieving submissions from submission_csv_with_users...');
       const retrieveResult = await getAllSubmissions();
-      console.log('✅ Submissions retrieved:', {
+      console.log('[SUCCESS] Submissions retrieved:', {
         count: retrieveResult?.data?.length || 0,
         submissions: retrieveResult?.data?.slice(0, 3).map(s => ({
           userName: s.user_name || s.userName || s.display_name || s.name || 'Unknown',
@@ -584,7 +586,7 @@ const AdminDashboard = () => {
       }
       
     } catch (error) {
-      console.error('❌ Supabase test failed:', error);
+      console.error('[ERROR] Supabase test failed:', error);
     }
   };
 
@@ -742,7 +744,7 @@ const AdminDashboard = () => {
     localStorage.setItem('admin_csv_data', JSON.stringify(csvData));
 
     console.log(`✅ Created ${testSubmissions.length} test submissions in localStorage`);
-    console.log('📊 Submissions with names:');
+    console.log('[DATA] Submissions with names:');
     testSubmissions.forEach(sub => {
       console.log(`  • ${sub.user_name} - ${sub.test_type} - ${sub.score}/${sub.total_questions}`);
     });
@@ -754,10 +756,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     console.log('🚀 Initializing Real-Time Admin Dashboard - Real Data Only');
     
-    // Initialize job service (but don't add sample data)
-    // jobService.initializeSampleData(); // DISABLED - no sample job data
-    // sampleDataService.addSampleSubmissionsToLocalStorage(); // DISABLED - no sample submissions
-    
     console.log('ℹ️ Sample data services disabled - showing only real database data');
 
     // Make test function available globally for manual testing
@@ -768,9 +766,15 @@ const AdminDashboard = () => {
     loadJobPostings();
     loadLeaderboard();
 
+    // Set up polling every 3 seconds for active students and submissions
+    const pollingInterval = setInterval(() => {
+      console.log('🔄 Polling for updates...');
+      fetchRealTimeData();
+    }, 3000); // 3 second polling
+
     // Register for real-time leaderboard updates
     const handleLeaderboardUpdate = (updatedLeaderboard) => {
-      console.log('📊 Admin dashboard received leaderboard update');
+      console.log('[DATA] Admin dashboard received leaderboard update');
       setLeaderboardData(updatedLeaderboard);
     };
 
@@ -778,7 +782,7 @@ const AdminDashboard = () => {
 
     // Listen for custom leaderboard update events
     const handleCustomLeaderboardUpdate = (event) => {
-      console.log('📊 Admin dashboard received custom leaderboard update event');
+      console.log('[DATA] Admin dashboard received custom leaderboard update event');
       if (event.detail && event.detail.data) {
         setLeaderboardData(event.detail.data);
       }
@@ -797,7 +801,7 @@ const AdminDashboard = () => {
 
     // Set up real-time subscriptions
     const unsubscribeSubmissions = realTimeService.subscribe('submissions', (payload) => {
-      console.log('📋 Real-time submissions update:', payload);
+      console.log('[LIST] Real-time submissions update:', payload);
       const newData = Array.isArray(payload) ? payload : payload.data || [];
       if (newData.length > 0) {
         // Merge with existing data instead of replacing it
@@ -834,7 +838,7 @@ const AdminDashboard = () => {
     }, { pollInterval: 10000 }); // Reduced frequency
 
     const unsubscribeActivity = realTimeService.subscribe('activities', (payload) => {
-      console.log('📊 Real-time activity update:', payload);
+      console.log('[DATA] Real-time activity update:', payload);
       // Update activity status without refetching all data to prevent jumping
       const data = Array.isArray(payload) ? payload : payload.data || [];
       if (data.length > 0) {
@@ -850,7 +854,8 @@ const AdminDashboard = () => {
 
     // Cleanup subscriptions
     return () => {
-      console.log('🧹 Cleaning up real-time subscriptions');
+      console.log('[CLEANUP] Cleaning up real-time subscriptions and polling');
+      clearInterval(pollingInterval);
       unsubscribeSubmissions();
       unsubscribeUsers();
       unsubscribeActivity();
@@ -929,14 +934,14 @@ const AdminDashboard = () => {
 
   // Load CSV data when tab changes to CSV reports
   useEffect(() => {
-    if (activeTab === 'csv-reports' && !csvData) {
+    if (activeTab === 'csv' && !csvData) {
       loadCSVData();
     }
   }, [activeTab, csvData, loadCSVData]);
 
   // Setup real-time CSV updates
   useEffect(() => {
-    if (activeTab === 'csv-reports') {
+    if (activeTab === 'csv') {
       const removeListener = adminCSVService.addUpdateListener((updateData) => {
         console.log('CSV update received:', updateData);
         loadCSVData(); // Refresh data when new submissions arrive
@@ -967,7 +972,7 @@ const AdminDashboard = () => {
           loadTestResults();
           
           // Refresh CSV data if on CSV reports tab
-          if (activeTab === 'csv-reports') {
+          if (activeTab === 'csv') {
             loadCSVData();
           }
         }
@@ -986,7 +991,7 @@ const AdminDashboard = () => {
           loadTestResults();
           
           // Refresh CSV data if on CSV reports tab
-          if (activeTab === 'csv-reports') {
+          if (activeTab === 'csv') {
             loadCSVData();
           }
         }
@@ -1003,7 +1008,7 @@ const AdminDashboard = () => {
           table: 'users' 
         }, 
         (payload) => {
-          console.log('👤 User activity update via Supabase real-time:', payload);
+          console.log('[USER] User activity update via Supabase real-time:', payload);
           
           // Refresh user data when user activities change
           fetchRealTimeData();
@@ -1023,255 +1028,142 @@ const AdminDashboard = () => {
   if (loading && students.length === 0) {
     return (
       <div className="admin-dashboard">
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '10px' }}>🔄</div>
-          <h2>Connecting to Real-Time Data...</h2>
-          <p style={{ color: '#666' }}>Fetching live student activity and submissions</p>
-          <div style={{
-            width: '200px',
-            height: '4px',
-            backgroundColor: '#e0e0e0',
-            borderRadius: '2px',
-            margin: '20px auto',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: '#007bff',
-              borderRadius: '2px',
-              animation: 'loading 1.5s ease-in-out infinite'
-            }}></div>
-          </div>
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p className="loading-text">Loading dashboard data...</p>
         </div>
       </div>
     );
   }
 
+  // Calculate notification counts for sidebar badges
+  const notificationCounts = {
+    submissions: testResults.length > 0 ? testResults.length : undefined
+  };
+
   return (
-    <div className="admin-dashboard">
+    <div className="admin-dashboard-container">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
+        notificationCounts={notificationCounts}
+      />
+      
+      <div className="admin-dashboard-content">
+        <div className="admin-dashboard">
       {error && (
         <div className="warning-banner">
           <div className="warning-content">
-            <span className="warning-icon">⚠️</span>
+            <span className="warning-icon">!</span>
             <span className="warning-text">{error}</span>
-            <button className="warning-dismiss" onClick={() => setError('')}>✕</button>
+            <button className="warning-dismiss" onClick={() => setError('')}>×</button>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ padding: '20px', borderBottom: '1px solid #eee' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <div>
-            <h1 style={{ margin: '0 0 5px 0' }}>Real-Time Admin Dashboard</h1>
-            <p style={{ margin: '0', color: '#666' }}>Welcome, {currentUser?.displayName || currentUser?.email || 'Admin'}</p>
+      <div className="admin-header-modern">
+        <div className="admin-header-content-modern">
+          <div className="admin-header-left">
+            <h1 className="admin-title">Admin Dashboard</h1>
+            <p className="admin-subtitle">
+              Welcome back, <span className="admin-email">{currentUser?.email || 'Admin'}</span>
+            </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: realTimeStatus === 'connected' ? '#28a745' : 
-                               realTimeStatus === 'connecting' ? '#ffc107' : '#dc3545'
-              }}></div>
-              <span style={{ fontSize: '14px', color: '#666' }}>
-                {realTimeStatus === 'connected' ? '🔄 Live Data' : 
-                 realTimeStatus === 'connecting' ? '🔄 Connecting...' : 
-                 realTimeStatus === 'refreshing' ? '🔄 Refreshing...' : '❌ Connection Error'}
-              </span>
+          
+          <div className="admin-header-right">
+            <div className="status-indicators">
+              <div className="status-badge">
+                <div className={`status-dot ${realTimeStatus === 'connected' ? 'active' : ''}`}></div>
+                <span className="status-text">
+                  {realTimeStatus === 'connected' ? 'Live' : 
+                   realTimeStatus === 'connecting' ? 'Connecting' : 
+                   realTimeStatus === 'refreshing' ? 'Refreshing' : 'Error'}
+                </span>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-icon students-icon">👥</div>
+                <div className="stat-info">
+                  <div className="stat-label">Active Students</div>
+                  <div className="stat-value">{activeUsers.length}</div>
+                </div>
+              </div>
+              
+              <div className="stat-card">
+                <div className="stat-icon submissions-icon">📝</div>
+                <div className="stat-info">
+                  <div className="stat-label">Submissions</div>
+                  <div className="stat-value">{testResults.length}</div>
+                </div>
+              </div>
             </div>
-            <button 
-              onClick={handleRefresh}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                marginRight: '8px'
-              }}
-            >
-              🔄 Refresh
-            </button>
-            <button 
-              onClick={() => {
-                // Simulate a live submission for testing
-                const testSubmission = {
-                  id: `test-${Date.now()}`,
-                  userId: 'test-user-' + Math.random().toString(36).substring(2, 9),
-                  userName: `Test Student ${Math.floor(Math.random() * 100)}`,
-                  problemTitle: ['Two Sum', 'Binary Search', 'Merge Sort', 'Quick Sort'][Math.floor(Math.random() * 4)],
-                  score: Math.floor(Math.random() * 40) + 60, // 60-100
-                  passed: true,
-                  submittedAt: new Date().toISOString()
-                };
-                
-                // Add to localStorage
-                const existing = JSON.parse(localStorage.getItem('test_results') || '[]');
-                existing.unshift(testSubmission);
-                localStorage.setItem('test_results', JSON.stringify(existing)); // Store all submissions
-                
-                // Trigger real-time update
-                realTimeService.broadcastUpdate('submissions', [testSubmission, ...existing]); // Broadcast all submissions
-                
-                console.log('🧪 Generated test submission:', testSubmission);
-              }}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              🧪 Test Submission
+            
+            <button onClick={handleRefresh} className="refresh-btn-modern">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+              Refresh
             </button>
           </div>
         </div>
-        <p style={{ color: '#28a745', fontSize: '14px', margin: '0' }}>
-          📡 Real-time updates every 2-5 seconds • {students.length} students • {activeUsers.length} active • {testResults.length} submissions
-        </p>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div style={{ padding: '0 20px', borderBottom: '1px solid #eee' }}>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'students' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'students' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('students')}
-        >
-          Students ({students.length})
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'active-users' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'active-users' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('active-users')}
-        >
-          Active Users ({activeUsers.length})
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'submissions' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'submissions' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('submissions')}
-        >
-          Submissions ({testResults.length})
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'leaderboard' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'leaderboard' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('leaderboard')}
-        >
-          🏆 Leaderboard
-        </button>
-        <button 
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'job-posting' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'job-posting' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('job-posting')}
-        >
-          💼 Job Posting
-        </button>
-
-        <button
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'csv-reports' ? '#007bff' : '#f8f9fa',
-            color: activeTab === 'csv-reports' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('csv-reports')}
-        >
-          📊 CSV Reports
-        </button>
-        
-        <button
-          style={{ 
-            padding: '10px 15px', 
-            margin: '0 5px', 
-            backgroundColor: activeTab === 'debug' ? '#dc3545' : '#f8f9fa',
-            color: activeTab === 'debug' ? 'white' : 'black',
-            border: '1px solid #dee2e6',
-            cursor: 'pointer'
-          }}
-          onClick={() => setActiveTab('debug')}
-        >
-          🔧 Debug
-        </button>
+        <div className="admin-stats-bar">
+          <span className="stats-text">
+            🔄 Auto-updating every 3 seconds • {students.length} total students registered
+          </span>
+        </div>
       </div>
 
       {/* Content Area */}
       <div style={{ padding: '20px' }}>
         {activeTab === 'students' && (
-          <div>
-            <h2>All Students ({students.length})</h2>
+          <div className="tab-content">
+            <div className="tab-header">
+              <h2 className="tab-title">All Students ({students.length})</h2>
+            </div>
             {students.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '40px', 
-                backgroundColor: '#f8f9fa', 
-                borderRadius: '8px',
-                border: '2px dashed #dee2e6'
-              }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>👥</div>
-                <h3 style={{ color: '#6c757d' }}>No Students Found</h3>
-                <p style={{ color: '#6c757d', margin: '0' }}>
+              <div className="empty-state">
+                <div className="empty-icon">👥</div>
+                <h3 className="empty-title">No Students Found</h3>
+                <p className="empty-text">
                   Students will appear here when they sign up and log in to the platform
                 </p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: '15px', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+              <div className="students-grid">
                 {students.map(student => (
-                <div key={student.id} style={{ 
-                  border: '1px solid #dee2e6', 
-                  borderRadius: '8px', 
-                  padding: '15px',
-                  backgroundColor: 'white'
-                }}>
-                  <h3>{student.displayName}</h3>
-                  <p style={{ color: '#666', fontSize: '14px' }}>{student.email}</p>
-                  <p style={{ color: student.isOnline ? 'green' : 'gray' }}>
-                    🟢 {student.isOnline ? 'Online' : 'Offline'} • {student.lastSeenFormatted}
-                  </p>
-                  <p>Tests Completed: {student.testsCompleted}</p>
-                </div>
-              ))}
+                  <div key={student.id} className="student-card">
+                    <div className="student-card-header">
+                      <div className="student-avatar">
+                        {(student.displayName || student.email || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      {student.isOnline && (
+                        <div className="student-status">
+                          <div className="status-indicator online">
+                            <div className="status-dot"></div>
+                            <span>Online</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="student-card-body">
+                      <h3 className="student-name">{student.displayName || 'Student'}</h3>
+                      <p className="student-email">{student.email}</p>
+                      <div className="student-meta">
+                        <div className="meta-item">
+                          <span className="meta-label">Last Seen:</span>
+                          <span className="meta-value">{student.lastSeenFormatted}</span>
+                        </div>
+                        <div className="meta-item">
+                          <span className="meta-label">Tests:</span>
+                          <span className="meta-value">{student.testsCompleted || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1959,7 +1851,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'job-posting' && (
+        {activeTab === 'jobs' && (
           <div>
             <h2>💼 Job Posting Management</h2>
             <p style={{ color: '#666', marginBottom: '20px' }}>
@@ -2211,7 +2103,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'csv-reports' && (
+        {activeTab === 'csv' && (
           <CSVReportsSection 
             csvData={csvData}
             csvStats={csvStats}
@@ -2293,12 +2185,12 @@ const AdminDashboard = () => {
                 
                 <button
                   onClick={() => {
-                    console.log('🧹 Clearing all localStorage test data...');
+                    console.log('[CLEANUP] Clearing all localStorage test data...');
                     localStorage.removeItem('all_submissions');
                     localStorage.removeItem('test_results');
                     localStorage.removeItem('admin_submissions');
                     localStorage.removeItem('admin_csv_data');
-                    console.log('✅ localStorage cleared, refreshing dashboard...');
+                    console.log('[SUCCESS] localStorage cleared, refreshing dashboard...');
                     fetchRealTimeData();
                     alert('Cleared all test data! Dashboard will now show only real submissions from submission_csv_with_users table.');
                   }}
@@ -2356,7 +2248,7 @@ const AdminDashboard = () => {
                 <button
                   onClick={async () => {
                     try {
-                      console.log('🧪 Testing direct submission_csv_with_users query...');
+                      console.log('[TEST] Testing direct submission_csv_with_users query...');
                       const { data: directQuery, error: directError } = await supabase
                         .from('submission_csv_with_users')
                         .select('*')
@@ -2466,6 +2358,8 @@ const AdminDashboard = () => {
           </div>
         )}
       </div>
+      </div>
+    </div>
     </div>
   );
 };

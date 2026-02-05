@@ -34,14 +34,14 @@ export const saveUserToSupabase = async (user, role) => {
       .select();
 
     if (error) {
-      console.error('❌ Error saving user to Supabase:', error);
+      console.error('[ERROR] Error saving user to Supabase:', error);
       throw error;
     }
 
-    console.log('✅ User saved to Supabase successfully');
+    console.log('[SUCCESS] User saved to Supabase successfully');
     return { success: true, data };
   } catch (error) {
-    console.error('❌ Error in saveUserToSupabase:', error);
+    console.error('[ERROR] Error in saveUserToSupabase:', error);
     return { success: false, error: error.message };
   }
 };
@@ -62,7 +62,7 @@ export const getUserFromSupabase = async (userId) => {
     
     return { success: true, data };
   } catch (error) {
-    console.error('❌ Error getting user from Supabase:', error);
+    console.error('[ERROR] Error getting user from Supabase:', error);
     return { success: false, error: error.message };
   }
 };
@@ -82,7 +82,7 @@ export const getAllUsersFromSupabase = async () => {
     console.log(`✅ Retrieved ${data.length} users from Supabase`);
     return { success: true, data };
   } catch (error) {
-    console.error('❌ Error getting all users from Supabase:', error);
+    console.error('[ERROR] Error getting all users from Supabase:', error);
     return { success: true, data: [], fallback: true };
   }
 };
@@ -117,7 +117,7 @@ export const submitTestToSupabase = async (userId, submissionData) => {
     const { submitTestToSupabase: submitTest } = await import('./submissionService');
     return await submitTest(userId, submissionData);
   } catch (error) {
-    console.error('❌ Error loading submission service:', error);
+    console.error('[ERROR] Error loading submission service:', error);
     return { success: false, error: error.message };
   }
 };
@@ -131,7 +131,7 @@ export const getAllSubmissions = async () => {
     const { getAllSubmissionsFromSupabase } = await import('./submissionService');
     return await getAllSubmissionsFromSupabase();
   } catch (error) {
-    console.error('❌ Error loading submission service:', error);
+    console.error('[ERROR] Error loading submission service:', error);
     // Fallback to localStorage
     const localSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
     return { 
@@ -171,9 +171,9 @@ export const updateUserActivity = async (userId) => {
 
     if (error) throw error;
     
-    console.log('✅ User activity updated in Supabase');
+    console.log('[SUCCESS] User activity updated in Supabase');
   } catch (error) {
-    console.error('❌ Error updating user activity in Supabase:', error);
+    console.error('[ERROR] Error updating user activity in Supabase:', error);
   }
 };
 

@@ -37,7 +37,7 @@ const Signup = ({ onToggle }) => {
       // Check if email confirmation is required
       if (result?.needsEmailConfirmation) {
         setSuccessMessage(
-          '✅ Account created successfully! Please check your email to confirm your account before signing in.'
+          'Account created successfully! Please check your email to confirm your account before signing in.'
         );
         setLoading(false);
         return;
@@ -82,16 +82,16 @@ const Signup = ({ onToggle }) => {
               className={`role-button ${role === 'student' ? 'active' : ''}`}
               onClick={() => setRole('student')}
             >
-              <div className="role-icon">🎓</div>
-              <div className="role-label">Student</div>
+              <div className="role-icon">Student</div>
+              <div className="role-label"></div>
             </button>
             <button
               type="button"
               className={`role-button ${role === 'admin' ? 'active' : ''}`}
               onClick={() => setRole('admin')}
             >
-              <div className="role-icon">👨‍💼</div>
-              <div className="role-label">Admin</div>
+              <div className="role-icon">Admin</div>
+              <div className="role-label"></div>
             </button>
           </div>
         </div>

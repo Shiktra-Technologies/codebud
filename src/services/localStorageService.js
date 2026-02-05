@@ -79,7 +79,7 @@ export const uploadSubmissionFile = async (file, userId, testType, submissionId)
       request.onerror = () => reject(request.error);
     });
     
-    console.log('✅ File uploaded successfully to local storage');
+    console.log('[SUCCESS] File uploaded successfully to local storage');
     
     return {
       success: true,
@@ -95,7 +95,7 @@ export const uploadSubmissionFile = async (file, userId, testType, submissionId)
     };
     
   } catch (error) {
-    console.error('❌ Error uploading file to local storage:', error);
+    console.error('[ERROR] Error uploading file to local storage:', error);
     throw new Error(`Upload failed: ${error.message}`);
   }
 };
@@ -176,11 +176,11 @@ export const getAllSubmissionFiles = async (filters = {}) => {
       data: undefined
     }));
     
-    console.log('✅ Found local files:', processedFiles.length);
+    console.log('[SUCCESS] Found local files:', processedFiles.length);
     return processedFiles.sort((a, b) => new Date(b.timeCreated) - new Date(a.timeCreated));
     
   } catch (error) {
-    console.error('❌ Error fetching local files:', error);
+    console.error('[ERROR] Error fetching local files:', error);
     return [];
   }
 };
@@ -228,11 +228,11 @@ export const deleteSubmissionFile = async (fileId) => {
       request.onerror = () => reject(request.error);
     });
     
-    console.log('✅ File deleted successfully:', fileId);
+    console.log('[SUCCESS] File deleted successfully:', fileId);
     return true;
     
   } catch (error) {
-    console.error('❌ Error deleting file:', error);
+    console.error('[ERROR] Error deleting file:', error);
     return false;
   }
 };
@@ -273,7 +273,7 @@ export const getStorageStats = async () => {
     return stats;
     
   } catch (error) {
-    console.error('❌ Error getting storage stats:', error);
+    console.error('[ERROR] Error getting storage stats:', error);
     return {
       totalFiles: 0,
       totalSize: 0,
@@ -314,12 +314,12 @@ export const testStorageConfiguration = async () => {
     }
     
     results.configured = true;
-    console.log('✅ IndexedDB supported');
+    console.log('[SUCCESS] IndexedDB supported');
     
     // Test database access
     const db = await initDB();
     results.accessible = true;
-    console.log('✅ Local storage accessible');
+    console.log('[SUCCESS] Local storage accessible');
     
     // Test write access
     const testFile = new Blob(['test'], { type: 'text/plain' });
@@ -328,7 +328,7 @@ export const testStorageConfiguration = async () => {
     await uploadSubmissionFile(testFile, 'test-user', 'test', 'test-submission');
     await deleteSubmissionFile('test-user_test_test-submission_test.txt');
     
-    console.log('✅ Local storage working perfectly');
+    console.log('[SUCCESS] Local storage working perfectly');
     
   } catch (error) {
     results.errors.push('Local storage test failed: ' + error.message);
@@ -356,11 +356,11 @@ export const clearAllLocalStorage = async () => {
       request.onerror = () => reject(request.error);
     });
     
-    console.log('✅ All local storage cleared');
+    console.log('[SUCCESS] All local storage cleared');
     return true;
     
   } catch (error) {
-    console.error('❌ Error clearing local storage:', error);
+    console.error('[ERROR] Error clearing local storage:', error);
     return false;
   }
 };
@@ -374,7 +374,7 @@ export const exportLocalStorageData = async () => {
     const files = await getAllSubmissionFiles();
     return JSON.stringify(files, null, 2);
   } catch (error) {
-    console.error('❌ Error exporting data:', error);
+    console.error('[ERROR] Error exporting data:', error);
     return '[]';
   }
 };

@@ -82,7 +82,7 @@ const StudentDashboard = () => {
 
     // Register for real-time leaderboard updates
     const handleLeaderboardUpdate = (updatedLeaderboard) => {
-      console.log('📊 Student dashboard received leaderboard update');
+      console.log('[DATA] Student dashboard received leaderboard update');
       setLeaderboardData(updatedLeaderboard);
       loadUserRank(); // Refresh user rank
       setLeaderboardLoading(false);
@@ -92,7 +92,7 @@ const StudentDashboard = () => {
 
     // Listen for custom leaderboard update events
     const handleCustomLeaderboardUpdate = (event) => {
-      console.log('📊 Received custom leaderboard update event');
+      console.log('[DATA] Received custom leaderboard update event');
       if (event.detail && event.detail.data) {
         setLeaderboardData(event.detail.data);
         loadUserRank();
@@ -310,8 +310,8 @@ const StudentDashboard = () => {
         <div className="hero-container">
           <div className="hero-content">
             <div className="hero-badge">
-              <span className="badge-icon">✨</span>
-              Welcome to CodeBud Pro
+              <span className="badge-icon">Welcome to CodeBud Pro</span>
+              <span></span>
             </div>
             
             <h1 className="hero-title">

@@ -161,18 +161,18 @@ for i, test_case in enumerate(test_cases):
 
 # Summary
 total_tests = len(test_cases)
-print(f"\\n📊 Results: {total_passed}/{total_tests} tests passed")
+print(f"\\nResults: {total_passed}/{total_tests} tests passed")
 
 # Calculate score
 score = (total_passed / total_tests) * 100
 if score == 100:
-    print(f"🎉 Perfect score! All tests passed!")
+    print(f"Perfect score! All tests passed!")
     status = "Accepted"
 elif score >= 80:
-    print(f"✅ Good job! {score}% success rate")
+    print(f"Good job! {score}% success rate")
     status = "Partially Accepted"
 else:
-    print(f"❌ Keep trying! {score}% success rate")
+    print(f"Keep trying! {score}% success rate")
     status = "Wrong Answer"
 
 # Return results as JSON string for JavaScript

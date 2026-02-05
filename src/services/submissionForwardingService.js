@@ -29,7 +29,7 @@ class SubmissionForwardingService {
       // Load existing submissions on initialization
       await this.loadExistingSubmissions();
       this.isInitialized = true;
-      console.log('📊 Submission Forwarding Service initialized');
+      console.log('[DATA] Submission Forwarding Service initialized');
     } catch (error) {
       console.error('Failed to initialize submission forwarding:', error);
     }
@@ -81,9 +81,9 @@ class SubmissionForwardingService {
           status: 'completed'
         });
         
-        console.log('✅ Submission saved to Supabase submissions table:', result);
+        console.log('[SUCCESS] Submission saved to Supabase submissions table:', result);
       } catch (supabaseError) {
-        console.error('❌ Failed to save submission to Supabase:', supabaseError);
+        console.error('[ERROR] Failed to save submission to Supabase:', supabaseError);
         // Don't fail the entire forwarding process if Supabase fails
       }
 
@@ -96,7 +96,7 @@ class SubmissionForwardingService {
       // Update CSV file
       await this.updateCSVFile();
 
-      console.log('✅ Submission forwarded successfully:', {
+      console.log('[SUCCESS] Submission forwarded successfully:', {
         userId: submissionData.userId,
         score: submissionData.score,
         timestamp: new Date().toISOString()
