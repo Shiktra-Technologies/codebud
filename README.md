@@ -75,6 +75,23 @@ The app can be deployed to any static hosting service like:
 - **Admin**: Can view all students, submissions, and real-time activity
 - **Super Admin**: Full administrative access (use secret code: admin@2024)
 
+## 🧪 Testing & Development
+
+For easy testing and development, pre-configured test accounts are available:
+
+### Quick Test Login
+1. Go to the login page and click "🧪 Quick Test Login"
+2. Select any test account and login instantly
+
+### Manual Test Credentials
+- **Student**: `student1@test.com` / `test123`
+- **Admin**: `admin1@test.com` / `admin123`  
+- **Super Admin**: Secret code `admin@2024`
+
+📋 **[View Complete Testing Guide →](./TESTING_ACCOUNTS.md)**
+
+*Note: Remove test accounts before production deployment*
+
 ## License
 
 This project is licensed under the MIT License.
