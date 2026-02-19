@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@/styles/index.css";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
     title: "CODE BUD — Learn to Code. Build the Future.",
@@ -55,7 +56,9 @@ export default function RootLayout({
                 />
             </head>
             <body className="min-h-screen bg-surface-0 text-white font-sans selection:bg-yellow-400 selection:text-black antialiased">
-                {children}
+                <Providers>
+                    {children}
+                </Providers>
             </body>
         </html>
     );

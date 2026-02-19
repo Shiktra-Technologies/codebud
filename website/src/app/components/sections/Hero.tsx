@@ -3,6 +3,7 @@
 import React, { Suspense, lazy } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, ChevronDown, Play } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "../ui/button";
 import { SectionBadge } from "../ui/section-badge";
@@ -151,14 +152,18 @@ export const Hero = () => {
                     transition={{ duration: 0.5, delay: 0.7, ease }}
                     className="flex flex-col sm:flex-row items-center gap-3 mb-16 sm:mb-20"
                 >
-                    <Button variant="brand" size="xl" className="w-full sm:w-auto group px-8">
-                        Start Learning Free
-                        <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-                    </Button>
-                    <Button variant="brandOutline" size="xl" className="w-full sm:w-auto px-8">
-                        <Play size={15} className="mr-1" />
-                        Watch Demo
-                    </Button>
+                    <Link href="/auth">
+                        <Button variant="brand" size="xl" className="w-full sm:w-auto group px-8">
+                            Start Learning Free
+                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform duration-200" />
+                        </Button>
+                    </Link>
+                    <a href="/#features">
+                        <Button variant="brandOutline" size="xl" className="w-full sm:w-auto px-8">
+                            <Play size={15} className="mr-1" />
+                            Watch Demo
+                        </Button>
+                    </a>
                 </motion.div>
 
                 {/* ── 3D IDE Mockup ── */}
@@ -231,8 +236,8 @@ export const Hero = () => {
                                     <div
                                         key={i}
                                         className={`flex items-center gap-1.5 py-0.5 px-2 rounded text-[11px] font-mono cursor-default ${f.active
-                                                ? "bg-yellow-400/[0.08] text-yellow-400/80"
-                                                : "text-white/30 hover:text-white/50"
+                                            ? "bg-yellow-400/[0.08] text-yellow-400/80"
+                                            : "text-white/30 hover:text-white/50"
                                             }`}
                                         style={{ paddingLeft: `${8 + f.indent * 12}px` }}
                                     >
