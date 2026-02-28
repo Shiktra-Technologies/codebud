@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 import { SectionBadge } from "../ui/section-badge";
 import { Button } from "../ui/button";
@@ -131,13 +132,17 @@ export const CTA = () => {
                         transition={{ delay: 0.15, duration: 0.5, ease }}
                         className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10"
                     >
-                        <Button variant="brand" size="xl" className="px-10 group shadow-[0_0_30px_rgba(255,193,7,0.15)]">
-                            Join CODE BUD Today
-                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
-                        </Button>
-                        <Button variant="brandOutline" size="xl" className="px-8">
-                            Explore Courses
-                        </Button>
+                        <Link href="/auth">
+                            <Button variant="brand" size="xl" className="px-10 group shadow-[0_0_30px_rgba(255,193,7,0.15)]">
+                                Join CODE BUD Today
+                                <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
+                            </Button>
+                        </Link>
+                        <a href="/#features">
+                            <Button variant="brandOutline" size="xl" className="px-8">
+                                Explore Courses
+                            </Button>
+                        </a>
                     </motion.div>
 
                     {/* Social proof */}

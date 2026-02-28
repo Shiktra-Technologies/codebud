@@ -87,12 +87,12 @@ export const Navbar = () => {
                         ))}
 
                         {/* CTA with animated border */}
-                        <a
-                            href="#"
+                        <Link
+                            href="/auth"
                             className="relative text-[13px] font-semibold text-surface-0 bg-yellow-400 px-5 py-2 rounded-lg hover:bg-yellow-300 transition-all duration-200 hover:shadow-[0_0_24px_rgba(255,193,7,0.25)] hover:scale-[1.03] active:scale-[0.98]"
                         >
                             Get Started
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Mobile hamburger */}
@@ -159,17 +159,20 @@ export const Navbar = () => {
                                     </Link>
                                 </motion.div>
                             ))}
-                            <motion.a
-                                href="#"
+                            <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 10 }}
                                 transition={{ delay: navLinks.length * 0.08, duration: 0.4, ease }}
-                                className="mt-4 text-lg font-semibold text-surface-0 bg-yellow-400 px-8 py-3 rounded-xl hover:bg-yellow-300 transition-all duration-200"
-                                onClick={() => setIsMobileMenuOpen(false)}
                             >
-                                Get Started
-                            </motion.a>
+                                <Link
+                                    href="/auth"
+                                    className="mt-4 inline-block text-lg font-semibold text-surface-0 bg-yellow-400 px-8 py-3 rounded-xl hover:bg-yellow-300 transition-all duration-200"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    Get Started
+                                </Link>
+                            </motion.div>
                         </nav>
                     </motion.div>
                 )}

@@ -8,3 +8,6 @@ psutil==5.9.5
 pytest==7.4.2
 gunicorn==21.2.0
 eventlet==0.33.3
+PyJWT==2.11.0
+bcrypt==5.0.0
+dnspython==2.8.0
