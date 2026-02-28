@@ -172,12 +172,12 @@ export default function DashboardPage() {
 
                 // Fetch leaderboard
                 try {
-                    const lb = leaderboardService.getTopUsers(10);
+                    const lb = await leaderboardService.getTopUsers(10);
                     setLeaderboard(lb || []);
                     const uid =
                         (user as any)?._id || (user as any)?.id || "";
                     if (uid) {
-                        const rank = leaderboardService.getUserRank(uid);
+                        const rank = await leaderboardService.getUserRank(uid);
                         setUserRank(rank);
                     }
                 } catch {
@@ -1438,13 +1438,21 @@ function JobsTab({
     const userId = (user as any)?._id || (user as any)?.id || "";
     
     // Pre-compute which jobs the user has applied to
-    const appliedJobIds = React.useMemo(() => {
+    const [appliedJobIds, setAppliedJobIds] = React.useState<Set<string>>(() => {
         if (!userId) return new Set<string>();
         return new Set(
             jobs
                 .filter(job => jobService.hasAppliedToJob(job.id, userId))
                 .map(job => job.id)
         );
+    });
+
+    // Re-sync when jobs or userId change
+    React.useEffect(() => {
+        if (!userId) return;
+        setAppliedJobIds(new Set(
+            jobs.filter(job => jobService.hasAppliedToJob(job.id, userId)).map(job => job.id)
+        ));
     }, [jobs, userId]);
 
     const handleApply = (job: Job) => {
@@ -1458,8 +1466,8 @@ function JobsTab({
                 studentName: displayName,
                 studentEmail: email,
             });
-            // Add to applied set
-            appliedJobIds.add(job.id);
+            // Add to applied set — triggers re-render
+            setAppliedJobIds(prev => new Set(prev).add(job.id));
             alert("Application submitted!");
         } catch (err: any) {
             alert(err.message || "Failed to apply");

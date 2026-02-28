@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { getUserSubmissions } from "@/lib/services/submissionService";
 import { leaderboardService } from "@/lib/services/leaderboardService";
+import apiClient from "@/lib/apiClient";
 import {
     User,
     Mail,
@@ -26,6 +27,8 @@ import {
     X,
     FileText,
     Loader2,
+    Camera,
+    Upload,
 } from "lucide-react";
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -50,25 +53,39 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState("");
+    const [saving, setSaving] = useState(false);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const displayName = (user as any)?.display_name || (user as any)?.displayName || user?.email?.split("@")[0] || "User";
+    const displayName = (user as any)?.display_name || (user as any)?.displayName || (typeof window !== 'undefined' ? localStorage.getItem("codebud_display_name") : null) || user?.email?.split("@")[0] || "User";
     const email = user?.email || "";
     const initial = (typeof displayName === "string" ? displayName : "U").charAt(0).toUpperCase();
+    const userId = (user as any)?._id || (user as any)?.id || "";
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const userId = (user as any)?._id || (user as any)?.id || "";
                 if (userId) {
                     const [subs, userRank] = await Promise.all([
                         getUserSubmissions(userId).catch(() => []),
-                        Promise.resolve().then(() => leaderboardService.getUserRank(userId)).catch(() => null),
+                        leaderboardService.getUserRank(userId).catch(() => null),
                     ]);
-                    const list = Array.isArray(subs) ? subs : (subs as any)?.submissions || [];
+                    const list = Array.isArray(subs) ? subs : (subs as any)?.data || [];
                     setSubmissions(list);
                     if (userRank && typeof userRank === "object" && "rank" in (userRank as any)) {
                         setRank((userRank as any).rank);
+                    }
+                }
+                // Load avatar
+                const storedAvatar = (user as any)?.avatar_url;
+                if (storedAvatar) {
+                    // If it's a relative API path, prepend base URL
+                    if (storedAvatar.startsWith("/api/")) {
+                        setAvatarUrl(`${apiClient.defaults.baseURL}${storedAvatar}`);
+                    } else {
+                        setAvatarUrl(storedAvatar);
                     }
                 }
             } catch {
@@ -78,7 +95,7 @@ export default function ProfilePage() {
             }
         };
         fetchData();
-    }, [user]);
+    }, [user, userId]);
 
     useEffect(() => {
         setEditName(typeof displayName === "string" ? displayName : "");
@@ -89,12 +106,66 @@ export default function ProfilePage() {
         router.push("/auth");
     };
 
-    const handleSaveName = () => {
-        // Save to localStorage as a local override
-        if (editName.trim()) {
+    const handleSaveName = async () => {
+        if (!editName.trim()) return;
+        setSaving(true);
+        try {
+            // Save to backend
+            await apiClient.patch("/api/profile", { display_name: editName.trim() });
+            // Also cache in localStorage for immediate reads
             localStorage.setItem("codebud_display_name", editName.trim());
+        } catch (err) {
+            console.warn("Failed to save name to backend, saving locally:", err);
+            localStorage.setItem("codebud_display_name", editName.trim());
+        } finally {
+            setSaving(false);
+            setEditing(false);
         }
-        setEditing(false);
+    };
+
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Client-side validation
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            alert("File too large. Max size is 5MB.");
+            return;
+        }
+        const allowed = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+        if (!allowed.includes(file.type)) {
+            alert("Invalid file type. Use PNG, JPG, GIF, or WebP.");
+            return;
+        }
+
+        setUploadingAvatar(true);
+        try {
+            const formData = new FormData();
+            formData.append("avatar", file);
+            const res = await apiClient.post("/api/profile/avatar", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            const url = res.data?.data?.avatar_url;
+            if (url) {
+                if (url.startsWith("/api/")) {
+                    setAvatarUrl(`${apiClient.defaults.baseURL}${url}`);
+                } else {
+                    setAvatarUrl(url);
+                }
+            }
+        } catch (err: any) {
+            console.error("Avatar upload failed:", err);
+            alert(err?.response?.data?.error || "Failed to upload avatar");
+        } finally {
+            setUploadingAvatar(false);
+            // Reset file input
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
     };
 
     // Stats
@@ -137,17 +208,49 @@ export default function ProfilePage() {
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] pointer-events-none" style={{ background: "radial-gradient(ellipse, rgba(255,193,7,0.04) 0%, transparent 70%)" }} />
 
                         <div className="relative flex flex-col items-center mb-8">
-                            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-2xl font-bold text-surface-0 shadow-[0_0_40px_rgba(255,193,7,0.2)] mb-4">
-                                {initial}
-                            </div>
+                            {/* Hidden file input */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/gif,image/webp"
+                                onChange={handleAvatarUpload}
+                                className="hidden"
+                            />
+
+                            {/* Avatar with upload overlay */}
+                            <button
+                                onClick={handleAvatarClick}
+                                disabled={uploadingAvatar}
+                                className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(255,193,7,0.2)] mb-4 group cursor-pointer"
+                            >
+                                {avatarUrl ? (
+                                    <img
+                                        src={avatarUrl}
+                                        alt="Avatar"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-2xl font-bold text-surface-0">
+                                        {initial}
+                                    </div>
+                                )}
+                                {/* Hover overlay */}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    {uploadingAvatar ? (
+                                        <Loader2 size={20} className="text-white animate-spin" />
+                                    ) : (
+                                        <Camera size={20} className="text-white" />
+                                    )}
+                                </div>
+                            </button>
 
                             {editing ? (
                                 <div className="flex items-center gap-2 mb-1">
                                     <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
                                         className="px-3 py-1.5 rounded-lg bg-surface-3/50 border border-white/[0.1] text-white text-center text-lg font-bold outline-none focus:border-yellow-400/30"
                                         autoFocus />
-                                    <button onClick={handleSaveName} className="p-1.5 rounded-lg bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/20 transition-colors">
-                                        <Save size={14} />
+                                    <button onClick={handleSaveName} disabled={saving} className="p-1.5 rounded-lg bg-emerald-400/10 border border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/20 transition-colors disabled:opacity-50">
+                                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                                     </button>
                                     <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg bg-surface-3/50 border border-white/[0.06] text-white/30 hover:text-white/50 transition-colors">
                                         <X size={14} />

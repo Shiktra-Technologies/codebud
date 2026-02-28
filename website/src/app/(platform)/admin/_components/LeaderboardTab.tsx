@@ -29,9 +29,9 @@ export default function AdminLeaderboardTab() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchLeaderboard = () => {
+    const fetchLeaderboard = async () => {
         try {
-            const lb = leaderboardService.getTopUsers(50);
+            const lb = await leaderboardService.getTopUsers(50);
             setLeaderboard(lb || []);
         } catch {
             setLeaderboard([]);

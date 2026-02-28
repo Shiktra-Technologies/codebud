@@ -136,6 +136,34 @@ export default function SuperAdminPage() {
         }
     };
 
+    // ─── Deactivation handler ─────────────────────────────────────────────
+
+    const [deactivating, setDeactivating] = useState(false);
+
+    const handleToggleActive = async (targetUser: UserRecord) => {
+        const uid = targetUser._id || targetUser.id || "";
+        if (!uid) return;
+        const isCurrentlyActive = (targetUser.status || "active") !== "inactive";
+        const action = isCurrentlyActive ? "deactivate" : "reactivate";
+        if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+
+        setDeactivating(true);
+        try {
+            const res = await import("@/lib/apiClient").then(m => m.default.patch(`/api/users/${uid}/deactivate`, { active: !isCurrentlyActive }));
+            if (res.data?.success) {
+                const newStatus = isCurrentlyActive ? "inactive" : "active";
+                setAllUsers((prev) => prev.map((u) => (u._id || u.id) === uid ? { ...u, status: newStatus } : u));
+                setSelectedUser((prev) => prev && ((prev._id || prev.id) === uid) ? { ...prev, status: newStatus } : prev);
+            } else {
+                alert("Failed: " + (res.data?.error || "Unknown error"));
+            }
+        } catch (err: any) {
+            alert("Error: " + (err?.response?.data?.error || err.message));
+        } finally {
+            setDeactivating(false);
+        }
+    };
+
     // ─── Stats ────────────────────────────────────────────────────────────
 
     const stats = {
@@ -507,8 +535,10 @@ export default function SuperAdminPage() {
                                                                 </td>
                                                                 <td className="px-5 py-3">
                                                                     <div className="flex items-center gap-1.5">
-                                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                                                        <span className="text-xs text-white/40">Active</span>
+                                                                        <div className={`w-1.5 h-1.5 rounded-full ${(u.status || "active") === "inactive" ? "bg-red-400" : "bg-emerald-400"}`} />
+                                                                        <span className={`text-xs ${(u.status || "active") === "inactive" ? "text-red-400/60" : "text-white/40"}`}>
+                                                                            {(u.status || "active") === "inactive" ? "Inactive" : "Active"}
+                                                                        </span>
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-5 py-3 text-xs text-white/30">
@@ -629,6 +659,35 @@ export default function SuperAdminPage() {
                                         </p>
                                     )}
                                 </div>
+
+                                {/* Deactivate / Reactivate */}
+                                {(() => {
+                                    const isSelf = (selectedUser._id || selectedUser.id) === ((user as any)?._id || (user as any)?.id);
+                                    const isInactive = (selectedUser.status || "active") === "inactive";
+                                    if (isSelf) return null;
+                                    return (
+                                        <div className="pt-2 border-t border-white/[0.04]">
+                                            <button
+                                                onClick={() => handleToggleActive(selectedUser)}
+                                                disabled={deactivating}
+                                                className={`w-full py-2.5 rounded-lg text-xs font-semibold transition-all border flex items-center justify-center gap-2 ${
+                                                    isInactive
+                                                        ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/15"
+                                                        : "bg-red-400/10 text-red-400 border-red-400/20 hover:bg-red-400/15"
+                                                } disabled:opacity-50`}
+                                            >
+                                                {deactivating ? (
+                                                    <Loader2 size={12} className="animate-spin" />
+                                                ) : isInactive ? (
+                                                    <CheckCircle2 size={12} />
+                                                ) : (
+                                                    <AlertTriangle size={12} />
+                                                )}
+                                                {isInactive ? "Reactivate Account" : "Deactivate Account"}
+                                            </button>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </motion.div>
                     </motion.div>

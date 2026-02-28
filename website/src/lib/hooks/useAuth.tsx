@@ -76,6 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
+            // Ensure cookie is in sync (covers pre-existing localStorage tokens)
+            if (!document.cookie.includes('codebud_token=')) {
+                setToken(token);
+            }
+
             try {
                 const response = await apiClient.get('/api/auth/me');
                 if (response.data.success && response.data.user) {

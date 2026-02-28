@@ -3,6 +3,7 @@ from bson import ObjectId  # type: ignore
 from datetime import datetime
 import os
 import bcrypt  # type: ignore
+import certifi
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,7 +13,7 @@ class MongoDBService:
     def __init__(self):
         try:
             mongodb_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
-            self.client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
+            self.client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000, tlsCAFile=certifi.where())
             # Test connection
             self.client.server_info()
             self.db = self.client[os.getenv('DATABASE_NAME', 'codebud')]
@@ -49,6 +50,24 @@ class MongoDBService:
             'analysis_results': [],
             'submissions': []
         }
+        # Persistent counters for auto-increment IDs
+        self._mock_counters = {}
+        self._seed_test_accounts()
+
+    def _seed_test_accounts(self):
+        """Seed default test accounts so login works with in-memory mock DB"""
+        test_accounts = [
+            {'email': 'test_student@codebud.dev', 'password': 'test123456', 'role': 'student', 'display_name': 'Test Student'},
+            {'email': 'test_admin@codebud.dev', 'password': 'test123456', 'role': 'admin', 'display_name': 'Test Admin'},
+            {'email': 'super_admin@codebud.dev', 'password': 'codebud_super_admin_2025', 'role': 'super_admin', 'display_name': 'Super Admin'},
+        ]
+        for acct in test_accounts:
+            try:
+                self.create_user(acct['email'], acct['password'], acct['role'], acct['display_name'])
+                print(f"[SEED] Created test account: {acct['email']} ({acct['role']})")
+            except ValueError:
+                pass  # already exists
+        print(f"[INFO] Mock DB seeded with {len(test_accounts)} test accounts")
 
     # ──────────── Collection Properties ────────────
 
@@ -56,25 +75,25 @@ class MongoDBService:
     def users(self):
         if self.db is not None:
             return self.db.users
-        return MockCollection('users', self.mock_data)
+        return MockCollection('users', self.mock_data, self._mock_counters)
 
     @property
     def code_submissions(self):
         if self.db is not None:
             return self.db.code_submissions
-        return MockCollection('code_submissions', self.mock_data)
+        return MockCollection('code_submissions', self.mock_data, self._mock_counters)
 
     @property
     def analysis_results(self):
         if self.db is not None:
             return self.db.analysis_results
-        return MockCollection('analysis_results', self.mock_data)
+        return MockCollection('analysis_results', self.mock_data, self._mock_counters)
 
     @property
     def submissions(self):
         if self.db is not None:
             return self.db.submissions
-        return MockCollection('submissions', self.mock_data)
+        return MockCollection('submissions', self.mock_data, self._mock_counters)
 
     # ──────────── AUTH ────────────
 
@@ -121,7 +140,14 @@ class MongoDBService:
         """Get user by ID"""
         try:
             if isinstance(user_id, str):
-                user_id = ObjectId(user_id)
+                # Try ObjectId first, fall back to string match
+                try:
+                    oid = ObjectId(user_id)
+                    result = self.users.find_one({'_id': oid})
+                    if result:
+                        return result
+                except Exception:
+                    pass
             return self.users.find_one({'_id': user_id})
         except Exception:
             return self.users.find_one({'_id': user_id})
@@ -146,6 +172,34 @@ class MongoDBService:
             )
         except Exception:
             pass
+
+    def update_user(self, user_id, updates):
+        """Update user fields. Returns True on success."""
+        try:
+            # Try ObjectId first, then string
+            original_id = user_id
+            if isinstance(user_id, str):
+                try:
+                    oid = ObjectId(user_id)
+                    user = self.users.find_one({'_id': oid})
+                    if user:
+                        user_id = oid
+                    else:
+                        user = self.users.find_one({'_id': user_id})
+                except Exception:
+                    user = self.users.find_one({'_id': user_id})
+            else:
+                user = self.users.find_one({'_id': user_id})
+            if not user:
+                return False
+            updates['updated_at'] = datetime.utcnow()
+            self.users.update_one(
+                {'_id': user_id},
+                {'$set': updates}
+            )
+            return True
+        except Exception:
+            return False
 
     # ──────────── CODE SUBMISSIONS (DSA) ────────────
 
@@ -214,14 +268,15 @@ class MongoDBService:
 
 class MockCollection:
     """Mock MongoDB collection for testing without actual database"""
-    def __init__(self, name, mock_data):
+    def __init__(self, name, mock_data, counters):
         self.name = name
         self.mock_data = mock_data
-        self._counter = 1
+        self._counters = counters
 
     def insert_one(self, document):
-        document['_id'] = str(self._counter)
-        self._counter += 1
+        current = self._counters.get(self.name, 0) + 1
+        self._counters[self.name] = current
+        document['_id'] = str(current)
         self.mock_data[self.name].append(document)
 
         class InsertResult:

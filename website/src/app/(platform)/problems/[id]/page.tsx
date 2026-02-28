@@ -11,6 +11,7 @@ import ViolationModal from "@/app/components/proctoring/ViolationModal";
 import ViolationWarningPopup from "@/app/components/proctoring/ViolationWarningPopup";
 import { submitTest } from "@/lib/services/submissionService";
 import submissionForwardingService from "@/lib/services/submissionForwardingService";
+import dsaService from "@/lib/services/dsaService";
 import {
     Play,
     Send,
@@ -183,7 +184,7 @@ const problemsData: Record<string, ProblemData> = {
         constraints: ["1 ≤ nums.length ≤ 10⁵", "-10⁴ ≤ nums[i] ≤ 10⁴"],
         starterCode: {
             javascript: `function maxSubArray(nums) {\n    // Write your solution here\n    \n}`,
-            python: `def max_sub_array(nums):\n    # Write your solution here\n    pass`,
+            python: `def max_subarray(nums):\n    # Write your solution here\n    pass`,
             java: `class Solution {\n    public int maxSubArray(int[] nums) {\n        // Write your solution here\n        \n    }\n}`,
             cpp: `class Solution {\npublic:\n    int maxSubArray(vector<int>& nums) {\n        // Write your solution here\n        \n    }\n};`,
         },
@@ -521,53 +522,73 @@ export default function ProblemSolverPage() {
     }, [isSubmitting, completeTestCleanup, router]);
     const handleWarningClose = useCallback(() => setCurrentWarningViolation(null), []);
 
-    const runCode = useCallback(() => {
+    const runCode = useCallback(async () => {
         if (!problem) return;
         setIsRunning(true);
         setOutput("");
+        setTestResults([]);
         setActiveTab("testcases");
 
-        // Simulate code execution (mock — same as CRA)
-        setTimeout(() => {
-            const results: TestResult[] = problem.testCases.map((tc, idx) => {
-                const passed = Math.random() > 0.3;
-                return {
-                    id: idx + 1,
-                    input: tc.input,
-                    expectedOutput: tc.expectedOutput,
-                    actualOutput: passed ? tc.expectedOutput : "Wrong Answer",
-                    passed,
-                    runtime: `${Math.floor(Math.random() * 50 + 5)}ms`,
-                };
-            });
+        try {
+            const result: any = await dsaService.executeCode(problemId, code, selectedLanguage);
 
-            const passedCount = results.filter((r) => r.passed).length;
-            setTestResults(results);
-            setOutput(`✓ ${passedCount}/${results.length} test cases passed`);
+            if (result.results && result.results.length > 0) {
+                const results: TestResult[] = result.results.map((r: any, idx: number) => ({
+                    id: idx + 1,
+                    input: r.input || problem.testCases[idx]?.input || "",
+                    expectedOutput: r.expected || problem.testCases[idx]?.expectedOutput || "",
+                    actualOutput: r.actual ?? "N/A",
+                    passed: r.status === "passed",
+                    runtime: `${r.execution_time_ms?.toFixed(1) ?? "?"}ms`,
+                }));
+
+                setTestResults(results);
+                const passedCount = results.filter((r) => r.passed).length;
+
+                if (result.is_accepted) {
+                    setOutput(`✅ Accepted — ${passedCount}/${results.length} test cases passed (${result.total_execution_time_ms?.toFixed(1)}ms)`);
+                } else if (result.status === "Compilation Error" || result.status === "Runtime Error") {
+                    setOutput(`⚠️ ${result.status}: ${result.message}`);
+                } else {
+                    setOutput(`❌ ${result.status} — ${passedCount}/${results.length} test cases passed`);
+                }
+            } else {
+                // Server returned a message without per-test results (e.g. language not supported)
+                setOutput(`⚠️ ${result.message || result.status || "Unknown error"}`);
+            }
+        } catch (error: any) {
+            setOutput(`⚠️ ${error.message}`);
+        } finally {
             setIsRunning(false);
-        }, 1500);
-    }, [problem]);
+        }
+    }, [problem, problemId, code, selectedLanguage]);
 
     const submitSolution = useCallback(async () => {
         if (isSubmitting || !problem) return;
         setIsSubmitting(true);
+        setActiveTab("testcases");
 
-        // Run tests first
-        const results: TestResult[] = problem.testCases.map((tc, idx) => {
-            const passed = Math.random() > 0.25;
-            return {
+        // Execute code on server for real evaluation
+        let results: TestResult[] = [];
+        let passedCount = 0;
+
+        try {
+            const result: any = await dsaService.submitCode(problemId, code, selectedLanguage);
+            results = (result.results || []).map((r: any, idx: number) => ({
                 id: idx + 1,
-                input: tc.input,
-                expectedOutput: tc.expectedOutput,
-                actualOutput: passed ? tc.expectedOutput : "Wrong Answer",
-                passed,
-                runtime: `${Math.floor(Math.random() * 50 + 5)}ms`,
-            };
-        });
-        setTestResults(results);
+                input: r.input || problem.testCases[idx]?.input || "",
+                expectedOutput: r.expected || problem.testCases[idx]?.expectedOutput || "",
+                actualOutput: r.actual ?? "N/A",
+                passed: r.status === "passed",
+                runtime: `${r.execution_time_ms?.toFixed(1) ?? "?"}ms`,
+            }));
+            passedCount = result.passed ?? results.filter((r) => r.passed).length;
+        } catch (error: any) {
+            console.warn("Code execution failed during submit:", error.message);
+        }
 
-        const passedCount = results.filter((r) => r.passed).length;
-        const percentage = Math.round((passedCount / results.length) * 100);
+        setTestResults(results);
+        const percentage = results.length > 0 ? Math.round((passedCount / results.length) * 100) : 0;
 
         const userId = (user as any)?._id || (user as any)?.id || "anonymous";
         const userEmail = (user as any)?.email || "anonymous@example.com";

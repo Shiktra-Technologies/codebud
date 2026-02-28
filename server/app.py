@@ -147,6 +147,23 @@ def signup():
     if role not in ('student', 'admin', 'super_admin'):
         return jsonify({'success': False, 'error': 'Invalid role'}), 400
 
+    # ── P0 Security: Restrict privileged role creation ──
+    if role in ('admin', 'super_admin'):
+        token = None
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+        is_privileged = False
+        if token:
+            try:
+                payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+                if payload.get('role') in ('admin', 'super_admin'):
+                    is_privileged = True
+            except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+                pass
+        if not is_privileged:
+            return jsonify({'success': False, 'error': 'Admin account creation requires admin authorization'}), 403
+
     try:
         user = db_service.create_user(email, password, role, display_name)
         token = generate_token(user)
@@ -180,6 +197,10 @@ def login():
     user = db_service.authenticate_user(email, password)
     if not user:
         return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
+
+    # Block deactivated accounts from logging in
+    if user.get('status') == 'inactive':
+        return jsonify({'success': False, 'error': 'Your account has been deactivated. Contact an administrator.'}), 403
 
     # Check role if expected
     if expected_role and user.get('role') != expected_role:
@@ -245,6 +266,170 @@ def update_activity(user_id):
     """Update user's last active timestamp"""
     db_service.update_user_activity(user_id)
     return jsonify({'success': True})
+
+
+@app.route('/api/users/<user_id>', methods=['PATCH'])
+@require_admin
+def update_user(user_id):
+    """Update user profile (admin only). Supports: role, status, display_name"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    allowed_fields = {'role', 'status', 'display_name'}
+    updates = {k: v for k, v in data.items() if k in allowed_fields}
+
+    if not updates:
+        return jsonify({'success': False, 'error': 'No valid fields to update'}), 400
+
+    if 'role' in updates and updates['role'] not in ('student', 'admin', 'super_admin'):
+        return jsonify({'success': False, 'error': 'Invalid role value'}), 400
+
+    if 'status' in updates and updates['status'] not in ('active', 'inactive'):
+        return jsonify({'success': False, 'error': 'Invalid status value'}), 400
+
+    # Prevent self-demotion
+    if user_id == g.current_user_id and 'role' in updates:
+        return jsonify({'success': False, 'error': 'Cannot change your own role'}), 403
+
+    success = db_service.update_user(user_id, updates)
+    if not success:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    return jsonify({'success': True, 'message': 'User updated successfully'})
+
+
+@app.route('/api/users/<user_id>/deactivate', methods=['PATCH'])
+@require_admin
+def deactivate_user(user_id):
+    """Activate or deactivate a user account (admin/super_admin only)"""
+    data = request.get_json() or {}
+    # Default: deactivate.  Pass {"active": true} to re-activate.
+    activate = data.get('active', False)
+    new_status = 'active' if activate else 'inactive'
+
+    # Prevent self-deactivation
+    if user_id == g.current_user_id and not activate:
+        return jsonify({'success': False, 'error': 'Cannot deactivate your own account'}), 403
+
+    target = db_service.get_user(user_id)
+    if not target:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    # Prevent deactivating a super_admin unless caller is also super_admin
+    if target.get('role') == 'super_admin' and g.current_user_role != 'super_admin':
+        return jsonify({'success': False, 'error': 'Only super admins can deactivate other super admins'}), 403
+
+    success = db_service.update_user(user_id, {
+        'status': new_status,
+        'deactivated_at': datetime.utcnow().isoformat() if not activate else None,
+        'deactivated_by': g.current_user_id if not activate else None,
+    })
+    if not success:
+        return jsonify({'success': False, 'error': 'Failed to update user'}), 500
+
+    action = 'activated' if activate else 'deactivated'
+    print(f'[INFO] User {user_id} {action} by {g.current_user_id}')
+    return jsonify({'success': True, 'message': f'User {action} successfully', 'status': new_status})
+
+
+@app.route('/api/profile', methods=['PATCH'])
+@require_auth
+def update_own_profile():
+    """Update own profile (authenticated user). Supports: display_name, bio, phone"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    allowed_fields = {'display_name', 'bio', 'phone'}
+    updates = {k: v for k, v in data.items() if k in allowed_fields}
+
+    if not updates:
+        return jsonify({'success': False, 'error': 'No valid fields to update'}), 400
+
+    updates['updated_at'] = datetime.utcnow().isoformat()
+
+    success = db_service.update_user(g.current_user_id, updates)
+    if not success:
+        return jsonify({'success': False, 'error': 'Failed to update profile'}), 500
+
+    # Return updated user
+    user = db_service.get_user(g.current_user_id)
+    return jsonify({'success': True, 'data': serialize_user(user)})
+
+
+@app.route('/api/profile/avatar', methods=['POST'])
+@require_auth
+def upload_avatar():
+    """Upload avatar image for the authenticated user"""
+    if 'avatar' not in request.files:
+        return jsonify({'success': False, 'error': 'No avatar file provided'}), 400
+
+    file = request.files['avatar']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+    # Validate file type
+    allowed_ext = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed_ext:
+        return jsonify({'success': False, 'error': f'Invalid file type. Allowed: {", ".join(allowed_ext)}'}), 400
+
+    # Validate file size (max 5MB)
+    file.seek(0, 2)  # Seek to end
+    size = file.tell()
+    file.seek(0)  # Reset
+    if size > 5 * 1024 * 1024:
+        return jsonify({'success': False, 'error': 'File too large. Max 5MB.'}), 400
+
+    # Upload via S3 service
+    file_data = file.read()
+    key = s3_service.upload_avatar(g.current_user_id, file_data, f'avatar.{ext}')
+    if not key:
+        return jsonify({'success': False, 'error': 'Upload failed'}), 500
+
+    # Get the URL (presigned or mock)
+    avatar_url = s3_service.get_avatar_url(g.current_user_id, key)
+
+    # Save avatar URL to user doc
+    db_service.update_user(g.current_user_id, {
+        'avatar_url': avatar_url,
+        'avatar_key': key,
+        'updated_at': datetime.utcnow().isoformat()
+    })
+
+    return jsonify({
+        'success': True,
+        'data': {'avatar_url': avatar_url, 'avatar_key': key}
+    })
+
+
+@app.route('/api/profile/avatar/<user_id>', methods=['GET'])
+def get_avatar(user_id):
+    """Serve avatar image (mock mode serves from local storage)"""
+    user = db_service.get_user(user_id)
+    if not user or not user.get('avatar_key'):
+        return jsonify({'success': False, 'error': 'No avatar found'}), 404
+
+    key = user['avatar_key']
+
+    if s3_service.use_mock:
+        # Serve from local file system
+        import mimetypes
+        file_path = os.path.join(s3_service.mock_path, key)
+        if not os.path.exists(file_path):
+            return jsonify({'success': False, 'error': 'Avatar file missing'}), 404
+        ext = key.rsplit('.', 1)[-1].lower()
+        mime = mimetypes.types_map.get(f'.{ext}', 'image/png')
+        from flask import send_file
+        return send_file(file_path, mimetype=mime)
+    else:
+        # Redirect to presigned S3 URL
+        url = s3_service.generate_presigned_url(key, expiration=3600)
+        if url:
+            from flask import redirect
+            return redirect(url)
+        return jsonify({'success': False, 'error': 'Failed to generate URL'}), 500
 
 
 # ──────────── SUBMISSION ROUTES ────────────
@@ -368,6 +553,7 @@ def get_problem_details(problem_id):
 
 
 @app.route('/api/run', methods=['POST'])
+@require_auth
 def run_code():
     """Execute DSA code submission"""
     try:
@@ -389,6 +575,7 @@ def run_code():
 
 
 @app.route('/api/submit', methods=['POST'])
+@require_auth
 def submit_code():
     """Submit DSA code for evaluation (alias for /api/run)"""
     return run_code()

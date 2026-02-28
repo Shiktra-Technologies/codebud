@@ -55,7 +55,7 @@ export default function ProblemsPage() {
                 if (userId) {
                     const subs = await getUserSubmissions(userId);
                     const solved = new Set<string | number>();
-                    (Array.isArray(subs) ? subs : (subs as any)?.submissions || []).forEach((s: any) => {
+                    (Array.isArray(subs) ? subs : (subs as any)?.data || []).forEach((s: any) => {
                         if (s.test_type === "DSA Challenge" && s.score > 0 && s.solvedProblems) {
                             s.solvedProblems.forEach((idx: number) => solved.add(idx));
                         }
