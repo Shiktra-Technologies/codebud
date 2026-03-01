@@ -21,6 +21,8 @@ class MongoDBService:
 
             # Create indexes
             self._ensure_indexes()
+            # Seed test accounts into real MongoDB too
+            self._seed_test_accounts()
         except Exception as e:
             print(f"[WARNING] MongoDB connection failed: {e}")
             print("[INFO] Using in-memory mock database for development")
@@ -39,6 +41,15 @@ class MongoDBService:
             self.db.analysis_results.create_index('submission_id')
             self.db.submissions.create_index('user_id')
             self.db.submissions.create_index([('submitted_at', -1)])
+            # Mentor collections
+            self.db.mentor_students.create_index([('mentor_id', 1), ('student_id', 1)], unique=True)
+            self.db.mentor_students.create_index('mentor_id')
+            self.db.mentor_students.create_index('student_id')
+            self.db.mentor_feedback.create_index([('mentor_id', 1), ('student_id', 1)])
+            self.db.mentor_feedback.create_index([('created_at', -1)])
+            self.db.practice_sets.create_index('mentor_id')
+            self.db.practice_sets.create_index([('created_at', -1)])
+            self.db.practice_submissions.create_index([('practice_set_id', 1), ('student_id', 1)], unique=True)
         except Exception as e:
             print(f"[WARNING] Index creation issue: {e}")
 
@@ -48,7 +59,11 @@ class MongoDBService:
             'users': [],
             'code_submissions': [],
             'analysis_results': [],
-            'submissions': []
+            'submissions': [],
+            'mentor_students': [],
+            'mentor_feedback': [],
+            'practice_sets': [],
+            'practice_submissions': []
         }
         # Persistent counters for auto-increment IDs
         self._mock_counters = {}
@@ -58,6 +73,7 @@ class MongoDBService:
         """Seed default test accounts so login works with in-memory mock DB"""
         test_accounts = [
             {'email': 'test_student@codebud.dev', 'password': 'test123456', 'role': 'student', 'display_name': 'Test Student'},
+            {'email': 'test_mentor@codebud.dev', 'password': 'test123456', 'role': 'mentor', 'display_name': 'Test Mentor'},
             {'email': 'test_admin@codebud.dev', 'password': 'test123456', 'role': 'admin', 'display_name': 'Test Admin'},
             {'email': 'super_admin@codebud.dev', 'password': 'codebud_super_admin_2025', 'role': 'super_admin', 'display_name': 'Super Admin'},
         ]
@@ -94,6 +110,30 @@ class MongoDBService:
         if self.db is not None:
             return self.db.submissions
         return MockCollection('submissions', self.mock_data, self._mock_counters)
+
+    @property
+    def mentor_students(self):
+        if self.db is not None:
+            return self.db.mentor_students
+        return MockCollection('mentor_students', self.mock_data, self._mock_counters)
+
+    @property
+    def mentor_feedback(self):
+        if self.db is not None:
+            return self.db.mentor_feedback
+        return MockCollection('mentor_feedback', self.mock_data, self._mock_counters)
+
+    @property
+    def practice_sets(self):
+        if self.db is not None:
+            return self.db.practice_sets
+        return MockCollection('practice_sets', self.mock_data, self._mock_counters)
+
+    @property
+    def practice_submissions(self):
+        if self.db is not None:
+            return self.db.practice_submissions
+        return MockCollection('practice_submissions', self.mock_data, self._mock_counters)
 
     # ──────────── AUTH ────────────
 
@@ -304,13 +344,43 @@ class MockCollection:
             results = filtered
         return MockCursor(results)
 
-    def update_one(self, query, update):
+    def update_one(self, query, update, upsert=False):
+        class UpdateResult:
+            def __init__(self, modified):
+                self.modified_count = modified
+                self.matched_count = modified
         for doc in self.mock_data[self.name]:
             if all(doc.get(k) == v for k, v in query.items()):
                 if '$set' in update:
                     doc.update(update['$set'])
-                return
-    
+                return UpdateResult(1)
+        # Handle upsert
+        if upsert:
+            new_doc = dict(query)
+            if '$set' in update:
+                new_doc.update(update['$set'])
+            self.insert_one(new_doc)
+            return UpdateResult(0)
+        return UpdateResult(0)
+
+    def count_documents(self, query=None):
+        if query is None:
+            query = {}
+        return sum(
+            1 for doc in self.mock_data[self.name]
+            if all(doc.get(k) == v for k, v in query.items())
+        )
+
+    def delete_one(self, query):
+        class DeleteResult:
+            def __init__(self, deleted):
+                self.deleted_count = deleted
+        for i, doc in enumerate(self.mock_data[self.name]):
+            if all(doc.get(k) == v for k, v in query.items()):
+                self.mock_data[self.name].pop(i)
+                return DeleteResult(1)
+        return DeleteResult(0)
+
     def create_index(self, *args, **kwargs):
         pass
 

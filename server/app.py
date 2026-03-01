@@ -124,6 +124,32 @@ def require_admin(f):
     return decorated
 
 
+def require_mentor(f):
+    """Decorator to require mentor role (includes auth check). Admins/super_admins also pass."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+        if not token:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            g.current_user_id = payload['user_id']
+            g.current_user_email = payload['email']
+            g.current_user_role = payload.get('role', 'student')
+        except jwt.ExpiredSignatureError:
+            return jsonify({'success': False, 'error': 'Token expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'success': False, 'error': 'Invalid token'}), 401
+
+        if g.current_user_role not in ('mentor', 'admin', 'super_admin'):
+            return jsonify({'success': False, 'error': 'Mentor access required'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ──────────── AUTH ROUTES ────────────
 
 @app.route('/api/auth/signup', methods=['POST'])
@@ -144,11 +170,11 @@ def signup():
     if len(password) < 6:
         return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
 
-    if role not in ('student', 'admin', 'super_admin'):
+    if role not in ('student', 'mentor', 'admin', 'super_admin'):
         return jsonify({'success': False, 'error': 'Invalid role'}), 400
 
     # ── P0 Security: Restrict privileged role creation ──
-    if role in ('admin', 'super_admin'):
+    if role in ('mentor', 'admin', 'super_admin'):
         token = None
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
@@ -161,6 +187,14 @@ def signup():
                     is_privileged = True
             except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
                 pass
+
+        # Bootstrap: allow creating the very first super_admin when none exists
+        if role == 'super_admin' and not is_privileged:
+            existing_sa = db_service.users.find_one({'role': 'super_admin'})
+            if existing_sa is None:
+                is_privileged = True  # No super_admin yet — bootstrap allowed
+                print("[INFO] Bootstrap: allowing first super_admin creation")
+
         if not is_privileged:
             return jsonify({'success': False, 'error': 'Admin account creation requires admin authorization'}), 403
 
@@ -282,7 +316,7 @@ def update_user(user_id):
     if not updates:
         return jsonify({'success': False, 'error': 'No valid fields to update'}), 400
 
-    if 'role' in updates and updates['role'] not in ('student', 'admin', 'super_admin'):
+    if 'role' in updates and updates['role'] not in ('student', 'mentor', 'admin', 'super_admin'):
         return jsonify({'success': False, 'error': 'Invalid role value'}), 400
 
     if 'status' in updates and updates['status'] not in ('active', 'inactive'):
@@ -466,15 +500,522 @@ def get_all_submissions():
 @require_auth
 def get_user_submissions(user_id):
     """Get submissions for a user"""
-    # Users can only see their own unless admin
+    # Users can only see their own unless admin or assigned mentor
     if user_id != g.current_user_id and g.current_user_role not in ('admin', 'super_admin'):
-        return jsonify({'success': False, 'error': 'Access denied'}), 403
+        # Mentors can view assigned students
+        if g.current_user_role == 'mentor':
+            assignment = db_service.mentor_students.find_one({
+                'mentor_id': g.current_user_id,
+                'student_id': user_id,
+                'status': 'active'
+            })
+            if not assignment:
+                return jsonify({'success': False, 'error': 'Access denied — student not assigned to you'}), 403
+        else:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
 
     submissions = db_service.get_user_submissions(user_id)
     return jsonify({
         'success': True,
         'data': [serialize_doc(s) for s in submissions],
         'count': len(submissions)
+    })
+
+
+# ──────────── MENTOR ROUTES ────────────
+
+@app.route('/api/mentor/students', methods=['GET'])
+@require_mentor
+def get_mentor_students():
+    """Get all students assigned to the current mentor"""
+    mentor_id = g.current_user_id
+    # Admins can pass ?mentor_id=... to view any mentor's students
+    if g.current_user_role in ('admin', 'super_admin') and request.args.get('mentor_id'):
+        mentor_id = request.args.get('mentor_id')
+
+    assignments = list(db_service.mentor_students.find({
+        'mentor_id': mentor_id,
+        'status': 'active'
+    }))
+
+    student_ids = [a['student_id'] for a in assignments]
+    students = []
+    for sid in student_ids:
+        user = db_service.get_user(sid)
+        if user:
+            students.append(serialize_user(user))
+
+    return jsonify({
+        'success': True,
+        'data': students,
+        'count': len(students)
+    })
+
+
+@app.route('/api/mentor/students', methods=['POST'])
+@require_admin
+def assign_student_to_mentor():
+    """Assign a student to a mentor (admin only)"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    mentor_id = data.get('mentor_id')
+    student_id = data.get('student_id')
+
+    if not mentor_id or not student_id:
+        return jsonify({'success': False, 'error': 'mentor_id and student_id required'}), 400
+
+    # Verify mentor exists and has mentor role
+    mentor = db_service.get_user(mentor_id)
+    if not mentor or mentor.get('role') != 'mentor':
+        return jsonify({'success': False, 'error': 'Invalid mentor'}), 404
+
+    # Verify student exists
+    student = db_service.get_user(student_id)
+    if not student:
+        return jsonify({'success': False, 'error': 'Student not found'}), 404
+
+    # Check if already assigned
+    existing = db_service.mentor_students.find_one({
+        'mentor_id': mentor_id,
+        'student_id': student_id,
+        'status': 'active'
+    })
+    if existing:
+        return jsonify({'success': False, 'error': 'Student already assigned to this mentor'}), 409
+
+    assignment = {
+        'mentor_id': mentor_id,
+        'student_id': student_id,
+        'assigned_by': g.current_user_id,
+        'status': 'active',
+        'assigned_at': datetime.utcnow()
+    }
+    db_service.mentor_students.insert_one(assignment)
+
+    print(f"[INFO] Student {student_id} assigned to mentor {mentor_id} by {g.current_user_id}")
+    return jsonify({'success': True, 'message': 'Student assigned successfully'}), 201
+
+
+@app.route('/api/mentor/students/<student_id>', methods=['DELETE'])
+@require_admin
+def unassign_student_from_mentor(student_id):
+    """Remove a student from a mentor (admin only)"""
+    mentor_id = request.args.get('mentor_id')
+    if not mentor_id:
+        return jsonify({'success': False, 'error': 'mentor_id query param required'}), 400
+
+    result = db_service.mentor_students.update_one(
+        {'mentor_id': mentor_id, 'student_id': student_id, 'status': 'active'},
+        {'$set': {'status': 'removed', 'removed_at': datetime.utcnow(), 'removed_by': g.current_user_id}}
+    )
+
+    if result.modified_count == 0:
+        return jsonify({'success': False, 'error': 'Assignment not found'}), 404
+
+    return jsonify({'success': True, 'message': 'Student unassigned successfully'})
+
+
+@app.route('/api/mentor/students/<student_id>/analytics', methods=['GET'])
+@require_mentor
+def get_student_analytics(student_id):
+    """Get performance analytics for an assigned student"""
+    mentor_id = g.current_user_id
+    if g.current_user_role in ('admin', 'super_admin'):
+        mentor_id = request.args.get('mentor_id', mentor_id)
+    else:
+        # Verify assignment
+        assignment = db_service.mentor_students.find_one({
+            'mentor_id': mentor_id,
+            'student_id': student_id,
+            'status': 'active'
+        })
+        if not assignment:
+            return jsonify({'success': False, 'error': 'Student not assigned to you'}), 403
+
+    # Gather aptitude submissions
+    apt_submissions = list(db_service.submissions.find({'user_id': student_id}).sort('submitted_at', -1))
+    # Gather DSA code submissions
+    dsa_submissions = list(db_service.code_submissions.find({'user_id': student_id}).sort('submitted_at', -1))
+
+    # Calculate averages
+    apt_scores = [s.get('score', 0) for s in apt_submissions if s.get('score') is not None]
+    avg_aptitude = round(sum(apt_scores) / len(apt_scores), 2) if apt_scores else 0
+
+    # DSA analytics
+    dsa_passed = sum(1 for s in dsa_submissions if s.get('passed'))
+    dsa_total = len(dsa_submissions)
+
+    # Time analytics
+    total_time = sum(s.get('time_taken', 0) for s in apt_submissions)
+
+    # Student profile
+    student = db_service.get_user(student_id)
+
+    return jsonify({
+        'success': True,
+        'student': serialize_user(student) if student else None,
+        'analytics': {
+            'aptitude': {
+                'avg_score': avg_aptitude,
+                'total_attempts': len(apt_submissions),
+                'scores': [{'score': s.get('score'), 'date': s.get('submitted_at').isoformat() if isinstance(s.get('submitted_at'), datetime) else s.get('submitted_at')} for s in apt_submissions[:20]],
+            },
+            'dsa': {
+                'total_submissions': dsa_total,
+                'passed': dsa_passed,
+                'pass_rate': round((dsa_passed / dsa_total * 100), 1) if dsa_total > 0 else 0,
+            },
+            'time_spent': total_time,
+            'last_active': student.get('last_active').isoformat() if student and isinstance(student.get('last_active'), datetime) else None,
+        }
+    })
+
+
+@app.route('/api/mentor/feedback', methods=['POST'])
+@require_mentor
+def add_mentor_feedback():
+    """Add structured feedback for a student submission"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    student_id = data.get('student_id')
+    submission_id = data.get('submission_id')
+    feedback_text = data.get('feedback', '').strip()
+    rating = data.get('rating')  # 1-5 optional
+    category = data.get('category', 'general')  # general, code_quality, approach, optimization
+
+    if not student_id or not feedback_text:
+        return jsonify({'success': False, 'error': 'student_id and feedback required'}), 400
+
+    # Verify assignment (IDOR prevention)
+    if g.current_user_role == 'mentor':
+        assignment = db_service.mentor_students.find_one({
+            'mentor_id': g.current_user_id,
+            'student_id': student_id,
+            'status': 'active'
+        })
+        if not assignment:
+            return jsonify({'success': False, 'error': 'Student not assigned to you'}), 403
+
+    if rating is not None and (not isinstance(rating, int) or rating < 1 or rating > 5):
+        return jsonify({'success': False, 'error': 'Rating must be 1-5'}), 400
+
+    feedback = {
+        'mentor_id': g.current_user_id,
+        'student_id': student_id,
+        'submission_id': submission_id,
+        'feedback': feedback_text,
+        'rating': rating,
+        'category': category,
+        'created_at': datetime.utcnow()
+    }
+    result = db_service.mentor_feedback.insert_one(feedback)
+
+    print(f"[INFO] Mentor {g.current_user_id} added feedback for student {student_id}")
+    return jsonify({
+        'success': True,
+        'feedback_id': str(result.inserted_id),
+        'message': 'Feedback added'
+    }), 201
+
+
+@app.route('/api/mentor/feedback/<student_id>', methods=['GET'])
+@require_mentor
+def get_student_feedback(student_id):
+    """Get all feedback for an assigned student"""
+    if g.current_user_role == 'mentor':
+        assignment = db_service.mentor_students.find_one({
+            'mentor_id': g.current_user_id,
+            'student_id': student_id,
+            'status': 'active'
+        })
+        if not assignment:
+            return jsonify({'success': False, 'error': 'Student not assigned to you'}), 403
+
+    mentor_filter = {'student_id': student_id}
+    if g.current_user_role == 'mentor':
+        mentor_filter['mentor_id'] = g.current_user_id
+
+    feedbacks = list(db_service.mentor_feedback.find(mentor_filter).sort('created_at', -1))
+    return jsonify({
+        'success': True,
+        'data': [serialize_doc(f) for f in feedbacks],
+        'count': len(feedbacks)
+    })
+
+
+@app.route('/api/mentor/feedback/<feedback_id>', methods=['PATCH'])
+@require_mentor
+def update_feedback(feedback_id):
+    """Edit feedback (only by the author)"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    try:
+        fb = db_service.mentor_feedback.find_one({'_id': ObjectId(feedback_id)})
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid feedback ID'}), 400
+
+    if not fb:
+        return jsonify({'success': False, 'error': 'Feedback not found'}), 404
+
+    # Only the author or admin can edit
+    if g.current_user_role == 'mentor' and fb['mentor_id'] != g.current_user_id:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    allowed = {'feedback', 'rating', 'category'}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        return jsonify({'success': False, 'error': 'Nothing to update'}), 400
+
+    if 'rating' in updates and updates['rating'] is not None:
+        if not isinstance(updates['rating'], int) or updates['rating'] < 1 or updates['rating'] > 5:
+            return jsonify({'success': False, 'error': 'Rating must be 1-5'}), 400
+
+    updates['updated_at'] = datetime.utcnow()
+    db_service.mentor_feedback.update_one(
+        {'_id': ObjectId(feedback_id)},
+        {'$set': updates}
+    )
+
+    return jsonify({'success': True, 'message': 'Feedback updated'})
+
+
+@app.route('/api/mentor/feedback/<feedback_id>', methods=['DELETE'])
+@require_mentor
+def delete_feedback(feedback_id):
+    """Delete feedback (only by the author or admin)"""
+    try:
+        fb = db_service.mentor_feedback.find_one({'_id': ObjectId(feedback_id)})
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid feedback ID'}), 400
+
+    if not fb:
+        return jsonify({'success': False, 'error': 'Feedback not found'}), 404
+
+    if g.current_user_role == 'mentor' and fb['mentor_id'] != g.current_user_id:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    db_service.mentor_feedback.delete_one({'_id': ObjectId(feedback_id)})
+
+    return jsonify({'success': True, 'message': 'Feedback deleted'})
+
+
+@app.route('/api/mentor/practice-sets', methods=['POST'])
+@require_mentor
+def create_practice_set():
+    """Create a custom practice set with selected DSA problems"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    title = data.get('title', '').strip()
+    description = data.get('description', '').strip()
+    problem_ids = data.get('problem_ids', [])
+    assigned_students = data.get('assigned_students', [])
+    deadline = data.get('deadline')  # ISO 8601 string
+
+    if not title or not problem_ids:
+        return jsonify({'success': False, 'error': 'Title and at least one problem required'}), 400
+
+    # Validate problem IDs exist
+    all_problems = get_all_problems()
+    valid_pids = [pid for pid in problem_ids if pid in all_problems]
+    if not valid_pids:
+        return jsonify({'success': False, 'error': 'No valid problem IDs provided'}), 400
+
+    # Verify assigned students belong to mentor (IDOR prevention)
+    if g.current_user_role == 'mentor' and assigned_students:
+        my_assignments = list(db_service.mentor_students.find({
+            'mentor_id': g.current_user_id,
+            'status': 'active'
+        }))
+        my_student_ids = {a['student_id'] for a in my_assignments}
+        for sid in assigned_students:
+            if sid not in my_student_ids:
+                return jsonify({'success': False, 'error': f'Student {sid} is not assigned to you'}), 403
+
+    practice_set = {
+        'mentor_id': g.current_user_id,
+        'title': title,
+        'description': description,
+        'problem_ids': valid_pids,
+        'assigned_students': assigned_students,
+        'deadline': deadline,
+        'status': 'active',
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow()
+    }
+    result = db_service.practice_sets.insert_one(practice_set)
+
+    print(f"[INFO] Practice set '{title}' created by mentor {g.current_user_id}")
+    return jsonify({
+        'success': True,
+        'practice_set_id': str(result.inserted_id),
+        'message': 'Practice set created'
+    }), 201
+
+
+@app.route('/api/mentor/practice-sets', methods=['GET'])
+@require_mentor
+def get_practice_sets():
+    """Get practice sets created by the current mentor"""
+    mentor_id = g.current_user_id
+    if g.current_user_role in ('admin', 'super_admin') and request.args.get('mentor_id'):
+        mentor_id = request.args.get('mentor_id')
+
+    sets = list(db_service.practice_sets.find({
+        'mentor_id': mentor_id,
+        'status': 'active'
+    }).sort('created_at', -1))
+
+    # Enrich with completion stats
+    enriched = []
+    for ps in sets:
+        ps_id = str(ps['_id'])
+        total_assigned = len(ps.get('assigned_students', []))
+        completed = db_service.practice_submissions.count_documents({
+            'practice_set_id': ps_id,
+            'completed': True
+        }) if total_assigned > 0 else 0
+
+        doc = serialize_doc(ps)
+        doc['completion_rate'] = round((completed / total_assigned * 100), 1) if total_assigned > 0 else 0
+        doc['completed_count'] = completed
+        enriched.append(doc)
+
+    return jsonify({
+        'success': True,
+        'data': enriched,
+        'count': len(enriched)
+    })
+
+
+@app.route('/api/mentor/practice-sets/<set_id>', methods=['PATCH'])
+@require_mentor
+def update_practice_set(set_id):
+    """Update a practice set (only by creator or admin)"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    ps = db_service.practice_sets.find_one({'_id': ObjectId(set_id)})
+    if not ps:
+        return jsonify({'success': False, 'error': 'Practice set not found'}), 404
+
+    # Only the creator or admin can update
+    if g.current_user_role == 'mentor' and ps['mentor_id'] != g.current_user_id:
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+    allowed = {'title', 'description', 'problem_ids', 'assigned_students', 'deadline', 'status'}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    updates['updated_at'] = datetime.utcnow()
+
+    db_service.practice_sets.update_one(
+        {'_id': ObjectId(set_id)},
+        {'$set': updates}
+    )
+
+    return jsonify({'success': True, 'message': 'Practice set updated'})
+
+
+@app.route('/api/mentor/practice-sets/<set_id>/submit', methods=['POST'])
+@require_auth
+def submit_practice_set(set_id):
+    """Student submits progress for a practice set"""
+    data = request.get_json()
+    student_id = g.current_user_id
+
+    ps = db_service.practice_sets.find_one({'_id': ObjectId(set_id)})
+    if not ps:
+        return jsonify({'success': False, 'error': 'Practice set not found'}), 404
+
+    # Verify student is assigned to this practice set
+    if student_id not in ps.get('assigned_students', []):
+        return jsonify({'success': False, 'error': 'You are not assigned to this practice set'}), 403
+
+    solved_problems = data.get('solved_problems', [])
+    submission = {
+        'practice_set_id': set_id,
+        'student_id': student_id,
+        'solved_problems': solved_problems,
+        'total_problems': len(ps.get('problem_ids', [])),
+        'completed': len(solved_problems) >= len(ps.get('problem_ids', [])),
+        'submitted_at': datetime.utcnow()
+    }
+
+    # Upsert — update if already submitted
+    db_service.practice_submissions.update_one(
+        {'practice_set_id': set_id, 'student_id': student_id},
+        {'$set': submission},
+        upsert=True
+    )
+
+    return jsonify({'success': True, 'message': 'Progress saved'})
+
+
+@app.route('/api/mentor/dashboard-stats', methods=['GET'])
+@require_mentor
+def get_mentor_dashboard_stats():
+    """Get aggregate stats for the mentor dashboard"""
+    mentor_id = g.current_user_id
+    if g.current_user_role in ('admin', 'super_admin') and request.args.get('mentor_id'):
+        mentor_id = request.args.get('mentor_id')
+
+    assignments = list(db_service.mentor_students.find({
+        'mentor_id': mentor_id,
+        'status': 'active'
+    }))
+    student_ids = [a['student_id'] for a in assignments]
+    total_students = len(student_ids)
+
+    # Aggregate scores across all assigned students
+    all_apt_scores = []
+    all_dsa_count = 0
+    all_dsa_passed = 0
+    active_today = 0
+
+    for sid in student_ids:
+        subs = list(db_service.submissions.find({'user_id': sid}))
+        for s in subs:
+            if s.get('score') is not None:
+                all_apt_scores.append(s['score'])
+
+        dsa_subs = list(db_service.code_submissions.find({'user_id': sid}))
+        all_dsa_count += len(dsa_subs)
+        all_dsa_passed += sum(1 for d in dsa_subs if d.get('passed'))
+
+        user = db_service.get_user(sid)
+        if user and isinstance(user.get('last_active'), datetime):
+            if (datetime.utcnow() - user['last_active']).total_seconds() < 86400:
+                active_today += 1
+
+    avg_aptitude = round(sum(all_apt_scores) / len(all_apt_scores), 2) if all_apt_scores else 0
+
+    practice_sets = db_service.practice_sets.count_documents({
+        'mentor_id': mentor_id,
+        'status': 'active'
+    })
+
+    feedbacks_given = db_service.mentor_feedback.count_documents({
+        'mentor_id': mentor_id
+    })
+
+    return jsonify({
+        'success': True,
+        'stats': {
+            'total_students': total_students,
+            'active_today': active_today,
+            'avg_aptitude_score': avg_aptitude,
+            'dsa_submissions': all_dsa_count,
+            'dsa_pass_rate': round((all_dsa_passed / all_dsa_count * 100), 1) if all_dsa_count > 0 else 0,
+            'practice_sets': practice_sets,
+            'feedbacks_given': feedbacks_given,
+        }
     })
 
 
@@ -587,6 +1128,19 @@ def submit_code():
 @require_auth
 def get_code_submissions(user_id):
     """Get code submissions for a user"""
+    # Access control: own data, admin, or assigned mentor
+    if user_id != g.current_user_id and g.current_user_role not in ('admin', 'super_admin'):
+        if g.current_user_role == 'mentor':
+            assignment = db_service.mentor_students.find_one({
+                'mentor_id': g.current_user_id,
+                'student_id': user_id,
+                'status': 'active'
+            })
+            if not assignment:
+                return jsonify({'success': False, 'error': 'Access denied — student not assigned to you'}), 403
+        else:
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+
     submissions = db_service.get_user_code_submissions(user_id)
     result = []
     for sub in submissions:
