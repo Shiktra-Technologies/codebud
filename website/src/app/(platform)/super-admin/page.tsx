@@ -30,6 +30,9 @@ import {
     ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
+import { BookOpen, Building2 } from "lucide-react";
+import CourseBuilderTab from "./CourseBuilderTab";
+import CompanyManagementTab from "./CompanyManagementTab";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -56,7 +59,7 @@ export default function SuperAdminPage() {
     const { user, userRole, logout } = useAuth();
     const router = useRouter();
 
-    const [activeTab, setActiveTab] = useState<"overview" | "users">("overview");
+    const [activeTab, setActiveTab] = useState<"overview" | "users" | "courses" | "companies">("overview");
     const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -334,6 +337,8 @@ export default function SuperAdminPage() {
                         {([
                             { id: "overview" as const, label: "System Overview", icon: BarChart3 },
                             { id: "users" as const, label: "User Management", icon: Users },
+                            { id: "courses" as const, label: "Course Builder", icon: BookOpen },
+                            { id: "companies" as const, label: "Companies", icon: Building2 },
                         ]).map((tab) => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
@@ -464,6 +469,30 @@ export default function SuperAdminPage() {
                                         </div>
                                     </div>
                                 </div>
+                            </motion.div>
+                        )}
+
+                        {activeTab === "courses" && (
+                            <motion.div
+                                key="courses"
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -12 }}
+                                transition={{ duration: 0.3, ease }}
+                            >
+                                <CourseBuilderTab />
+                            </motion.div>
+                        )}
+
+                        {activeTab === "companies" && (
+                            <motion.div
+                                key="companies"
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -12 }}
+                                transition={{ duration: 0.3, ease }}
+                            >
+                                <CompanyManagementTab />
                             </motion.div>
                         )}
 

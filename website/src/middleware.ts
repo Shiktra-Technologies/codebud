@@ -116,6 +116,17 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
+    // Company dashboard routes
+    if (pathname.startsWith("/company")) {
+        if (!isValid) {
+            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
+        }
+        if (role !== "company" && role !== "super_admin") {
+            return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+        return NextResponse.next();
+    }
+
     // Authenticated-only routes (any role)
     if (
         pathname.startsWith("/dashboard") ||

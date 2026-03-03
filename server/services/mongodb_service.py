@@ -50,6 +50,22 @@ class MongoDBService:
             self.db.practice_sets.create_index('mentor_id')
             self.db.practice_sets.create_index([('created_at', -1)])
             self.db.practice_submissions.create_index([('practice_set_id', 1), ('student_id', 1)], unique=True)
+            # Course collections
+            self.db.courses.create_index([('display_order', 1)])
+            self.db.courses.create_index([('is_published', 1)])
+            self.db.courses.create_index('created_by')
+            self.db.enrollments.create_index([('user_id', 1), ('course_id', 1)], unique=True)
+            self.db.enrollments.create_index('user_id')
+            self.db.enrollments.create_index('course_id')
+            self.db.course_reviews.create_index([('user_id', 1), ('course_id', 1)], unique=True)
+            self.db.course_reviews.create_index('course_id')
+            # Company / Job collections
+            self.db.companies.create_index('user_id', unique=True)
+            self.db.jobs.create_index('company_id')
+            self.db.jobs.create_index([('is_active', 1), ('created_at', -1)])
+            self.db.applications.create_index([('job_id', 1), ('student_id', 1)], unique=True)
+            self.db.applications.create_index('student_id')
+            self.db.applications.create_index('company_id')
         except Exception as e:
             print(f"[WARNING] Index creation issue: {e}")
 
@@ -63,7 +79,13 @@ class MongoDBService:
             'mentor_students': [],
             'mentor_feedback': [],
             'practice_sets': [],
-            'practice_submissions': []
+            'practice_submissions': [],
+            'courses': [],
+            'enrollments': [],
+            'course_reviews': [],
+            'companies': [],
+            'jobs': [],
+            'applications': [],
         }
         # Persistent counters for auto-increment IDs
         self._mock_counters = {}
@@ -134,6 +156,42 @@ class MongoDBService:
         if self.db is not None:
             return self.db.practice_submissions
         return MockCollection('practice_submissions', self.mock_data, self._mock_counters)
+
+    @property
+    def courses(self):
+        if self.db is not None:
+            return self.db.courses
+        return MockCollection('courses', self.mock_data, self._mock_counters)
+
+    @property
+    def enrollments(self):
+        if self.db is not None:
+            return self.db.enrollments
+        return MockCollection('enrollments', self.mock_data, self._mock_counters)
+
+    @property
+    def course_reviews(self):
+        if self.db is not None:
+            return self.db.course_reviews
+        return MockCollection('course_reviews', self.mock_data, self._mock_counters)
+
+    @property
+    def companies(self):
+        if self.db is not None:
+            return self.db.companies
+        return MockCollection('companies', self.mock_data, self._mock_counters)
+
+    @property
+    def jobs(self):
+        if self.db is not None:
+            return self.db.jobs
+        return MockCollection('jobs', self.mock_data, self._mock_counters)
+
+    @property
+    def applications(self):
+        if self.db is not None:
+            return self.db.applications
+        return MockCollection('applications', self.mock_data, self._mock_counters)
 
     # ──────────── AUTH ────────────
 

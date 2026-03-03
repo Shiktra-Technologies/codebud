@@ -150,6 +150,58 @@ def require_mentor(f):
     return decorated
 
 
+def require_super_admin(f):
+    """Decorator to require super_admin role."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+        if not token:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            g.current_user_id = payload['user_id']
+            g.current_user_email = payload['email']
+            g.current_user_role = payload.get('role', 'student')
+        except jwt.ExpiredSignatureError:
+            return jsonify({'success': False, 'error': 'Token expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'success': False, 'error': 'Invalid token'}), 401
+
+        if g.current_user_role != 'super_admin':
+            return jsonify({'success': False, 'error': 'Super admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+def require_company(f):
+    """Decorator to require company role. Admins/super_admins also pass."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+        if not token:
+            return jsonify({'success': False, 'error': 'Authentication required'}), 401
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            g.current_user_id = payload['user_id']
+            g.current_user_email = payload['email']
+            g.current_user_role = payload.get('role', 'student')
+        except jwt.ExpiredSignatureError:
+            return jsonify({'success': False, 'error': 'Token expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'success': False, 'error': 'Invalid token'}), 401
+
+        if g.current_user_role not in ('company', 'admin', 'super_admin'):
+            return jsonify({'success': False, 'error': 'Company access required'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ──────────── AUTH ROUTES ────────────
 
 @app.route('/api/auth/signup', methods=['POST'])
@@ -170,11 +222,11 @@ def signup():
     if len(password) < 6:
         return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
 
-    if role not in ('student', 'mentor', 'admin', 'super_admin'):
+    if role not in ('student', 'mentor', 'admin', 'super_admin', 'company'):
         return jsonify({'success': False, 'error': 'Invalid role'}), 400
 
     # ── P0 Security: Restrict privileged role creation ──
-    if role in ('mentor', 'admin', 'super_admin'):
+    if role in ('mentor', 'admin', 'super_admin', 'company'):
         token = None
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
@@ -1241,6 +1293,814 @@ def handle_code_analysis(data):
     except Exception as e:
         print(f'[ERROR] Analysis error: {e}')
         emit('analysis_error', {'error': str(e), 'message': 'Analysis failed. Please try again.'})
+
+
+# ══════════════════════════════════════════════════════════════
+#                    COURSE API ROUTES
+# ══════════════════════════════════════════════════════════════
+
+import uuid
+
+def _gen_id():
+    """Generate a short unique ID for embedded sub-documents (sections/lessons)."""
+    return uuid.uuid4().hex[:12]
+
+
+@app.route('/api/courses', methods=['POST'])
+@require_admin
+def create_course():
+    """Create a new course (admin/super_admin only)"""
+    data = request.get_json() or {}
+    title = data.get('title', '').strip()
+    if not title:
+        return jsonify({'success': False, 'error': 'Course title is required'}), 400
+
+    course = {
+        'title': title,
+        'description': data.get('description', ''),
+        'thumbnail_url': data.get('thumbnail_url', ''),
+        'difficulty': data.get('difficulty', 'beginner'),
+        'estimated_hours': data.get('estimated_hours', 0),
+        'tags': data.get('tags', []),
+        'instructor_name': data.get('instructor_name', ''),
+        'is_published': False,
+        'display_order': data.get('display_order', 0),
+        'sections': [],
+        'created_by': g.current_user_id,
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow(),
+    }
+    result = db_service.courses.insert_one(course)
+    course['_id'] = result.inserted_id
+    print(f"[INFO] Course created: {title} by {g.current_user_email}")
+    return jsonify({'success': True, 'course': serialize_doc(course)}), 201
+
+
+@app.route('/api/courses', methods=['GET'])
+def list_courses():
+    """List courses. Public: published only. Admin: all."""
+    is_admin = False
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            payload = jwt.decode(auth_header[7:], JWT_SECRET, algorithms=['HS256'])
+            if payload.get('role') in ('admin', 'super_admin'):
+                is_admin = True
+        except Exception:
+            pass
+
+    query = {} if is_admin else {'is_published': True}
+    cursor = db_service.courses.find(query).sort('display_order', 1)
+    courses = [serialize_doc(c) for c in cursor]
+
+    # Attach enrollment count + avg rating per course
+    for c in courses:
+        cid = c.get('_id') or c.get('id')
+        c['enrollment_count'] = db_service.enrollments.count_documents({'course_id': cid})
+        reviews = list(db_service.course_reviews.find({'course_id': cid}))
+        if reviews:
+            c['avg_rating'] = round(sum(r.get('rating', 0) for r in reviews) / len(reviews), 1)
+            c['review_count'] = len(reviews)
+        else:
+            c['avg_rating'] = 0
+            c['review_count'] = 0
+    return jsonify({'success': True, 'courses': courses})
+
+
+@app.route('/api/courses/<course_id>', methods=['GET'])
+def get_course(course_id):
+    """Get a single course with full sections/lessons."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+
+    doc = serialize_doc(course)
+    cid = doc.get('_id') or doc.get('id')
+    doc['enrollment_count'] = db_service.enrollments.count_documents({'course_id': cid})
+    reviews = list(db_service.course_reviews.find({'course_id': cid}))
+    doc['avg_rating'] = round(sum(r.get('rating', 0) for r in reviews) / len(reviews), 1) if reviews else 0
+    doc['review_count'] = len(reviews)
+    return jsonify({'success': True, 'course': doc})
+
+
+@app.route('/api/courses/<course_id>', methods=['PATCH'])
+@require_admin
+def update_course(course_id):
+    """Update course metadata and/or sections."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+
+    data = request.get_json() or {}
+    allowed = ['title', 'description', 'thumbnail_url', 'difficulty', 'estimated_hours',
+               'tags', 'instructor_name', 'is_published', 'display_order', 'sections']
+    updates = {k: v for k, v in data.items() if k in allowed}
+    updates['updated_at'] = datetime.utcnow()
+
+    db_service.courses.update_one({'_id': course['_id']}, {'$set': updates})
+    updated = _find_course(course_id)
+    return jsonify({'success': True, 'course': serialize_doc(updated)})
+
+
+@app.route('/api/courses/<course_id>', methods=['DELETE'])
+@require_admin
+def delete_course(course_id):
+    """Delete a course."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    db_service.courses.delete_one({'_id': course['_id']})
+    return jsonify({'success': True, 'message': 'Course deleted'})
+
+
+@app.route('/api/courses/<course_id>/publish', methods=['PATCH'])
+@require_admin
+def toggle_publish_course(course_id):
+    """Toggle publish/draft status."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    new_status = not course.get('is_published', False)
+    db_service.courses.update_one(
+        {'_id': course['_id']},
+        {'$set': {'is_published': new_status, 'updated_at': datetime.utcnow()}}
+    )
+    return jsonify({'success': True, 'is_published': new_status})
+
+
+# ── Course Sections & Lessons helpers ──
+
+@app.route('/api/courses/<course_id>/sections', methods=['POST'])
+@require_admin
+def add_section(course_id):
+    """Add a section to a course."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    data = request.get_json() or {}
+    section = {
+        '_id': _gen_id(),
+        'title': data.get('title', 'New Section'),
+        'order': len(course.get('sections', [])),
+        'lessons': [],
+    }
+    sections = course.get('sections', [])
+    sections.append(section)
+    db_service.courses.update_one(
+        {'_id': course['_id']},
+        {'$set': {'sections': sections, 'updated_at': datetime.utcnow()}}
+    )
+    return jsonify({'success': True, 'section': section}), 201
+
+
+@app.route('/api/courses/<course_id>/sections/<section_id>/lessons', methods=['POST'])
+@require_admin
+def add_lesson(course_id, section_id):
+    """Add a lesson to a section."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    data = request.get_json() or {}
+    lesson = {
+        '_id': _gen_id(),
+        'title': data.get('title', 'New Lesson'),
+        'type': data.get('type', 'text'),  # text | video | code_challenge | quiz | assignment
+        'content': data.get('content', ''),
+        'duration_minutes': data.get('duration_minutes', 0),
+        'order': 0,
+    }
+    sections = course.get('sections', [])
+    for sec in sections:
+        if sec.get('_id') == section_id:
+            lesson['order'] = len(sec.get('lessons', []))
+            sec.setdefault('lessons', []).append(lesson)
+            break
+    else:
+        return jsonify({'success': False, 'error': 'Section not found'}), 404
+    db_service.courses.update_one(
+        {'_id': course['_id']},
+        {'$set': {'sections': sections, 'updated_at': datetime.utcnow()}}
+    )
+    return jsonify({'success': True, 'lesson': lesson}), 201
+
+
+# ── Enrollment ──
+
+@app.route('/api/courses/<course_id>/enroll', methods=['POST'])
+@require_auth
+def enroll_in_course(course_id):
+    """Student enrolls in a course."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    if not course.get('is_published', False):
+        return jsonify({'success': False, 'error': 'Course not available'}), 400
+
+    cid = str(course['_id'])
+    existing = db_service.enrollments.find_one({'user_id': g.current_user_id, 'course_id': cid})
+    if existing:
+        return jsonify({'success': False, 'error': 'Already enrolled'}), 409
+
+    enrollment = {
+        'user_id': g.current_user_id,
+        'course_id': cid,
+        'progress': {'completed_lessons': [], 'current_lesson_id': None, 'percentage': 0},
+        'started_at': datetime.utcnow(),
+        'completed_at': None,
+        'updated_at': datetime.utcnow(),
+    }
+    result = db_service.enrollments.insert_one(enrollment)
+    enrollment['_id'] = result.inserted_id
+    return jsonify({'success': True, 'enrollment': serialize_doc(enrollment)}), 201
+
+
+@app.route('/api/enrollments/me', methods=['GET'])
+@require_auth
+def my_enrollments():
+    """Get current user's enrolled courses with progress."""
+    enrollments = list(db_service.enrollments.find({'user_id': g.current_user_id}))
+    result = []
+    for e in enrollments:
+        doc = serialize_doc(e)
+        course = _find_course(doc.get('course_id'))
+        if course:
+            doc['course'] = serialize_doc(course)
+        result.append(doc)
+    return jsonify({'success': True, 'enrollments': result})
+
+
+@app.route('/api/courses/<course_id>/lessons/<lesson_id>/complete', methods=['POST'])
+@require_auth
+def complete_lesson(course_id, lesson_id):
+    """Mark a lesson as complete for current user."""
+    cid_str = course_id
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    cid_str = str(course['_id'])
+
+    enrollment = db_service.enrollments.find_one({'user_id': g.current_user_id, 'course_id': cid_str})
+    if not enrollment:
+        return jsonify({'success': False, 'error': 'Not enrolled'}), 400
+
+    progress = enrollment.get('progress', {'completed_lessons': [], 'current_lesson_id': None, 'percentage': 0})
+    completed = progress.get('completed_lessons', [])
+    if lesson_id not in completed:
+        completed.append(lesson_id)
+
+    # Calculate total lessons
+    total_lessons = sum(len(s.get('lessons', [])) for s in course.get('sections', []))
+    pct = round((len(completed) / total_lessons) * 100) if total_lessons > 0 else 0
+    progress['completed_lessons'] = completed
+    progress['percentage'] = pct
+    progress['current_lesson_id'] = lesson_id
+
+    updates = {'progress': progress, 'updated_at': datetime.utcnow()}
+    if pct >= 100:
+        updates['completed_at'] = datetime.utcnow()
+
+    db_service.enrollments.update_one({'_id': enrollment['_id']}, {'$set': updates})
+    return jsonify({'success': True, 'progress': progress})
+
+
+@app.route('/api/courses/<course_id>/progress', methods=['GET'])
+@require_auth
+def get_course_progress(course_id):
+    """Get current user's progress in a course."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    cid_str = str(course['_id'])
+    enrollment = db_service.enrollments.find_one({'user_id': g.current_user_id, 'course_id': cid_str})
+    if not enrollment:
+        return jsonify({'success': True, 'enrolled': False, 'progress': None})
+    return jsonify({'success': True, 'enrolled': True, 'progress': serialize_doc(enrollment).get('progress')})
+
+
+# ── Reviews ──
+
+@app.route('/api/courses/<course_id>/reviews', methods=['POST'])
+@require_auth
+def add_review(course_id):
+    """Add or update a review for a course."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    data = request.get_json() or {}
+    rating = data.get('rating')
+    if not rating or not (1 <= rating <= 5):
+        return jsonify({'success': False, 'error': 'Rating must be 1-5'}), 400
+
+    cid_str = str(course['_id'])
+    existing = db_service.course_reviews.find_one({'user_id': g.current_user_id, 'course_id': cid_str})
+    if existing:
+        db_service.course_reviews.update_one(
+            {'_id': existing['_id']},
+            {'$set': {'rating': rating, 'review_text': data.get('review_text', ''), 'updated_at': datetime.utcnow()}}
+        )
+        return jsonify({'success': True, 'message': 'Review updated'})
+
+    review = {
+        'user_id': g.current_user_id,
+        'course_id': cid_str,
+        'rating': rating,
+        'review_text': data.get('review_text', ''),
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow(),
+    }
+    db_service.course_reviews.insert_one(review)
+    return jsonify({'success': True, 'message': 'Review added'}), 201
+
+
+@app.route('/api/courses/<course_id>/reviews', methods=['GET'])
+def list_reviews(course_id):
+    """List reviews for a course."""
+    course = _find_course(course_id)
+    if not course:
+        return jsonify({'success': False, 'error': 'Course not found'}), 404
+    cid_str = str(course['_id'])
+    reviews = list(db_service.course_reviews.find({'course_id': cid_str}))
+    result = []
+    for r in reviews:
+        doc = serialize_doc(r)
+        user = db_service.get_user(r.get('user_id'))
+        doc['user_name'] = user.get('display_name', 'Anonymous') if user else 'Anonymous'
+        result.append(doc)
+    return jsonify({'success': True, 'reviews': result})
+
+
+# ── Admin course analytics ──
+
+@app.route('/api/admin/course-stats', methods=['GET'])
+@require_admin
+def admin_course_stats():
+    """Platform-wide course analytics."""
+    total_courses = db_service.courses.count_documents({})
+    published = db_service.courses.count_documents({'is_published': True})
+    total_enrollments = db_service.enrollments.count_documents({})
+    completed_enrollments = db_service.enrollments.count_documents({'completed_at': {'$ne': None}})
+    return jsonify({
+        'success': True,
+        'stats': {
+            'total_courses': total_courses,
+            'published_courses': published,
+            'draft_courses': total_courses - published,
+            'total_enrollments': total_enrollments,
+            'completed_enrollments': completed_enrollments,
+            'completion_rate': round((completed_enrollments / total_enrollments * 100)) if total_enrollments > 0 else 0,
+        }
+    })
+
+
+def _find_course(course_id):
+    """Helper to find a course by ID (tries ObjectId then string)."""
+    try:
+        oid = ObjectId(course_id)
+        result = db_service.courses.find_one({'_id': oid})
+        if result:
+            return result
+    except Exception:
+        pass
+    return db_service.courses.find_one({'_id': course_id})
+
+
+# ══════════════════════════════════════════════════════════════
+#                 COMPANY / JOB API ROUTES
+# ══════════════════════════════════════════════════════════════
+
+# ── Company Profile ──
+
+@app.route('/api/company/profile', methods=['POST'])
+@require_company
+def create_company_profile():
+    """Create company profile for the current company user."""
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Company name is required'}), 400
+
+    existing = db_service.companies.find_one({'user_id': g.current_user_id})
+    if existing:
+        return jsonify({'success': False, 'error': 'Company profile already exists'}), 409
+
+    company = {
+        'user_id': g.current_user_id,
+        'name': name,
+        'logo_url': data.get('logo_url', ''),
+        'description': data.get('description', ''),
+        'website': data.get('website', ''),
+        'industry': data.get('industry', ''),
+        'size': data.get('size', ''),
+        'location': data.get('location', ''),
+        'social_links': data.get('social_links', {}),
+        'verified': False,
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow(),
+    }
+    result = db_service.companies.insert_one(company)
+    company['_id'] = result.inserted_id
+    print(f"[INFO] Company profile created: {name}")
+    return jsonify({'success': True, 'company': serialize_doc(company)}), 201
+
+
+@app.route('/api/company/profile', methods=['GET'])
+@require_company
+def get_own_company_profile():
+    """Get company profile for the current user."""
+    company = db_service.companies.find_one({'user_id': g.current_user_id})
+    if not company:
+        return jsonify({'success': False, 'error': 'No company profile found'}), 404
+    return jsonify({'success': True, 'company': serialize_doc(company)})
+
+
+@app.route('/api/company/profile', methods=['PATCH'])
+@require_company
+def update_company_profile():
+    """Update company profile."""
+    company = db_service.companies.find_one({'user_id': g.current_user_id})
+    if not company:
+        return jsonify({'success': False, 'error': 'No company profile found'}), 404
+
+    data = request.get_json() or {}
+    allowed = ['name', 'logo_url', 'description', 'website', 'industry', 'size', 'location', 'social_links']
+    updates = {k: v for k, v in data.items() if k in allowed}
+    updates['updated_at'] = datetime.utcnow()
+    db_service.companies.update_one({'_id': company['_id']}, {'$set': updates})
+    updated = db_service.companies.find_one({'_id': company['_id']})
+    return jsonify({'success': True, 'company': serialize_doc(updated)})
+
+
+@app.route('/api/company/profile/<company_id>', methods=['GET'])
+def get_public_company_profile(company_id):
+    """Public company profile."""
+    company = _find_company(company_id)
+    if not company:
+        return jsonify({'success': False, 'error': 'Company not found'}), 404
+    return jsonify({'success': True, 'company': serialize_doc(company)})
+
+
+# ── Jobs ──
+
+@app.route('/api/jobs', methods=['POST'])
+@require_company
+def create_job():
+    """Create a job posting."""
+    company = db_service.companies.find_one({'user_id': g.current_user_id})
+    if not company and g.current_user_role in ('admin', 'super_admin'):
+        # Admins creating jobs need to specify company_id
+        data = request.get_json() or {}
+        company_id = data.get('company_id')
+        if company_id:
+            company = _find_company(company_id)
+    elif not company:
+        return jsonify({'success': False, 'error': 'Create a company profile first'}), 400
+
+    data = request.get_json() or {}
+    title = data.get('title', '').strip()
+    if not title:
+        return jsonify({'success': False, 'error': 'Job title is required'}), 400
+
+    job = {
+        'company_id': str(company['_id']),
+        'title': title,
+        'description': data.get('description', ''),
+        'requirements': data.get('requirements', []),
+        'skills_required': data.get('skills_required', []),
+        'type': data.get('type', 'full-time'),
+        'location': data.get('location', ''),
+        'salary_range': data.get('salary_range', {}),
+        'experience_level': data.get('experience_level', 'entry'),
+        'application_deadline': data.get('application_deadline'),
+        'is_active': True,
+        'views_count': 0,
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow(),
+    }
+    result = db_service.jobs.insert_one(job)
+    job['_id'] = result.inserted_id
+    # Include company name in response
+    job['company_name'] = company.get('name', '')
+    print(f"[INFO] Job created: {title} by {company.get('name')}")
+    return jsonify({'success': True, 'job': serialize_doc(job)}), 201
+
+
+@app.route('/api/jobs', methods=['GET'])
+def list_jobs():
+    """List active job postings (public). Admins see all."""
+    is_admin = False
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            payload = jwt.decode(auth_header[7:], JWT_SECRET, algorithms=['HS256'])
+            if payload.get('role') in ('admin', 'super_admin'):
+                is_admin = True
+            # Company users see their own jobs
+            if payload.get('role') == 'company':
+                company = db_service.companies.find_one({'user_id': payload['user_id']})
+                if company:
+                    own_jobs = list(db_service.jobs.find({'company_id': str(company['_id'])}))
+                    for j in own_jobs:
+                        j_doc = serialize_doc(j)
+                        j_doc['company_name'] = company.get('name', '')
+                        j_doc['application_count'] = db_service.applications.count_documents({'job_id': str(j['_id'])})
+                    result = [serialize_doc(j) for j in own_jobs]
+                    for r, j in zip(result, own_jobs):
+                        r['company_name'] = company.get('name', '')
+                        r['application_count'] = db_service.applications.count_documents({'job_id': r.get('_id') or r.get('id')})
+                    return jsonify({'success': True, 'jobs': result})
+        except Exception:
+            pass
+
+    query = {} if is_admin else {'is_active': True}
+    jobs_cursor = db_service.jobs.find(query).sort('created_at', -1)
+    result = []
+    for j in jobs_cursor:
+        doc = serialize_doc(j)
+        company = _find_company(j.get('company_id'))
+        doc['company_name'] = company.get('name', '') if company else 'Unknown'
+        doc['company_logo'] = company.get('logo_url', '') if company else ''
+        doc['application_count'] = db_service.applications.count_documents({'job_id': doc.get('_id') or doc.get('id')})
+        result.append(doc)
+    return jsonify({'success': True, 'jobs': result})
+
+
+@app.route('/api/jobs/<job_id>', methods=['GET'])
+def get_job(job_id):
+    """Get a single job with details."""
+    job = _find_job(job_id)
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    # Increment view count
+    db_service.jobs.update_one({'_id': job['_id']}, {'$set': {'views_count': job.get('views_count', 0) + 1}})
+    doc = serialize_doc(job)
+    company = _find_company(job.get('company_id'))
+    doc['company'] = serialize_doc(company) if company else None
+    doc['application_count'] = db_service.applications.count_documents({'job_id': doc.get('_id') or doc.get('id')})
+    return jsonify({'success': True, 'job': doc})
+
+
+@app.route('/api/jobs/<job_id>', methods=['PATCH'])
+@require_company
+def update_job(job_id):
+    """Update a job posting."""
+    job = _find_job(job_id)
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    # Verify ownership (unless admin)
+    if g.current_user_role not in ('admin', 'super_admin'):
+        company = db_service.companies.find_one({'user_id': g.current_user_id})
+        if not company or str(company['_id']) != job.get('company_id'):
+            return jsonify({'success': False, 'error': 'Not authorized'}), 403
+
+    data = request.get_json() or {}
+    allowed = ['title', 'description', 'requirements', 'skills_required', 'type', 'location',
+               'salary_range', 'experience_level', 'application_deadline', 'is_active']
+    updates = {k: v for k, v in data.items() if k in allowed}
+    updates['updated_at'] = datetime.utcnow()
+    db_service.jobs.update_one({'_id': job['_id']}, {'$set': updates})
+    updated = _find_job(job_id)
+    return jsonify({'success': True, 'job': serialize_doc(updated)})
+
+
+@app.route('/api/jobs/<job_id>', methods=['DELETE'])
+@require_company
+def delete_job(job_id):
+    """Delete a job posting."""
+    job = _find_job(job_id)
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    if g.current_user_role not in ('admin', 'super_admin'):
+        company = db_service.companies.find_one({'user_id': g.current_user_id})
+        if not company or str(company['_id']) != job.get('company_id'):
+            return jsonify({'success': False, 'error': 'Not authorized'}), 403
+    db_service.jobs.delete_one({'_id': job['_id']})
+    return jsonify({'success': True, 'message': 'Job deleted'})
+
+
+# ── Applications ──
+
+@app.route('/api/jobs/<job_id>/apply', methods=['POST'])
+@require_auth
+def apply_to_job(job_id):
+    """Student applies to a job."""
+    job = _find_job(job_id)
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    if not job.get('is_active', False):
+        return jsonify({'success': False, 'error': 'Job is no longer accepting applications'}), 400
+
+    jid = str(job['_id'])
+    existing = db_service.applications.find_one({'job_id': jid, 'student_id': g.current_user_id})
+    if existing:
+        return jsonify({'success': False, 'error': 'Already applied'}), 409
+
+    data = request.get_json() or {}
+    application = {
+        'job_id': jid,
+        'student_id': g.current_user_id,
+        'company_id': job.get('company_id'),
+        'status': 'applied',
+        'cover_note': data.get('cover_note', ''),
+        'status_history': [{'status': 'applied', 'changed_at': datetime.utcnow().isoformat(), 'changed_by': g.current_user_id}],
+        'interview_slot': None,
+        'notes': '',
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow(),
+    }
+    result = db_service.applications.insert_one(application)
+    application['_id'] = result.inserted_id
+    return jsonify({'success': True, 'application': serialize_doc(application)}), 201
+
+
+@app.route('/api/jobs/<job_id>/applications', methods=['GET'])
+@require_company
+def get_job_applications(job_id):
+    """Company views applications for a job."""
+    job = _find_job(job_id)
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    if g.current_user_role not in ('admin', 'super_admin'):
+        company = db_service.companies.find_one({'user_id': g.current_user_id})
+        if not company or str(company['_id']) != job.get('company_id'):
+            return jsonify({'success': False, 'error': 'Not authorized'}), 403
+
+    jid = str(job['_id'])
+    apps = list(db_service.applications.find({'job_id': jid}))
+    result = []
+    for a in apps:
+        doc = serialize_doc(a)
+        student = db_service.get_user(a.get('student_id'))
+        doc['student'] = serialize_user(student) if student else None
+        result.append(doc)
+    return jsonify({'success': True, 'applications': result})
+
+
+@app.route('/api/applications/me', methods=['GET'])
+@require_auth
+def my_applications():
+    """Student views own applications."""
+    apps = list(db_service.applications.find({'student_id': g.current_user_id}))
+    result = []
+    for a in apps:
+        doc = serialize_doc(a)
+        job = _find_job(a.get('job_id'))
+        if job:
+            doc['job'] = serialize_doc(job)
+            company = _find_company(job.get('company_id'))
+            doc['company_name'] = company.get('name', '') if company else 'Unknown'
+        result.append(doc)
+    return jsonify({'success': True, 'applications': result})
+
+
+@app.route('/api/applications/<app_id>/status', methods=['PATCH'])
+@require_company
+def update_application_status(app_id):
+    """Company updates application status."""
+    application = _find_application(app_id)
+    if not application:
+        return jsonify({'success': False, 'error': 'Application not found'}), 404
+
+    data = request.get_json() or {}
+    new_status = data.get('status')
+    valid_statuses = ('applied', 'screening', 'interview', 'offered', 'rejected', 'withdrawn')
+    if new_status not in valid_statuses:
+        return jsonify({'success': False, 'error': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'}), 400
+
+    history = application.get('status_history', [])
+    history.append({
+        'status': new_status,
+        'changed_at': datetime.utcnow().isoformat(),
+        'changed_by': g.current_user_id,
+    })
+
+    db_service.applications.update_one(
+        {'_id': application['_id']},
+        {'$set': {'status': new_status, 'status_history': history, 'notes': data.get('notes', application.get('notes', '')), 'updated_at': datetime.utcnow()}}
+    )
+    return jsonify({'success': True, 'status': new_status})
+
+
+@app.route('/api/applications/<app_id>/interview', methods=['POST'])
+@require_company
+def schedule_interview(app_id):
+    """Schedule an interview for an application."""
+    application = _find_application(app_id)
+    if not application:
+        return jsonify({'success': False, 'error': 'Application not found'}), 404
+
+    data = request.get_json() or {}
+    slot = {
+        'date': data.get('date'),
+        'time': data.get('time'),
+        'link': data.get('link', ''),
+    }
+
+    history = application.get('status_history', [])
+    history.append({
+        'status': 'interview',
+        'changed_at': datetime.utcnow().isoformat(),
+        'changed_by': g.current_user_id,
+    })
+
+    db_service.applications.update_one(
+        {'_id': application['_id']},
+        {'$set': {'status': 'interview', 'interview_slot': slot, 'status_history': history, 'updated_at': datetime.utcnow()}}
+    )
+    return jsonify({'success': True, 'interview_slot': slot})
+
+
+# ── Admin Company Management ──
+
+@app.route('/api/admin/companies', methods=['GET'])
+@require_admin
+def list_companies():
+    """List all company profiles (admin)."""
+    companies = list(db_service.companies.find({}))
+    result = []
+    for c in companies:
+        doc = serialize_doc(c)
+        doc['job_count'] = db_service.jobs.count_documents({'company_id': doc.get('_id') or doc.get('id')})
+        user = db_service.get_user(c.get('user_id'))
+        doc['email'] = user.get('email', '') if user else ''
+        result.append(doc)
+    return jsonify({'success': True, 'companies': result})
+
+
+@app.route('/api/admin/companies/<company_id>/verify', methods=['PATCH'])
+@require_admin
+def verify_company(company_id):
+    """Verify/unverify a company."""
+    company = _find_company(company_id)
+    if not company:
+        return jsonify({'success': False, 'error': 'Company not found'}), 404
+    new_status = not company.get('verified', False)
+    db_service.companies.update_one(
+        {'_id': company['_id']},
+        {'$set': {'verified': new_status, 'updated_at': datetime.utcnow()}}
+    )
+    return jsonify({'success': True, 'verified': new_status})
+
+
+@app.route('/api/admin/job-stats', methods=['GET'])
+@require_admin
+def admin_job_stats():
+    """Platform-wide job analytics."""
+    total_jobs = db_service.jobs.count_documents({})
+    active_jobs = db_service.jobs.count_documents({'is_active': True})
+    total_applications = db_service.applications.count_documents({})
+    total_companies = db_service.companies.count_documents({})
+    return jsonify({
+        'success': True,
+        'stats': {
+            'total_jobs': total_jobs,
+            'active_jobs': active_jobs,
+            'inactive_jobs': total_jobs - active_jobs,
+            'total_applications': total_applications,
+            'total_companies': total_companies,
+        }
+    })
+
+
+def _find_company(company_id):
+    """Helper to find a company by ID."""
+    if not company_id:
+        return None
+    try:
+        oid = ObjectId(company_id)
+        result = db_service.companies.find_one({'_id': oid})
+        if result:
+            return result
+    except Exception:
+        pass
+    return db_service.companies.find_one({'_id': company_id})
+
+
+def _find_job(job_id):
+    """Helper to find a job by ID."""
+    if not job_id:
+        return None
+    try:
+        oid = ObjectId(job_id)
+        result = db_service.jobs.find_one({'_id': oid})
+        if result:
+            return result
+    except Exception:
+        pass
+    return db_service.jobs.find_one({'_id': job_id})
+
+
+def _find_application(app_id):
+    """Helper to find an application by ID."""
+    if not app_id:
+        return None
+    try:
+        oid = ObjectId(app_id)
+        result = db_service.applications.find_one({'_id': oid})
+        if result:
+            return result
+    except Exception:
+        pass
+    return db_service.applications.find_one({'_id': app_id})
 
 
 # ──────────── MAIN ────────────
