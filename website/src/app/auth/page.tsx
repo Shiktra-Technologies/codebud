@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
-import { ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
+import { ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, ChevronLeft, Shield } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { FloatingHex } from "@/app/components/ui/floating-hex";
 
@@ -39,7 +39,7 @@ function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
 
 export default function AuthPage() {
     const router = useRouter();
-    const { user, login, signup, testLogin, loading: authLoading, USER_ROLES } = useAuth();
+    const { user, login, signup, testLogin, superAdminLogin, loading: authLoading, USER_ROLES } = useAuth();
     const [isLoginMode, setIsLoginMode] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -48,6 +48,8 @@ export default function AuthPage() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showSuperAdmin, setShowSuperAdmin] = useState(false);
+    const [secretCode, setSecretCode] = useState("");
 
     // Redirect if already logged in (role-aware)
     React.useEffect(() => {
@@ -55,6 +57,20 @@ export default function AuthPage() {
             redirectByRole(router, (user as any)?.role || "student");
         }
     }, [user, router]);
+
+    // ── Ctrl+Shift+S → toggle super admin secret code panel ──
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "s") {
+                e.preventDefault();
+                setShowSuperAdmin((prev) => !prev);
+                setError("");
+                setSecretCode("");
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, []);
 
     // ── Sign In ── (no role sent → server auto-detects from DB)
     const handleLogin = async (e: React.FormEvent) => {
@@ -104,6 +120,24 @@ export default function AuthPage() {
             }
         } catch (err: any) {
             setError(err?.message || "Failed to create account");
+        }
+        setLoading(false);
+    };
+
+    // ── Super Admin login ──
+    const handleSuperAdminLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+            const result = await superAdminLogin(secretCode);
+            if (result.success) {
+                router.push("/super-admin");
+            } else {
+                throw new Error("Super admin login failed");
+            }
+        } catch (err: any) {
+            setError(err?.message || "Invalid secret code");
         }
         setLoading(false);
     };
@@ -364,7 +398,7 @@ export default function AuthPage() {
                         </form>
 
                         {/* Hint for mentors/admins */}
-                        {isLoginMode && (
+                        {isLoginMode && !showSuperAdmin && (
                             <motion.p
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -375,6 +409,51 @@ export default function AuthPage() {
                                 <span className="text-white/30">Sign in with the credentials your admin provided.</span>
                             </motion.p>
                         )}
+
+                        {/* Super Admin Secret Code Panel (Ctrl+Shift+S) */}
+                        <AnimatePresence>
+                            {showSuperAdmin && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-6 pt-6 border-t border-red-500/20 overflow-hidden"
+                                >
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Shield size={14} className="text-red-400" />
+                                        <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Super Admin Access</span>
+                                    </div>
+                                    <form onSubmit={handleSuperAdminLogin} className="space-y-3">
+                                        <div className="relative">
+                                            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400/40" />
+                                            <input
+                                                type="password"
+                                                placeholder="Enter secret code"
+                                                value={secretCode}
+                                                onChange={(e) => setSecretCode(e.target.value)}
+                                                required
+                                                autoFocus
+                                                className="w-full bg-red-500/5 border border-red-500/20 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-red-400/25 focus:outline-none focus:border-red-400/40 focus:ring-1 focus:ring-red-400/20 transition-all duration-200"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={loading || !secretCode}
+                                            className="w-full bg-red-500/20 text-red-400 py-3 rounded-xl font-semibold text-sm border border-red-500/20 hover:bg-red-500/30 hover:border-red-400/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        >
+                                            {loading ? (
+                                                <><Loader2 size={14} className="animate-spin" /> Authenticating...</>
+                                            ) : (
+                                                <><Shield size={14} /> Access Super Admin</>
+                                            )}
+                                        </button>
+                                    </form>
+                                    <p className="text-[10px] text-red-400/30 text-center mt-3">
+                                        Press Ctrl+Shift+S to close
+                                    </p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Quick test access */}
                         {isLoginMode && (
