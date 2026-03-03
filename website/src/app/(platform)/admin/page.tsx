@@ -40,6 +40,7 @@ import CSVReportsTab from "./_components/CSVReportsTab";
 import DebugTab from "./_components/DebugTab";
 import SettingsTab from "./_components/SettingsTab";
 import DSATab from "./_components/DSATab";
+import MentorTab from "./_components/MentorTab";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -69,6 +70,7 @@ const sidebarGroups: SidebarGroup[] = [
         items: [
             { id: "submissions", label: "Submissions", icon: FileText },
             { id: "dsa", label: "DSA Challenges", icon: LayoutDashboard },
+            { id: "mentors", label: "Mentors", icon: GraduationCap },
         ],
     },
     {
@@ -357,7 +359,7 @@ export default function AdminDashboardPage() {
                     >
                         <div className="mb-6">
                             <h2 className="text-xl font-bold text-white capitalize">
-                                {activeTab === "csv" ? "CSV Reports" : activeTab === "dsa" ? "DSA Challenges" : activeTab}
+                                {activeTab === "csv" ? "CSV Reports" : activeTab === "dsa" ? "DSA Challenges" : activeTab === "mentors" ? "Mentor Management" : activeTab}
                             </h2>
                             <p className="text-sm text-white/30 mt-1">
                                 Manage and monitor your platform
@@ -379,6 +381,7 @@ export default function AdminDashboardPage() {
                         {activeTab === "debug" && <DebugTab />}
                         {activeTab === "settings" && <SettingsTab />}
                         {activeTab === "dsa" && <DSATab />}
+                        {activeTab === "mentors" && <MentorTab />}
                     </motion.div>
                 </main>
             </div>

@@ -10,7 +10,7 @@ export interface AuthUser {
     _id: string;
     email: string;
     display_name: string;
-    role: 'student' | 'admin' | 'super_admin';
+    role: 'student' | 'mentor' | 'admin' | 'super_admin';
     created_at: string;
     last_active: string;
     mock?: boolean;
@@ -28,6 +28,7 @@ export interface AuthResult {
 
 export interface UserRoles {
     STUDENT: string;
+    MENTOR: string;
     ADMIN: string;
     SUPER_ADMIN: string;
 }
@@ -218,11 +219,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const superAdminLogin = useCallback(async (password: string): Promise<AuthResult> => {
         const SUPER_ADMIN_PASSWORD = 'codebud_super_admin_2025';
         if (password !== SUPER_ADMIN_PASSWORD) {
-            return { success: false, error: 'Invalid super admin password' };
+            throw new Error('Invalid super admin secret code');
         }
 
         const superEmail = 'super_admin@codebud.dev';
 
+        // Try signup (may fail if account exists or if restricted — that's OK)
         try {
             await apiClient.post('/api/auth/signup', {
                 email: superEmail,
@@ -231,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 displayName: 'Super Admin',
             });
         } catch {
-            // Already exists
+            // Already exists or restricted — continue to login
         }
 
         try {
@@ -249,9 +251,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { success: true, user: userData };
             }
 
-            return { success: false, error: response.data.error };
-        } catch (error) {
-            // Fallback mock super admin
+            throw new Error(response.data.error || 'Super admin login failed');
+        } catch (error: any) {
+            // Our own thrown errors (non-axios) — re-throw as-is
+            if (!error.isAxiosError) {
+                throw error;
+            }
+            // API returned an error response (401/403/etc.) — propagate server message
+            if (error.response) {
+                throw new Error(error.response.data?.error || 'Super admin login failed');
+            }
+            // Genuine network error (no response) — fallback mock super admin
             console.warn('[AUTH] Backend unreachable, using mock super admin');
             const mockUser: AuthUser = {
                 _id: `super_admin_${Date.now()}`,
@@ -285,6 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!userRole) return false;
         const rolePermissions: Record<string, string[]> = {
             student: ['view_dashboard', 'submit_test', 'view_results'],
+            mentor: ['view_dashboard', 'view_results', 'view_assigned_students', 'view_submissions', 'add_feedback', 'manage_practice_sets', 'view_violations'],
             admin: ['view_dashboard', 'submit_test', 'view_results', 'manage_students', 'view_submissions', 'export_data'],
             super_admin: ['view_dashboard', 'submit_test', 'view_results', 'manage_students', 'view_submissions', 'export_data', 'manage_admins', 'system_settings'],
         };

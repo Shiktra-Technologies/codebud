@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
  * BEFORE any page code or React renders.
  *
  * Protected route groups:
+ *   /mentor/*       → requires valid JWT with role mentor, admin, or super_admin
  *   /admin/*        → requires valid JWT with role admin or super_admin
  *   /super-admin/*  → requires valid JWT with role super_admin
  *   /dashboard/*    → requires valid JWT (any role)
@@ -88,6 +89,17 @@ export function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
         }
         if (role !== "admin" && role !== "super_admin") {
+            return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+        return NextResponse.next();
+    }
+
+    // Mentor routes
+    if (pathname.startsWith("/mentor")) {
+        if (!isValid) {
+            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
+        }
+        if (role !== "mentor" && role !== "admin" && role !== "super_admin") {
             return NextResponse.redirect(new URL("/dashboard", request.url));
         }
         return NextResponse.next();
