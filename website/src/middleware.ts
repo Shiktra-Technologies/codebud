@@ -127,6 +127,14 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
+    // Onboarding route — requires auth; accessible by students (both new and returning to edit)
+    if (pathname.startsWith("/onboarding")) {
+        if (!isValid) {
+            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
+        }
+        return NextResponse.next();
+    }
+
     // Authenticated-only routes (any role)
     if (
         pathname.startsWith("/dashboard") ||
@@ -139,6 +147,10 @@ export function middleware(request: NextRequest) {
     ) {
         if (!isValid) {
             return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
+        }
+        // Students who haven't completed onboarding → force onboarding
+        if (role === "student" && payload?.onboarding_completed === false) {
+            return NextResponse.redirect(new URL("/onboarding", request.url));
         }
         return NextResponse.next();
     }

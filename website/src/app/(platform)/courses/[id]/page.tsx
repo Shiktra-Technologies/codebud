@@ -33,7 +33,9 @@ import {
     Loader2,
     Send,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import dynamic from "next/dynamic";
+
+const ReactMarkdown = dynamic(() => import("react-markdown"), { ssr: false, loading: () => <div className="animate-pulse h-20 bg-white/5 rounded-lg" /> });
 
 const ease = [0.16, 1, 0.3, 1] as const;
 

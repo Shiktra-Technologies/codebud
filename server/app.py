@@ -61,6 +61,7 @@ def generate_token(user):
         'user_id': str(user['_id']),
         'email': user['email'],
         'role': user.get('role', 'student'),
+        'onboarding_completed': user.get('onboarding_completed', True),
         'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
         'iat': datetime.utcnow()
     }
@@ -2101,6 +2102,269 @@ def _find_application(app_id):
     except Exception:
         pass
     return db_service.applications.find_one({'_id': app_id})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#                    ONBOARDING & PLATFORM CONFIG API
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Default seed data for platform_config ──
+_DEFAULT_PLATFORM_CONFIG = {
+    'colleges': [
+        'VIT University', 'SRM Institute', 'BITS Pilani', 'NIT Trichy',
+        'IIT Bombay', 'IIT Delhi', 'IIT Madras', 'IIIT Hyderabad',
+        'DTU Delhi', 'NSUT Delhi', 'PES University', 'RV College',
+        'MIT Manipal', 'Amity University', 'LPU Punjab',
+    ],
+    'degrees': [
+        'B.Tech', 'B.E.', 'B.Sc', 'BCA', 'MCA', 'M.Tech', 'M.Sc',
+        'B.Com', 'BBA', 'MBA', 'Ph.D', 'Diploma',
+    ],
+    'branches': [
+        'Computer Science (CSE)', 'Information Technology (IT)',
+        'Electronics & Communication (ECE)', 'Electrical (EEE)',
+        'Mechanical', 'Civil', 'Chemical', 'Biotechnology',
+        'Data Science', 'Artificial Intelligence', 'Cyber Security',
+    ],
+    'programming_languages': [
+        'Python', 'JavaScript', 'Java', 'C++', 'C', 'TypeScript',
+        'Go', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'C#',
+        'Dart', 'R', 'SQL',
+    ],
+    'frameworks': [
+        'React', 'Next.js', 'Angular', 'Vue.js', 'Node.js', 'Express',
+        'Django', 'Flask', 'FastAPI', 'Spring Boot', 'Laravel',
+        'Flutter', 'React Native', 'TensorFlow', 'PyTorch',
+        'Docker', 'Kubernetes', 'AWS', 'Firebase', 'MongoDB',
+        'PostgreSQL', 'Redis', 'GraphQL', 'Tailwind CSS',
+    ],
+    'interest_topics': [
+        'Data Structures & Algorithms', 'Web Development', 'Mobile Development',
+        'Machine Learning / AI', 'Cloud Computing', 'DevOps & CI/CD',
+        'Cyber Security', 'Blockchain', 'Game Development',
+        'Competitive Programming', 'System Design', 'Open Source',
+        'UI/UX Design', 'Data Engineering', 'IoT',
+    ],
+    'career_goals': [
+        'Placements / Full-time Job', 'Internship', 'Upskilling',
+        'Competitive Programming', 'Higher Studies / Research',
+        'Freelancing', 'Startup / Entrepreneurship', 'Teaching / Mentoring',
+    ],
+    'job_roles': [
+        'Frontend Developer', 'Backend Developer', 'Full Stack Developer',
+        'Mobile App Developer', 'DevOps Engineer', 'Data Scientist',
+        'ML Engineer', 'Cloud Architect', 'Security Engineer',
+        'QA / Test Engineer', 'Product Manager', 'UI/UX Designer',
+        'Data Analyst', 'Blockchain Developer', 'Game Developer',
+    ],
+    'dream_companies': [
+        'Google', 'Microsoft', 'Amazon', 'Apple', 'Meta',
+        'Netflix', 'Uber', 'Flipkart', 'Razorpay', 'Zerodha',
+        'Adobe', 'Oracle', 'Salesforce', 'Goldman Sachs', 'Morgan Stanley',
+        'Atlassian', 'Stripe', 'Swiggy', 'PhonePe', 'CRED',
+    ],
+}
+
+
+def _seed_platform_config():
+    """Seed platform_config collection with defaults if empty."""
+    for category, values in _DEFAULT_PLATFORM_CONFIG.items():
+        existing = db_service.platform_config.find_one({'category': category})
+        if not existing:
+            db_service.platform_config.insert_one({
+                'category': category,
+                'values': [{'label': v, 'active': True} for v in values],
+                'updated_at': datetime.utcnow(),
+            })
+    print("[INFO] Platform config seeded")
+
+
+# Seed on startup
+_seed_platform_config()
+
+
+# ── GET /api/onboarding/config — Fetch all dropdown options for onboarding ──
+@app.route('/api/onboarding/config', methods=['GET'])
+@require_auth
+def get_onboarding_config():
+    """Return all platform_config categories (only active values)."""
+    docs = list(db_service.platform_config.find({}))
+    config = {}
+    for doc in docs:
+        config[doc['category']] = [
+            v['label'] for v in doc.get('values', []) if v.get('active', True)
+        ]
+    return jsonify({'success': True, 'config': config})
+
+
+# ── POST /api/onboarding/complete — Save all onboarding data ──
+@app.route('/api/onboarding/complete', methods=['POST'])
+@require_auth
+def complete_onboarding():
+    """Save onboarding data, mark user as onboarded, return fresh token."""
+    data = request.get_json() or {}
+
+    profile = data.get('profile', {})
+    education = data.get('education', {})
+    skills = data.get('skills', {})
+    career = data.get('career', {})
+
+    # Validate minimum required fields
+    if not profile.get('display_name', '').strip():
+        return jsonify({'success': False, 'error': 'Display name is required'}), 400
+    if not education.get('college', '').strip():
+        return jsonify({'success': False, 'error': 'College is required'}), 400
+    if not education.get('status', '').strip():
+        return jsonify({'success': False, 'error': 'Current status is required'}), 400
+
+    updates = {
+        'display_name': profile['display_name'].strip(),
+        'onboarding_completed': True,
+        'onboarding_completed_at': datetime.utcnow(),
+        'profile': {
+            'phone': profile.get('phone', ''),
+            'dob': profile.get('dob', ''),
+            'gender': profile.get('gender', ''),
+            'city': profile.get('city', ''),
+            'bio': profile.get('bio', ''),
+            'linkedin': profile.get('linkedin', ''),
+            'github': profile.get('github', ''),
+            'portfolio': profile.get('portfolio', ''),
+        },
+        'education': {
+            'status': education.get('status', ''),
+            'college': education.get('college', ''),
+            'degree': education.get('degree', ''),
+            'branch': education.get('branch', ''),
+            'year': education.get('year', ''),
+            'graduation_year': education.get('graduation_year', ''),
+            'cgpa': education.get('cgpa', ''),
+        },
+        'skills': {
+            'languages': skills.get('languages', []),
+            'frameworks': skills.get('frameworks', []),
+            'interests': skills.get('interests', []),
+        },
+        'career': {
+            'goals': career.get('goals', []),
+            'dream_companies': career.get('dream_companies', []),
+            'preferred_roles': career.get('preferred_roles', []),
+            'weekly_hours': career.get('weekly_hours', ''),
+        },
+        'updated_at': datetime.utcnow(),
+    }
+
+    success = db_service.update_user(g.current_user_id, updates)
+    if not success:
+        return jsonify({'success': False, 'error': 'Failed to save onboarding data'}), 500
+
+    # Return a fresh token with onboarding_completed = True
+    user = db_service.get_user(g.current_user_id)
+    new_token = generate_token(user)
+    print(f"[INFO] Onboarding completed for user {g.current_user_id}")
+    return jsonify({'success': True, 'token': new_token, 'user': serialize_user(user)})
+
+
+# ── GET /api/onboarding/data — Get current onboarding data for editing ──
+@app.route('/api/onboarding/data', methods=['GET'])
+@require_auth
+def get_onboarding_data():
+    """Return the current user's onboarding data (for profile editing)."""
+    user = db_service.get_user(g.current_user_id)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    return jsonify({
+        'success': True,
+        'onboarding_completed': user.get('onboarding_completed', False),
+        'data': {
+            'profile': {
+                'display_name': user.get('display_name', ''),
+                'phone': (user.get('profile') or {}).get('phone', ''),
+                'dob': (user.get('profile') or {}).get('dob', ''),
+                'gender': (user.get('profile') or {}).get('gender', ''),
+                'city': (user.get('profile') or {}).get('city', ''),
+                'bio': (user.get('profile') or {}).get('bio', ''),
+                'linkedin': (user.get('profile') or {}).get('linkedin', ''),
+                'github': (user.get('profile') or {}).get('github', ''),
+                'portfolio': (user.get('profile') or {}).get('portfolio', ''),
+            },
+            'education': user.get('education', {}),
+            'skills': user.get('skills', {}),
+            'career': user.get('career', {}),
+        }
+    })
+
+
+# ── Super Admin: Platform Config CRUD ──
+
+@app.route('/api/super-admin/platform-config', methods=['GET'])
+@require_super_admin
+def get_all_platform_config():
+    """Get all config categories for the admin editor."""
+    docs = list(db_service.platform_config.find({}))
+    result = []
+    for doc in docs:
+        result.append({
+            '_id': str(doc.get('_id', '')),
+            'category': doc['category'],
+            'values': doc.get('values', []),
+            'updated_at': doc.get('updated_at', ''),
+        })
+    return jsonify({'success': True, 'configs': result})
+
+
+@app.route('/api/super-admin/platform-config/<category>', methods=['PUT'])
+@require_super_admin
+def update_platform_config(category):
+    """Update a config category's values."""
+    data = request.get_json() or {}
+    values = data.get('values', [])
+    if not isinstance(values, list):
+        return jsonify({'success': False, 'error': 'values must be a list'}), 400
+
+    # Normalize: each item should be { label: str, active: bool }
+    normalized = []
+    for v in values:
+        if isinstance(v, str):
+            normalized.append({'label': v, 'active': True})
+        elif isinstance(v, dict) and 'label' in v:
+            normalized.append({'label': v['label'], 'active': v.get('active', True)})
+
+    existing = db_service.platform_config.find_one({'category': category})
+    if existing:
+        db_service.platform_config.update_one(
+            {'category': category},
+            {'$set': {'values': normalized, 'updated_at': datetime.utcnow(), 'updated_by': g.current_user_id}}
+        )
+    else:
+        db_service.platform_config.insert_one({
+            'category': category,
+            'values': normalized,
+            'updated_at': datetime.utcnow(),
+            'updated_by': g.current_user_id,
+        })
+    print(f"[INFO] Platform config '{category}' updated by {g.current_user_id}")
+    return jsonify({'success': True})
+
+
+# ── Super Admin: Reset student onboarding ──
+@app.route('/api/super-admin/users/<user_id>/reset-onboarding', methods=['POST'])
+@require_super_admin
+def reset_student_onboarding(user_id):
+    """Reset a student's onboarding so they have to redo it."""
+    user = db_service.get_user(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    if user.get('role') != 'student':
+        return jsonify({'success': False, 'error': 'Only student onboarding can be reset'}), 400
+
+    db_service.update_user(user_id, {
+        'onboarding_completed': False,
+        'onboarding_reset_at': datetime.utcnow(),
+        'onboarding_reset_by': g.current_user_id,
+    })
+    print(f"[INFO] Onboarding reset for user {user_id} by {g.current_user_id}")
+    return jsonify({'success': True, 'message': 'Onboarding reset successfully'})
 
 
 # ──────────── MAIN ────────────

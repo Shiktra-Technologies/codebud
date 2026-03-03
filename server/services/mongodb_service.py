@@ -66,6 +66,8 @@ class MongoDBService:
             self.db.applications.create_index([('job_id', 1), ('student_id', 1)], unique=True)
             self.db.applications.create_index('student_id')
             self.db.applications.create_index('company_id')
+            # Platform config
+            self.db.platform_config.create_index('category', unique=True)
         except Exception as e:
             print(f"[WARNING] Index creation issue: {e}")
 
@@ -86,6 +88,7 @@ class MongoDBService:
             'companies': [],
             'jobs': [],
             'applications': [],
+            'platform_config': [],
         }
         # Persistent counters for auto-increment IDs
         self._mock_counters = {}
@@ -193,6 +196,12 @@ class MongoDBService:
             return self.db.applications
         return MockCollection('applications', self.mock_data, self._mock_counters)
 
+    @property
+    def platform_config(self):
+        if self.db is not None:
+            return self.db.platform_config
+        return MockCollection('platform_config', self.mock_data, self._mock_counters)
+
     # ──────────── AUTH ────────────
 
     def hash_password(self, password):
@@ -213,6 +222,7 @@ class MongoDBService:
             'password_hash': self.hash_password(password),
             'display_name': display_name or email.split('@')[0],
             'role': role,
+            'onboarding_completed': False if role == 'student' else True,
             'created_at': datetime.utcnow(),
             'last_active': datetime.utcnow()
         }
