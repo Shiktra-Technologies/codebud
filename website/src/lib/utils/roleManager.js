@@ -7,6 +7,7 @@ import apiClient from '../apiClient';
 
 export const USER_ROLES = {
   STUDENT: 'student',
+  MENTOR: 'mentor',
   ADMIN: 'admin',
   SUPER_ADMIN: 'super_admin'
 };
@@ -18,6 +19,21 @@ export const ROLE_PERMISSIONS = {
     canAccessDashboard: true,
     canViewProblems: true,
     canSubmitSolutions: true
+  },
+  [USER_ROLES.MENTOR]: {
+    canTakeTests: false,
+    canViewOwnResults: false,
+    canAccessDashboard: true,
+    canViewProblems: true,
+    canSubmitSolutions: false,
+    canViewStudents: true,       // assigned students only
+    canViewAllResults: false,
+    canManageTests: false,
+    canGenerateReports: false,
+    canViewSubmissions: true,    // assigned students only
+    canAddFeedback: true,
+    canManagePracticeSets: true,
+    canViewViolations: true,     // assigned students only
   },
   [USER_ROLES.ADMIN]: {
     canTakeTests: false,

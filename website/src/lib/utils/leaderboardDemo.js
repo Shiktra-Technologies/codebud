@@ -90,7 +90,7 @@ export const generateMultipleSubmissions = async (count = 3) => {
 /**
  * Clear all demo data
  */
-export const clearDemoData = () => {
+export const clearDemoData = async () => {
   try {
     // Remove demo submissions from localStorage
     const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
@@ -101,7 +101,7 @@ export const clearDemoData = () => {
     localStorage.setItem('all_submissions', JSON.stringify(filteredSubmissions));
 
     // Refresh leaderboard
-    leaderboardService.refreshLeaderboard();
+    await leaderboardService.refreshLeaderboard();
 
     console.log('🧹 Demo data cleared');
     return { success: true, removed: allSubmissions.length - filteredSubmissions.length };
@@ -114,8 +114,8 @@ export const clearDemoData = () => {
 /**
  * Get current leaderboard status
  */
-export const getLeaderboardStatus = () => {
-  const leaderboard = leaderboardService.getLeaderboard();
+export const getLeaderboardStatus = async () => {
+  const leaderboard = await leaderboardService.getLeaderboard();
   const submissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
 
   return {

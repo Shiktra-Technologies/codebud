@@ -22,8 +22,6 @@ import {
     Target,
     ArrowRight,
     MapPin,
-    DollarSign,
-    Bookmark,
     Award,
     BarChart3,
     RefreshCw,
@@ -31,7 +29,6 @@ import {
     ArrowUpRight,
     Clock,
 } from "lucide-react";
-import jobService from "@/lib/services/jobService";
 import leaderboardService from "@/lib/services/leaderboardService";
 import { getUserSubmissions } from "@/lib/services/submissionService";
 
@@ -67,18 +64,6 @@ interface LeaderboardEntry {
     averageScore?: number | string;
     lastSubmission?: string;
     rank?: number;
-    [key: string]: unknown;
-}
-
-interface Job {
-    id: string;
-    company: string;
-    position: string;
-    location: string;
-    type: string;
-    salary: string;
-    description?: string;
-    postedDate?: string;
     [key: string]: unknown;
 }
 
@@ -120,7 +105,6 @@ export default function DashboardPage() {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [userRank, setUserRank] = useState<any>(null);
-    const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -172,26 +156,19 @@ export default function DashboardPage() {
 
                 // Fetch leaderboard
                 try {
-                    const lb = leaderboardService.getTopUsers(10);
+                    const lb = await leaderboardService.getTopUsers(10);
                     setLeaderboard(lb || []);
                     const uid =
                         (user as any)?._id || (user as any)?.id || "";
                     if (uid) {
-                        const rank = leaderboardService.getUserRank(uid);
+                        const rank = await leaderboardService.getUserRank(uid);
                         setUserRank(rank);
                     }
                 } catch {
                     setLeaderboard([]);
                 }
 
-                // Fetch jobs
-                try {
-                    jobService.initializeSampleData();
-                    const jobList = jobService.getJobPostings();
-                    setJobs(jobList || []);
-                } catch {
-                    setJobs([]);
-                }
+
             } finally {
                 setLoading(false);
                 setRefreshing(false);
@@ -619,12 +596,7 @@ export default function DashboardPage() {
 
                         {/* ── Jobs Tab ────────────────────────────────────── */}
                         {activeTab === "jobs" && (
-                            <JobsTab
-                                jobs={jobs}
-                                user={user}
-                                displayName={displayName}
-                                email={email}
-                            />
+                            <JobsTab />
                         )}
                     </AnimatePresence>
                 </div>
@@ -948,41 +920,36 @@ function OverviewTab({
 // ─── Courses Tab ──────────────────────────────────────────────────────────────
 
 function CoursesTab() {
-    const courses = [
-        {
-            id: 1,
-            title: "JavaScript Fundamentals",
-            instructor: "John Doe",
-            progress: 75,
-            totalLessons: 12,
-            completedLessons: 9,
-            rating: 4.8,
-            thumbnail: "🟨",
-            color: "yellow",
-        },
-        {
-            id: 2,
-            title: "Data Structures & Algorithms",
-            instructor: "Jane Smith",
-            progress: 45,
-            totalLessons: 20,
-            completedLessons: 9,
-            rating: 4.9,
-            thumbnail: "🟦",
-            color: "blue",
-        },
-        {
-            id: 3,
-            title: "React Development",
-            instructor: "Mike Johnson",
-            progress: 30,
-            totalLessons: 15,
-            completedLessons: 4,
-            rating: 4.7,
-            thumbnail: "🟪",
-            color: "purple",
-        },
-    ];
+    const [enrollments, setEnrollments] = React.useState<any[]>([]);
+    const [courseMap, setCourseMap] = React.useState<Record<string, any>>({});
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const { getMyEnrollments } = await import("@/lib/services/courseService");
+                const { listCourses } = await import("@/lib/services/courseService");
+                const [enrollRes, coursesRes] = await Promise.all([
+                    getMyEnrollments().catch(() => ({ success: false, enrollments: [] })),
+                    listCourses().catch(() => ({ success: false, courses: [] })),
+                ]);
+                if (enrollRes.success) setEnrollments(enrollRes.enrollments || []);
+                const map: Record<string, any> = {};
+                (coursesRes.courses || []).forEach((c: any) => { map[c._id] = c; });
+                setCourseMap(map);
+            } catch {}
+            setLoading(false);
+        })();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="py-16 text-center">
+                <div className="w-6 h-6 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-xs text-white/20">Loading courses...</p>
+            </div>
+        );
+    }
 
     return (
         <motion.div
@@ -992,94 +959,71 @@ function CoursesTab() {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.3, ease }}
         >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {courses.map((course, i) => (
-                    <motion.div
-                        key={course.id}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{
-                            duration: 0.3,
-                            delay: i * 0.08,
-                            ease,
-                        }}
-                        className="group relative bg-surface-2/50 backdrop-blur-sm rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.12] transition-all duration-300"
-                    >
-                        {/* Hover gradient overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        
-                        <div className="relative p-6 space-y-5">
-                            {/* Course Header */}
-                            <div className="flex items-start gap-4">
-                                <div className="w-14 h-14 rounded-xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center text-3xl flex-shrink-0">
-                                    {course.thumbnail}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-lg font-bold text-white mb-1.5 truncate">
-                                        {course.title}
-                                    </h3>
-                                    <p className="text-xs font-medium text-white/40">
-                                        by {course.instructor}
-                                    </p>
-                                    <div className="flex items-center gap-1.5 mt-2">
-                                        <Star
-                                            size={14}
-                                            className="fill-yellow-400 text-yellow-400"
-                                        />
-                                        <span className="text-sm font-semibold text-yellow-400">
-                                            {course.rating}
-                                        </span>
-                                        <span className="text-xs text-white/25 ml-1">
-                                            ({course.totalLessons} lessons)
-                                        </span>
+            {enrollments.length > 0 && (
+                <>
+                    <h3 className="text-sm font-bold text-white mb-4">My Enrolled Courses</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        {enrollments.map((enrollment: any, i: number) => {
+                            const course = courseMap[enrollment.course_id];
+                            const title = course?.title || enrollment.course_id;
+                            const totalLessons = course?.sections?.reduce((a: number, s: any) => a + (s.lessons?.length || 0), 0) || 0;
+                            const completedCount = enrollment.completed_lessons?.length || 0;
+                            const pct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+                            return (
+                                <motion.div
+                                    key={enrollment._id || enrollment.course_id}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.3, delay: i * 0.08, ease }}
+                                    className="group relative bg-surface-2/50 backdrop-blur-sm rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.12] transition-all duration-300"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <div className="relative p-6 space-y-5">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-14 h-14 rounded-xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center flex-shrink-0">
+                                                <BookOpen size={24} className="text-yellow-400" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-lg font-bold text-white mb-1.5 truncate">{title}</h3>
+                                                <p className="text-xs font-medium text-white/40">
+                                                    {course?.instructor_name || "Instructor"}
+                                                </p>
+                                                {course?.avg_rating > 0 && (
+                                                    <div className="flex items-center gap-1.5 mt-2">
+                                                        <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                                                        <span className="text-sm font-semibold text-yellow-400">{course.avg_rating}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2.5">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-medium text-white/40">Course Progress</span>
+                                                <span className="text-xs font-bold text-yellow-400">{pct}%</span>
+                                            </div>
+                                            <div className="h-2 bg-surface-3/60 rounded-full overflow-hidden border border-white/[0.04]">
+                                                <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: i * 0.1 + 0.3, ease }}
+                                                    className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 relative">
+                                                    <div className="absolute inset-0 bg-white/20" />
+                                                </motion.div>
+                                            </div>
+                                            <p className="text-xs text-white/30">{completedCount} of {totalLessons} lessons completed</p>
+                                        </div>
+                                        <Link href={`/courses/${enrollment.course_id}`}
+                                            className="w-full flex items-center justify-center gap-2 py-3 bg-yellow-400 text-surface-0 rounded-xl text-sm font-bold hover:bg-yellow-300 transition-all shadow-[0_0_20px_rgba(255,193,7,0.15)]">
+                                            Continue Learning <ArrowRight size={16} />
+                                        </Link>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Progress Section */}
-                            <div className="space-y-2.5">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-medium text-white/40">
-                                        Course Progress
-                                    </span>
-                                    <span className="text-xs font-bold text-yellow-400">
-                                        {course.progress}%
-                                    </span>
-                                </div>
-                                
-                                {/* Progress Bar */}
-                                <div className="h-2 bg-surface-3/60 rounded-full overflow-hidden border border-white/[0.04]">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${course.progress}%` }}
-                                        transition={{
-                                            duration: 0.8,
-                                            delay: i * 0.1 + 0.3,
-                                            ease,
-                                        }}
-                                        className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 relative"
-                                    >
-                                        <div className="absolute inset-0 bg-white/20" />
-                                    </motion.div>
-                                </div>
-                                
-                                <p className="text-xs text-white/30">
-                                    {course.completedLessons} of {course.totalLessons} lessons completed
-                                </p>
-                            </div>
-
-                            {/* Continue Button */}
-                            <button className="w-full flex items-center justify-center gap-2 py-3 bg-yellow-400 text-surface-0 rounded-xl text-sm font-bold hover:bg-yellow-300 transition-all shadow-[0_0_20px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_25px_rgba(255,193,7,0.25)]">
-                                Continue Learning
-                                <ArrowRight 
-                                    size={16} 
-                                    className="group-hover:translate-x-1 transition-transform" 
-                                />
-                            </button>
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </>
+            )}
+            <Link href="/courses"
+                className="flex items-center justify-center gap-2 w-full py-4 bg-surface-2/50 rounded-xl border border-white/[0.06] text-sm font-semibold text-white/40 hover:text-yellow-400 hover:border-yellow-400/20 transition-all">
+                Browse All Courses <ArrowRight size={14} />
+            </Link>
         </motion.div>
     );
 }
@@ -1423,57 +1367,37 @@ function LeaderboardTab({
 
 // ─── Jobs Tab ─────────────────────────────────────────────────────────────────
 
-function JobsTab({
-    jobs,
-    user,
-    displayName,
-    email,
-}: {
-    jobs: Job[];
-    user: any;
-    displayName: string;
-    email: string;
-}) {
-    // Get current user ID
-    const userId = (user as any)?._id || (user as any)?.id || "";
-    
-    // Pre-compute which jobs the user has applied to
-    const appliedJobIds = React.useMemo(() => {
-        if (!userId) return new Set<string>();
-        return new Set(
-            jobs
-                .filter(job => jobService.hasAppliedToJob(job.id, userId))
-                .map(job => job.id)
+function JobsTab() {
+    const [jobs, setJobs] = React.useState<any[]>([]);
+    const [myApps, setMyApps] = React.useState<any[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const { listJobs } = await import("@/lib/services/newJobService");
+                const { getMyApplications } = await import("@/lib/services/applicationService");
+                const [jobsRes, appsRes] = await Promise.all([
+                    listJobs().catch(() => ({ success: false, jobs: [] })),
+                    getMyApplications().catch(() => ({ success: false, applications: [] })),
+                ]);
+                if (jobsRes.success) setJobs((jobsRes.jobs || []).slice(0, 6));
+                if (appsRes.success) setMyApps(appsRes.applications || []);
+            } catch {}
+            setLoading(false);
+        })();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="py-16 text-center">
+                <div className="w-6 h-6 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-xs text-white/20">Loading jobs...</p>
+            </div>
         );
-    }, [jobs, userId]);
+    }
 
-    const handleApply = (job: Job) => {
-        try {
-            if (!userId) {
-                alert("Please log in to apply");
-                return;
-            }
-            jobService.applyForJob(job.id, {
-                studentId: userId,
-                studentName: displayName,
-                studentEmail: email,
-            });
-            // Add to applied set
-            appliedJobIds.add(job.id);
-            alert("Application submitted!");
-        } catch (err: any) {
-            alert(err.message || "Failed to apply");
-        }
-    };
-
-    const handleSave = (job: Job) => {
-        const userId =
-            (user as any)?._id || (user as any)?.id || "";
-        if (userId) {
-            jobService.saveJob(job.id, userId);
-            alert("Job saved!");
-        }
-    };
+    const appliedJobIds = new Set(myApps.map((a: any) => a.job_id));
 
     return (
         <motion.div
@@ -1483,94 +1407,78 @@ function JobsTab({
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.3, ease }}
         >
-            {jobs.length === 0 ? (
-                <div className="bg-surface-2/50 rounded-xl border border-white/[0.06] p-16 text-center">
-                    <Briefcase
-                        size={32}
-                        className="mx-auto mb-3 text-white/10"
-                    />
-                    <h4 className="text-sm font-semibold text-white/30 mb-1">
-                        No Job Postings Yet
-                    </h4>
-                    <p className="text-xs text-white/15">
-                        Opportunities will appear here when posted by admins
-                    </p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {jobs.map((job, i) => (
-                        <motion.div
-                            key={job.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{
-                                duration: 0.4,
-                                delay: i * 0.06,
-                                ease,
-                            }}
-                            className="group bg-surface-2/50 rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-all duration-300"
-                        >
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center text-base">
-                                    🚀
+            {/* My Applications */}
+            {myApps.length > 0 && (
+                <div className="mb-8">
+                    <h3 className="text-sm font-bold text-white mb-4">My Applications</h3>
+                    <div className="bg-surface-2/50 rounded-xl border border-white/[0.06] overflow-hidden">
+                        {myApps.slice(0, 5).map((app: any, i: number) => {
+                            const statusColors: Record<string, string> = {
+                                applied: "bg-blue-400/10 text-blue-400 border-blue-400/20",
+                                screening: "bg-yellow-400/10 text-yellow-400 border-yellow-400/20",
+                                interview: "bg-purple-400/10 text-purple-400 border-purple-400/20",
+                                offered: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20",
+                                rejected: "bg-red-400/10 text-red-400 border-red-400/20",
+                            };
+                            return (
+                                <div key={app._id || i} className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04] last:border-0">
+                                    <div>
+                                        <p className="text-sm font-medium text-white/60">{app.job_title || "Job"}</p>
+                                        <p className="text-[10px] text-white/20">{app.company_name || ""}</p>
+                                    </div>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusColors[app.status] || "bg-white/5 text-white/30 border-white/[0.06]"}`}>
+                                        {app.status}
+                                    </span>
                                 </div>
-                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-surface-3/60 text-white/25 border border-white/[0.04]">
-                                    {job.type}
-                                </span>
-                            </div>
-                            <h3 className="text-base font-semibold text-white mb-0.5 group-hover:text-yellow-400 transition-colors">
-                                {job.position}
-                            </h3>
-                            <p className="text-xs text-white/35 mb-3">
-                                {job.company}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-3 mb-4 text-[11px] text-white/25">
-                                <span className="flex items-center gap-1">
-                                    <MapPin size={11} />
-                                    {job.location}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <DollarSign size={11} />
-                                    {job.salary}
-                                </span>
-                            </div>
-                            {job.description && (
-                                <p className="text-xs text-white/20 leading-relaxed mb-4 line-clamp-2">
-                                    {job.description}
-                                </p>
-                            )}
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => !appliedJobIds.has(job.id) && handleApply(job)}
-                                    disabled={appliedJobIds.has(job.id)}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition-colors ${
-                                        appliedJobIds.has(job.id)
-                                            ? "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 cursor-not-allowed"
-                                            : "bg-yellow-400 text-surface-0 hover:bg-yellow-300"
-                                    }`}
-                                >
-                                    {appliedJobIds.has(job.id) ? (
-                                        <>
-                                            <CheckCircle2 size={12} />
-                                            Applied
-                                        </>
-                                    ) : (
-                                        <>
-                                            Apply Now <ArrowRight size={12} />
-                                        </>
-                                    )}
-                                </button>
-                                <button
-                                    onClick={() => handleSave(job)}
-                                    className="w-10 h-10 rounded-lg bg-surface-3/50 border border-white/[0.06] flex items-center justify-center text-white/25 hover:text-yellow-400 hover:border-yellow-400/20 transition-all"
-                                >
-                                    <Bookmark size={14} />
-                                </button>
-                            </div>
-                        </motion.div>
-                    ))}
+                            );
+                        })}
+                    </div>
                 </div>
             )}
+
+            {/* Featured Jobs */}
+            {jobs.length > 0 && (
+                <div className="mb-6">
+                    <h3 className="text-sm font-bold text-white mb-4">Featured Opportunities</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {jobs.map((job: any, i: number) => (
+                            <motion.div
+                                key={job._id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4, delay: i * 0.06, ease }}
+                                className="group bg-surface-2/50 rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-all duration-300"
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center">
+                                        <Briefcase size={16} className="text-white/25" />
+                                    </div>
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-surface-3/60 text-white/25 border border-white/[0.04]">
+                                        {job.job_type || "full-time"}
+                                    </span>
+                                </div>
+                                <h3 className="text-base font-semibold text-white mb-0.5 group-hover:text-yellow-400 transition-colors">
+                                    {job.title}
+                                </h3>
+                                <p className="text-xs text-white/35 mb-3">{job.company_name || ""}</p>
+                                <div className="flex flex-wrap items-center gap-3 mb-4 text-[11px] text-white/25">
+                                    {job.location && <span className="flex items-center gap-1"><MapPin size={11} />{job.location}</span>}
+                                    {job.experience_level && <span className="capitalize">{job.experience_level}</span>}
+                                </div>
+                                <Link href={`/jobs/${job._id}`}
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-colors bg-yellow-400 text-surface-0 hover:bg-yellow-300">
+                                    View Details <ArrowRight size={12} />
+                                </Link>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <Link href="/jobs"
+                className="flex items-center justify-center gap-2 w-full py-4 bg-surface-2/50 rounded-xl border border-white/[0.06] text-sm font-semibold text-white/40 hover:text-yellow-400 hover:border-yellow-400/20 transition-all">
+                Browse All Jobs <ArrowRight size={14} />
+            </Link>
         </motion.div>
     );
 }

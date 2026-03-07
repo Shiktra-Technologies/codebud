@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
     FileText,
     Search,
@@ -11,6 +11,11 @@ import {
     Clock,
     Filter,
     ChevronDown,
+    ChevronUp,
+    Calendar,
+    BarChart3,
+    AlertTriangle,
+    SlidersHorizontal,
 } from "lucide-react";
 import { getAllSubmissions } from "@/lib/services/submissionService";
 
@@ -33,6 +38,8 @@ interface Submission {
     submitted_at?: string;
     submittedAt?: string;
     timestamp?: string;
+    violations?: number;
+    violation_count?: number;
     [key: string]: unknown;
 }
 
@@ -42,6 +49,15 @@ export default function SubmissionsTab() {
     const [filterType, setFilterType] = useState("all");
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Advanced filters
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [scoreMin, setScoreMin] = useState("");
+    const [scoreMax, setScoreMax] = useState("");
+    const [violationFilter, setViolationFilter] = useState("all"); // all, 0, 1+, 3+, 5+
+    const [resultFilter, setResultFilter] = useState("all"); // all, passed, failed
 
     const fetchSubmissions = useCallback(async (isRefresh = false) => {
         try {
@@ -65,6 +81,17 @@ export default function SubmissionsTab() {
         fetchSubmissions();
     }, [fetchSubmissions]);
 
+    const clearAdvancedFilters = () => {
+        setDateFrom("");
+        setDateTo("");
+        setScoreMin("");
+        setScoreMax("");
+        setViolationFilter("all");
+        setResultFilter("all");
+    };
+
+    const hasAdvancedFilters = dateFrom || dateTo || scoreMin || scoreMax || violationFilter !== "all" || resultFilter !== "all";
+
     const filtered = submissions.filter((s) => {
         const name = s.userName || s.user_name || s.displayName || "";
         const email = s.userEmail || s.user_email || "";
@@ -72,7 +99,47 @@ export default function SubmissionsTab() {
         const q = search.toLowerCase();
         const matchesSearch = !search || name.toLowerCase().includes(q) || email.toLowerCase().includes(q);
         const matchesType = filterType === "all" || type.toLowerCase().includes(filterType.toLowerCase());
-        return matchesSearch && matchesType;
+
+        // Date range filter
+        const time = s.submitted_at || s.submittedAt || s.timestamp;
+        let matchesDate = true;
+        if (time) {
+            const subDate = new Date(time as string);
+            if (dateFrom) {
+                matchesDate = matchesDate && subDate >= new Date(dateFrom);
+            }
+            if (dateTo) {
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999);
+                matchesDate = matchesDate && subDate <= toDate;
+            }
+        } else if (dateFrom || dateTo) {
+            matchesDate = false; // no date available, don't include if date filter is set
+        }
+
+        // Score range filter
+        const score = s.score || 0;
+        const total = s.total_questions || s.totalQuestions || 30;
+        const pct = Math.round((score / total) * 100);
+        let matchesScore = true;
+        if (scoreMin) matchesScore = matchesScore && pct >= parseInt(scoreMin);
+        if (scoreMax) matchesScore = matchesScore && pct <= parseInt(scoreMax);
+
+        // Result filter
+        const passed = pct >= 60;
+        let matchesResult = true;
+        if (resultFilter === "passed") matchesResult = passed;
+        if (resultFilter === "failed") matchesResult = !passed;
+
+        // Violation filter
+        const violations = (s.violations || s.violation_count || 0) as number;
+        let matchesViolation = true;
+        if (violationFilter === "0") matchesViolation = violations === 0;
+        if (violationFilter === "1+") matchesViolation = violations >= 1;
+        if (violationFilter === "3+") matchesViolation = violations >= 3;
+        if (violationFilter === "5+") matchesViolation = violations >= 5;
+
+        return matchesSearch && matchesType && matchesDate && matchesScore && matchesResult && matchesViolation;
     });
 
     const avgScore = filtered.length > 0
@@ -83,25 +150,31 @@ export default function SubmissionsTab() {
         ? Math.round((filtered.filter((s) => { const score = s.score || 0; const total = s.total_questions || s.totalQuestions || 30; return score / total >= 0.6; }).length / filtered.length) * 100)
         : 0;
 
+    const violationCount = filtered.filter((s) => ((s.violations || s.violation_count || 0) as number) > 0).length;
+
     return (
         <div>
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
                 {[
-                    { label: "Total Submissions", value: submissions.length },
-                    { label: "Average Score", value: `${avgScore}%` },
-                    { label: "Pass Rate", value: `${passRate}%` },
+                    { label: "Total Submissions", value: submissions.length, icon: FileText },
+                    { label: "Average Score", value: `${avgScore}%`, icon: BarChart3 },
+                    { label: "Pass Rate", value: `${passRate}%`, icon: CheckCircle2 },
+                    { label: "W/ Violations", value: violationCount, icon: AlertTriangle, cls: violationCount > 0 ? "text-red-400" : undefined },
                 ].map((stat, i) => (
                     <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08, ease }}
                         className="bg-surface-2/50 rounded-xl border border-white/[0.06] p-5">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-white/30">{stat.label}</span>
-                        <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-white/30">{stat.label}</span>
+                            <stat.icon size={14} className={stat.cls || "text-white/20"} />
+                        </div>
+                        <p className="text-2xl font-bold text-white">{stat.value}</p>
                     </motion.div>
                 ))}
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+            {/* Main Filters */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-3">
                 <div className="flex-1 relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
                     <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -118,11 +191,149 @@ export default function SubmissionsTab() {
                     </select>
                     <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
                 </div>
+                <button
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className={`flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg border text-xs font-medium transition-all ${
+                        showAdvanced || hasAdvancedFilters
+                            ? "bg-yellow-400/10 border-yellow-400/20 text-yellow-400"
+                            : "bg-surface-2/50 border-white/[0.06] text-white/40 hover:text-white/60 hover:border-white/[0.1]"
+                    }`}
+                >
+                    <SlidersHorizontal size={14} />
+                    Filters
+                    {hasAdvancedFilters && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+                    )}
+                </button>
                 <button onClick={() => fetchSubmissions(true)} disabled={refreshing}
                     className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-surface-2/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/[0.1] transition-all disabled:opacity-50">
                     <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
                 </button>
             </div>
+
+            {/* Advanced Filters Panel */}
+            <AnimatePresence>
+                {showAdvanced && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease }}
+                        className="overflow-hidden mb-4"
+                    >
+                        <div className="bg-surface-2/30 rounded-xl border border-white/[0.06] p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-white/25">
+                                    Advanced Filters
+                                </span>
+                                {hasAdvancedFilters && (
+                                    <button
+                                        onClick={clearAdvancedFilters}
+                                        className="text-[11px] text-yellow-400/60 hover:text-yellow-400 transition-colors"
+                                    >
+                                        Clear all
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                {/* Date range */}
+                                <div>
+                                    <label className="text-[11px] text-white/25 mb-1 block flex items-center gap-1">
+                                        <Calendar size={10} /> Date From
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={dateFrom}
+                                        onChange={(e) => setDateFrom(e.target.value)}
+                                        className="w-full px-3 py-2 rounded-lg bg-surface-3/40 border border-white/[0.06] text-xs text-white/60 outline-none focus:border-yellow-400/30 transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[11px] text-white/25 mb-1 block flex items-center gap-1">
+                                        <Calendar size={10} /> Date To
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={dateTo}
+                                        onChange={(e) => setDateTo(e.target.value)}
+                                        className="w-full px-3 py-2 rounded-lg bg-surface-3/40 border border-white/[0.06] text-xs text-white/60 outline-none focus:border-yellow-400/30 transition-colors"
+                                    />
+                                </div>
+
+                                {/* Score range */}
+                                <div>
+                                    <label className="text-[11px] text-white/25 mb-1 block flex items-center gap-1">
+                                        <BarChart3 size={10} /> Min Score %
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={scoreMin}
+                                        onChange={(e) => setScoreMin(e.target.value)}
+                                        placeholder="0"
+                                        className="w-full px-3 py-2 rounded-lg bg-surface-3/40 border border-white/[0.06] text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-yellow-400/30 transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[11px] text-white/25 mb-1 block flex items-center gap-1">
+                                        <BarChart3 size={10} /> Max Score %
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={scoreMax}
+                                        onChange={(e) => setScoreMax(e.target.value)}
+                                        placeholder="100"
+                                        className="w-full px-3 py-2 rounded-lg bg-surface-3/40 border border-white/[0.06] text-xs text-white/60 placeholder:text-white/15 outline-none focus:border-yellow-400/30 transition-colors"
+                                    />
+                                </div>
+
+                                {/* Result filter */}
+                                <div>
+                                    <label className="text-[11px] text-white/25 mb-1 block flex items-center gap-1">
+                                        <CheckCircle2 size={10} /> Result
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={resultFilter}
+                                            onChange={(e) => setResultFilter(e.target.value)}
+                                            className="appearance-none w-full px-3 pr-7 py-2 rounded-lg bg-surface-3/40 border border-white/[0.06] text-xs text-white/60 outline-none focus:border-yellow-400/30 transition-colors cursor-pointer"
+                                        >
+                                            <option value="all">All Results</option>
+                                            <option value="passed">Passed Only</option>
+                                            <option value="failed">Failed Only</option>
+                                        </select>
+                                        <ChevronDown size={10} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/15 pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                {/* Violation filter */}
+                                <div>
+                                    <label className="text-[11px] text-white/25 mb-1 block flex items-center gap-1">
+                                        <AlertTriangle size={10} /> Violations
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            value={violationFilter}
+                                            onChange={(e) => setViolationFilter(e.target.value)}
+                                            className="appearance-none w-full px-3 pr-7 py-2 rounded-lg bg-surface-3/40 border border-white/[0.06] text-xs text-white/60 outline-none focus:border-yellow-400/30 transition-colors cursor-pointer"
+                                        >
+                                            <option value="all">Any</option>
+                                            <option value="0">Clean (0)</option>
+                                            <option value="1+">1+ Violations</option>
+                                            <option value="3+">3+ Violations</option>
+                                            <option value="5+">5+ Violations</option>
+                                        </select>
+                                        <ChevronDown size={10} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/15 pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Table */}
             {loading ? (
@@ -133,8 +344,10 @@ export default function SubmissionsTab() {
             ) : filtered.length === 0 ? (
                 <div className="py-20 text-center">
                     <FileText size={32} className="mx-auto mb-3 text-white/10" />
-                    <h4 className="text-sm font-semibold text-white/30 mb-1">{search || filterType !== "all" ? "No matching submissions" : "No submissions yet"}</h4>
-                    <p className="text-xs text-white/15">Submissions will appear after students complete assessments</p>
+                    <h4 className="text-sm font-semibold text-white/30 mb-1">{search || filterType !== "all" || hasAdvancedFilters ? "No matching submissions" : "No submissions yet"}</h4>
+                    <p className="text-xs text-white/15">
+                        {hasAdvancedFilters ? "Try adjusting your filters" : "Submissions will appear after students complete assessments"}
+                    </p>
                 </div>
             ) : (
                 <div className="bg-surface-2/50 rounded-xl border border-white/[0.06] overflow-hidden">
@@ -143,7 +356,8 @@ export default function SubmissionsTab() {
                         <div className="col-span-3">Student</div>
                         <div className="col-span-2">Test Type</div>
                         <div className="col-span-2">Score</div>
-                        <div className="col-span-2">Result</div>
+                        <div className="col-span-1">Result</div>
+                        <div className="col-span-1">Violations</div>
                         <div className="col-span-3">Submitted</div>
                     </div>
                     {/* Rows */}
@@ -156,6 +370,7 @@ export default function SubmissionsTab() {
                             const pct = Math.round((score / total) * 100);
                             const passed = pct >= 60;
                             const time = sub.submitted_at || sub.submittedAt || sub.timestamp;
+                            const violations = (sub.violations || sub.violation_count || 0) as number;
                             return (
                                 <div key={sub.id || sub._id || i} className="grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-5 py-3.5 hover:bg-white/[0.015] transition-colors">
                                     <div className="md:col-span-3 flex items-center gap-2 min-w-0">
@@ -170,11 +385,21 @@ export default function SubmissionsTab() {
                                     <div className="md:col-span-2 flex items-center">
                                         <span className="text-sm font-bold text-white/60 tabular-nums">{score}/{total} <span className="text-white/25 font-normal text-xs">({pct}%)</span></span>
                                     </div>
-                                    <div className="md:col-span-2 flex items-center">
+                                    <div className="md:col-span-1 flex items-center">
                                         <span className={`flex items-center gap-1 text-xs font-medium ${passed ? "text-emerald-400" : "text-red-400"}`}>
                                             {passed ? <CheckCircle2 size={12} /> : <X size={12} />}
-                                            {passed ? "Passed" : "Failed"}
+                                            {passed ? "Pass" : "Fail"}
                                         </span>
+                                    </div>
+                                    <div className="md:col-span-1 flex items-center">
+                                        {violations > 0 ? (
+                                            <span className={`flex items-center gap-1 text-xs font-medium ${violations >= 3 ? "text-red-400" : "text-yellow-400"}`}>
+                                                <AlertTriangle size={11} />
+                                                {violations}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-white/15">—</span>
+                                        )}
                                     </div>
                                     <div className="md:col-span-3 flex items-center">
                                         <span className="text-xs text-white/25 flex items-center gap-1">

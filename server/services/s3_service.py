@@ -111,5 +111,45 @@ class S3Service:
                 print(f"[ERROR] Presigned URL error: {e}")
                 return None
 
+    def upload_avatar(self, user_id, file_data, filename):
+        """Upload user avatar image (mock or real S3)"""
+        key = f"avatars/{user_id}/{filename}"
+
+        if self.use_mock:
+            file_path = os.path.join(self.mock_path, key)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'wb') as f:
+                f.write(file_data if isinstance(file_data, bytes) else file_data.encode('utf-8'))
+            print(f"[INFO] Mock S3: Saved avatar {key}")
+            return key
+        else:
+            try:
+                content_type = 'image/png'
+                ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+                content_types = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp'}
+                content_type = content_types.get(ext, 'image/png')
+
+                self.s3_client.put_object(
+                    Bucket=self.bucket_name,
+                    Key=key,
+                    Body=file_data,
+                    ContentType=content_type
+                )
+                print(f"[INFO] S3: Uploaded avatar {key}")
+                return key
+            except Exception as e:
+                print(f"[ERROR] S3 avatar upload error: {e}")
+                return None
+
+    def get_avatar_url(self, user_id, key=None):
+        """Get avatar URL - returns API endpoint for mock or presigned URL for S3"""
+        if self.use_mock:
+            # In mock mode, serve through API endpoint
+            return f"/api/profile/avatar/{user_id}"
+        else:
+            if key:
+                return self.generate_presigned_url(key, expiration=86400)
+            return None
+
 
 s3_service = S3Service()
