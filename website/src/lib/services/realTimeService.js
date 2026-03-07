@@ -176,7 +176,7 @@ class RealTimeService {
         localStorage.setItem('cross_device_sync', JSON.stringify(syncPayload));
         
         const { default: leaderboardService } = require('./leaderboardService');
-        leaderboardService.refreshLeaderboard();
+        leaderboardService.refreshLeaderboard().catch(() => {});
       } catch (error) {
         console.warn('Could not trigger leaderboard refresh:', error);
       }

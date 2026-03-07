@@ -4,95 +4,104 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
-import { ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
+import { ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, ChevronLeft, Shield } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { FloatingHex } from "@/app/components/ui/floating-hex";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
+/**
+ * Redesigned Auth Page
+ *
+ * Sign In  → email + password only. No role tabs.
+ *             Server returns role from DB → frontend auto-redirects.
+ * Sign Up  → always creates a STUDENT account. No role picker.
+ *
+ * Mentor / Admin accounts are created by admins from the admin dashboard.
+ * Super Admin is seeded on first boot — no UI for it here.
+ */
+
+function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
+    switch (role) {
+        case "super_admin":
+            router.push("/super-admin");
+            break;
+        case "admin":
+            router.push("/admin");
+            break;
+        case "mentor":
+            router.push("/mentor");
+            break;
+        default:
+            router.push("/dashboard");
+    }
+}
+
 export default function AuthPage() {
     const router = useRouter();
     const { user, login, signup, testLogin, superAdminLogin, loading: authLoading, USER_ROLES } = useAuth();
     const [isLoginMode, setIsLoginMode] = useState(true);
-    const [loginType, setLoginType] = useState("user"); // 'user', 'admin', 'super_admin'
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [secretCode, setSecretCode] = useState("");
+    const [displayName, setDisplayName] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
-    const [showSecretField, setShowSecretField] = useState(false);
+    const [showSuperAdmin, setShowSuperAdmin] = useState(false);
+    const [secretCode, setSecretCode] = useState("");
 
-    // Redirect if already logged in
+    // Redirect if already logged in (role-aware)
     React.useEffect(() => {
         if (user) {
-            router.push("/dashboard");
+            redirectByRole(router, (user as any)?.role || "student");
         }
     }, [user, router]);
 
-    const isTestAccount = async (email: string, password: string) => {
-        try {
-            const { TEST_ACCOUNTS } = await import("@/lib/config/testAccounts");
-            const isTestStudent = TEST_ACCOUNTS.STUDENTS.some((s: any) => s.email === email && s.password === password);
-            const isTestAdmin = TEST_ACCOUNTS.ADMINS.some((a: any) => a.email === email && a.password === password);
-            return isTestStudent || isTestAdmin;
-        } catch {
-            return false;
-        }
-    };
+    // ── Ctrl+Shift+S → toggle super admin secret code panel ──
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "s") {
+                e.preventDefault();
+                setShowSuperAdmin((prev) => !prev);
+                setError("");
+                setSecretCode("");
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, []);
 
+    // ── Sign In ── (no role sent → server auto-detects from DB)
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         setLoading(true);
 
         try {
-            if (loginType === "super_admin") {
-                if (!secretCode) {
-                    setError("Secret code is required for super admin access");
-                    setLoading(false);
-                    return;
-                }
-                await superAdminLogin(secretCode);
-                router.push("/super-admin");
-            } else {
-                const isTest = await isTestAccount(email, password);
-                const selectedRole = loginType === "admin" ? USER_ROLES.ADMIN : USER_ROLES.STUDENT;
-
-                if (isTest) {
-                    await testLogin(selectedRole);
-                } else {
-                    await login(email, password, selectedRole);
-                }
-
-                if (loginType === "admin") {
-                    router.push("/admin");
-                } else {
-                    router.push("/dashboard");
-                }
+            const result = await login(email, password, null);
+            if (!result.success) {
+                throw new Error(result.error || "Login failed");
             }
+            // Redirect based on role returned by server
+            const role = result.user?.role || "student";
+            redirectByRole(router, role);
         } catch (err: any) {
-            let errorMessage = "Failed to sign in: ";
             const msg = err?.message || "";
-            if (msg.includes("Invalid super admin secret code")) {
-                errorMessage = "Invalid super admin secret code.";
-            } else if (msg.includes("Access denied")) {
-                errorMessage = msg;
+            if (msg.includes("Invalid email or password") || msg.includes("invalid-credential")) {
+                setError("Invalid email or password.");
+            } else if (msg.includes("deactivated")) {
+                setError("Your account has been deactivated. Contact an administrator.");
             } else if (msg.includes("Email not confirmed")) {
-                errorMessage = "Please confirm your email address before signing in.";
-            } else if (msg.includes("Invalid login credentials") || msg.includes("invalid-credential")) {
-                errorMessage = "Invalid email or password.";
-            } else if (msg.includes("user-not-found")) {
-                errorMessage = "No account found with this email.";
+                setError("Please confirm your email address before signing in.");
             } else {
-                errorMessage += msg;
+                setError(msg || "Failed to sign in");
             }
-            setError(errorMessage);
         }
         setLoading(false);
     };
 
+    // ── Sign Up ── (always student role)
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
@@ -100,25 +109,54 @@ export default function AuthPage() {
         setLoading(true);
 
         try {
-            const result = await signup(email, password);
+            const result = await signup(email, password, "student", displayName);
+            if (!result.success) {
+                throw new Error(result.error || "Signup failed");
+            }
             if (result?.needsEmailConfirmation) {
-                setSuccess(result.message || "Account created successfully!");
+                setSuccess(result.message || "Account created! Check your email to confirm.");
             } else {
                 router.push("/dashboard");
             }
         } catch (err: any) {
-            setError(err?.message || "Failed to sign up");
+            setError(err?.message || "Failed to create account");
         }
         setLoading(false);
     };
 
-    // Secret key combination for super admin
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.ctrlKey && e.shiftKey && e.key === "S") {
-            setShowSecretField(true);
-            setLoginType("super_admin");
-            e.preventDefault();
+    // ── Super Admin login ──
+    const handleSuperAdminLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+            const result = await superAdminLogin(secretCode);
+            if (result.success) {
+                router.push("/super-admin");
+            } else {
+                throw new Error("Super admin login failed");
+            }
+        } catch (err: any) {
+            setError(err?.message || "Invalid secret code");
         }
+        setLoading(false);
+    };
+
+    // ── Quick test login ──
+    const handleTestLogin = async (role: string) => {
+        setLoading(true);
+        setError("");
+        try {
+            const result = await testLogin(role);
+            if (result.success) {
+                redirectByRole(router, result.user?.role || role);
+            } else {
+                throw new Error(result.error || "Test login failed");
+            }
+        } catch (err: any) {
+            setError(err?.message || "Test login failed");
+        }
+        setLoading(false);
     };
 
     if (authLoading) {
@@ -130,7 +168,7 @@ export default function AuthPage() {
     }
 
     return (
-        <div className="min-h-screen bg-surface-0 relative overflow-hidden flex items-center justify-center" onKeyDown={handleKeyPress} tabIndex={0}>
+        <div className="min-h-screen bg-surface-0 relative overflow-hidden flex items-center justify-center" tabIndex={0}>
             {/* Background layers */}
             <div className="absolute inset-0 honeycomb-bg opacity-40 pointer-events-none" />
             <div className="absolute inset-0 honeycomb-shimmer pointer-events-none" />
@@ -163,13 +201,13 @@ export default function AuthPage() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.4, ease }}
                 >
-                    <Link
+                    <a
                         href="/"
                         className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-yellow-400 transition-colors duration-200 mb-8 group"
                     >
                         <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
                         Back to home
-                    </Link>
+                    </a>
                 </motion.div>
 
                 {/* Auth Card */}
@@ -207,11 +245,13 @@ export default function AuthPage() {
                                 {isLoginMode ? "Welcome Back" : "Create Account"}
                             </h1>
                             <p className="text-sm text-white/40 mt-1">
-                                {isLoginMode ? "Sign in to continue to CODE BUD" : "Start your coding journey today"}
+                                {isLoginMode
+                                    ? "Sign in to continue to CODE BUD"
+                                    : "Start your coding journey today"}
                             </p>
                         </div>
 
-                        {/* Mode Toggle */}
+                        {/* Mode Toggle: Sign In / Sign Up */}
                         <div className="relative flex bg-surface-3/50 rounded-xl p-1 mb-6">
                             <button
                                 onClick={() => { setIsLoginMode(true); setError(""); setSuccess(""); }}
@@ -227,7 +267,7 @@ export default function AuthPage() {
                                 <span className="relative z-10">Sign In</span>
                             </button>
                             <button
-                                onClick={() => { setIsLoginMode(false); setError(""); setSuccess(""); setLoginType("user"); }}
+                                onClick={() => { setIsLoginMode(false); setError(""); setSuccess(""); }}
                                 className={`relative flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-300 ${!isLoginMode ? "text-surface-0" : "text-white/40 hover:text-white/60"}`}
                             >
                                 {!isLoginMode && (
@@ -240,33 +280,6 @@ export default function AuthPage() {
                                 <span className="relative z-10">Sign Up</span>
                             </button>
                         </div>
-
-                        {/* Role selector (login only) */}
-                        {isLoginMode && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                className="flex gap-2 mb-6"
-                            >
-                                {[
-                                    { id: "user", label: "Student" },
-                                    { id: "admin", label: "Admin" },
-                                    ...(showSecretField ? [{ id: "super_admin", label: "Super Admin" }] : []),
-                                ].map((role) => (
-                                    <button
-                                        key={role.id}
-                                        type="button"
-                                        onClick={() => { setLoginType(role.id); setError(""); }}
-                                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 border ${loginType === role.id
-                                            ? "bg-yellow-400/10 border-yellow-400/30 text-yellow-400"
-                                            : "bg-surface-2/50 border-white/[0.06] text-white/40 hover:text-white/60 hover:border-white/10"
-                                            }`}
-                                    >
-                                        {role.label}
-                                    </button>
-                                ))}
-                            </motion.div>
-                        )}
 
                         {/* Error / Success messages */}
                         <AnimatePresence mode="wait">
@@ -295,67 +308,74 @@ export default function AuthPage() {
 
                         {/* Form */}
                         <form onSubmit={isLoginMode ? handleLogin : handleSignup} className="space-y-4">
-                            {loginType === "super_admin" && isLoginMode ? (
-                                <div>
-                                    <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
-                                        Secret Code
-                                    </label>
-                                    <div className="relative">
-                                        <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-                                        <input
-                                            type="password"
-                                            placeholder="Enter secret code"
-                                            value={secretCode}
-                                            onChange={(e) => setSecretCode(e.target.value)}
-                                            required
-                                            className="w-full bg-surface-2/50 border border-white/[0.08] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-yellow-400/30 focus:ring-1 focus:ring-yellow-400/20 transition-all duration-200"
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <div>
+                            {/* Display Name — sign up only */}
+                            <AnimatePresence>
+                                {!isLoginMode && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                    >
                                         <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
-                                            Email Address
+                                            Display Name
                                         </label>
                                         <div className="relative">
-                                            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                                            <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
                                             <input
-                                                type="email"
-                                                placeholder="you@example.com"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                                required
+                                                type="text"
+                                                placeholder="Your name"
+                                                value={displayName}
+                                                onChange={(e) => setDisplayName(e.target.value)}
                                                 className="w-full bg-surface-2/50 border border-white/[0.08] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-yellow-400/30 focus:ring-1 focus:ring-yellow-400/20 transition-all duration-200"
                                             />
                                         </div>
-                                    </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
-                                    <div>
-                                        <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
-                                            Password
-                                        </label>
-                                        <div className="relative">
-                                            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
-                                            <input
-                                                type={showPassword ? "text" : "password"}
-                                                placeholder="••••••••"
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                                required
-                                                className="w-full bg-surface-2/50 border border-white/[0.08] rounded-xl py-3 pl-10 pr-12 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-yellow-400/30 focus:ring-1 focus:ring-yellow-400/20 transition-all duration-200"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
-                                            >
-                                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                            {/* Email */}
+                            <div>
+                                <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
+                                    Email Address
+                                </label>
+                                <div className="relative">
+                                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                                    <input
+                                        type="email"
+                                        placeholder="you@example.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="w-full bg-surface-2/50 border border-white/[0.08] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-yellow-400/30 focus:ring-1 focus:ring-yellow-400/20 transition-all duration-200"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Password */}
+                            <div>
+                                <label className="block text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder={isLoginMode ? "••••••••" : "Min 6 characters"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        minLength={isLoginMode ? undefined : 6}
+                                        className="w-full bg-surface-2/50 border border-white/[0.08] rounded-xl py-3 pl-10 pr-12 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-yellow-400/30 focus:ring-1 focus:ring-yellow-400/20 transition-all duration-200"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+                            </div>
 
                             {/* Submit button */}
                             <button
@@ -370,17 +390,73 @@ export default function AuthPage() {
                                     </>
                                 ) : (
                                     <>
-                                        {isLoginMode
-                                            ? `Sign In${loginType !== "user" ? ` as ${loginType === "admin" ? "Admin" : "Super Admin"}` : ""}`
-                                            : "Create Account"}
+                                        {isLoginMode ? "Sign In" : "Create Student Account"}
                                         <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
                                     </>
                                 )}
                             </button>
                         </form>
 
-                        {/* Test accounts quick access */}
-                        {isLoginMode && loginType !== "super_admin" && (
+                        {/* Hint for mentors/admins */}
+                        {isLoginMode && !showSuperAdmin && (
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-center text-xs text-white/20 mt-4"
+                            >
+                                Mentor or admin?{" "}
+                                <span className="text-white/30">Sign in with the credentials your admin provided.</span>
+                            </motion.p>
+                        )}
+
+                        {/* Super Admin Secret Code Panel (Ctrl+Shift+S) */}
+                        <AnimatePresence>
+                            {showSuperAdmin && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-6 pt-6 border-t border-red-500/20 overflow-hidden"
+                                >
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Shield size={14} className="text-red-400" />
+                                        <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Super Admin Access</span>
+                                    </div>
+                                    <form onSubmit={handleSuperAdminLogin} className="space-y-3">
+                                        <div className="relative">
+                                            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400/40" />
+                                            <input
+                                                type="password"
+                                                placeholder="Enter secret code"
+                                                value={secretCode}
+                                                onChange={(e) => setSecretCode(e.target.value)}
+                                                required
+                                                autoFocus
+                                                className="w-full bg-red-500/5 border border-red-500/20 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-red-400/25 focus:outline-none focus:border-red-400/40 focus:ring-1 focus:ring-red-400/20 transition-all duration-200"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={loading || !secretCode}
+                                            className="w-full bg-red-500/20 text-red-400 py-3 rounded-xl font-semibold text-sm border border-red-500/20 hover:bg-red-500/30 hover:border-red-400/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        >
+                                            {loading ? (
+                                                <><Loader2 size={14} className="animate-spin" /> Authenticating...</>
+                                            ) : (
+                                                <><Shield size={14} /> Access Super Admin</>
+                                            )}
+                                        </button>
+                                    </form>
+                                    <p className="text-[10px] text-red-400/30 text-center mt-3">
+                                        Press Ctrl+Shift+S to close
+                                    </p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Quick test access */}
+                        {isLoginMode && (
                             <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -393,39 +469,27 @@ export default function AuthPage() {
                                 <div className="flex gap-2">
                                     <button
                                         type="button"
-                                        onClick={async () => {
-                                            setLoading(true);
-                                            setError("");
-                                            try {
-                                                await testLogin(USER_ROLES.STUDENT);
-                                                router.push("/dashboard");
-                                            } catch (err: any) {
-                                                setError(err?.message || "Test login failed");
-                                            }
-                                            setLoading(false);
-                                        }}
+                                        onClick={() => handleTestLogin(USER_ROLES.STUDENT)}
                                         disabled={loading}
                                         className="flex-1 py-2.5 px-3 rounded-lg bg-surface-3/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/10 transition-all duration-200 disabled:opacity-50"
                                     >
-                                        🧪 Student
+                                        Student
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={async () => {
-                                            setLoading(true);
-                                            setError("");
-                                            try {
-                                                await testLogin(USER_ROLES.ADMIN);
-                                                router.push("/admin");
-                                            } catch (err: any) {
-                                                setError(err?.message || "Test login failed");
-                                            }
-                                            setLoading(false);
-                                        }}
+                                        onClick={() => handleTestLogin(USER_ROLES.MENTOR)}
                                         disabled={loading}
                                         className="flex-1 py-2.5 px-3 rounded-lg bg-surface-3/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/10 transition-all duration-200 disabled:opacity-50"
                                     >
-                                        🛡️ Admin
+                                        Mentor
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleTestLogin(USER_ROLES.ADMIN)}
+                                        disabled={loading}
+                                        className="flex-1 py-2.5 px-3 rounded-lg bg-surface-3/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/10 transition-all duration-200 disabled:opacity-50"
+                                    >
+                                        Admin
                                     </button>
                                 </div>
                             </motion.div>

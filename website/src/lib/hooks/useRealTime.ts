@@ -7,7 +7,8 @@ import { getAllSubmissions } from "@/lib/services/submissionService";
 export type RealTimeStatus = "connected" | "connecting" | "error" | "refreshing";
 
 interface Student {
-    id: string;
+    _id: string;
+    id?: string;
     email: string;
     display_name?: string;
     role?: string;
@@ -16,7 +17,8 @@ interface Student {
 }
 
 interface Submission {
-    id: string;
+    _id: string;
+    id?: string;
     user_id: string;
     test_type: string;
     score: number;

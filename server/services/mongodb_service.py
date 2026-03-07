@@ -3,6 +3,7 @@ from bson import ObjectId  # type: ignore
 from datetime import datetime
 import os
 import bcrypt  # type: ignore
+import certifi
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,7 +13,7 @@ class MongoDBService:
     def __init__(self):
         try:
             mongodb_uri = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
-            self.client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
+            self.client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000, tlsCAFile=certifi.where())
             # Test connection
             self.client.server_info()
             self.db = self.client[os.getenv('DATABASE_NAME', 'codebud')]
@@ -20,6 +21,8 @@ class MongoDBService:
 
             # Create indexes
             self._ensure_indexes()
+            # Seed test accounts into real MongoDB too
+            self._seed_test_accounts()
         except Exception as e:
             print(f"[WARNING] MongoDB connection failed: {e}")
             print("[INFO] Using in-memory mock database for development")
@@ -38,6 +41,33 @@ class MongoDBService:
             self.db.analysis_results.create_index('submission_id')
             self.db.submissions.create_index('user_id')
             self.db.submissions.create_index([('submitted_at', -1)])
+            # Mentor collections
+            self.db.mentor_students.create_index([('mentor_id', 1), ('student_id', 1)], unique=True)
+            self.db.mentor_students.create_index('mentor_id')
+            self.db.mentor_students.create_index('student_id')
+            self.db.mentor_feedback.create_index([('mentor_id', 1), ('student_id', 1)])
+            self.db.mentor_feedback.create_index([('created_at', -1)])
+            self.db.practice_sets.create_index('mentor_id')
+            self.db.practice_sets.create_index([('created_at', -1)])
+            self.db.practice_submissions.create_index([('practice_set_id', 1), ('student_id', 1)], unique=True)
+            # Course collections
+            self.db.courses.create_index([('display_order', 1)])
+            self.db.courses.create_index([('is_published', 1)])
+            self.db.courses.create_index('created_by')
+            self.db.enrollments.create_index([('user_id', 1), ('course_id', 1)], unique=True)
+            self.db.enrollments.create_index('user_id')
+            self.db.enrollments.create_index('course_id')
+            self.db.course_reviews.create_index([('user_id', 1), ('course_id', 1)], unique=True)
+            self.db.course_reviews.create_index('course_id')
+            # Company / Job collections
+            self.db.companies.create_index('user_id', unique=True)
+            self.db.jobs.create_index('company_id')
+            self.db.jobs.create_index([('is_active', 1), ('created_at', -1)])
+            self.db.applications.create_index([('job_id', 1), ('student_id', 1)], unique=True)
+            self.db.applications.create_index('student_id')
+            self.db.applications.create_index('company_id')
+            # Platform config
+            self.db.platform_config.create_index('category', unique=True)
         except Exception as e:
             print(f"[WARNING] Index creation issue: {e}")
 
@@ -47,8 +77,38 @@ class MongoDBService:
             'users': [],
             'code_submissions': [],
             'analysis_results': [],
-            'submissions': []
+            'submissions': [],
+            'mentor_students': [],
+            'mentor_feedback': [],
+            'practice_sets': [],
+            'practice_submissions': [],
+            'courses': [],
+            'enrollments': [],
+            'course_reviews': [],
+            'companies': [],
+            'jobs': [],
+            'applications': [],
+            'platform_config': [],
         }
+        # Persistent counters for auto-increment IDs
+        self._mock_counters = {}
+        self._seed_test_accounts()
+
+    def _seed_test_accounts(self):
+        """Seed default test accounts so login works with in-memory mock DB"""
+        test_accounts = [
+            {'email': 'test_student@codebud.dev', 'password': 'test123456', 'role': 'student', 'display_name': 'Test Student'},
+            {'email': 'test_mentor@codebud.dev', 'password': 'test123456', 'role': 'mentor', 'display_name': 'Test Mentor'},
+            {'email': 'test_admin@codebud.dev', 'password': 'test123456', 'role': 'admin', 'display_name': 'Test Admin'},
+            {'email': 'super_admin@codebud.dev', 'password': 'codebud_super_admin_2025', 'role': 'super_admin', 'display_name': 'Super Admin'},
+        ]
+        for acct in test_accounts:
+            try:
+                self.create_user(acct['email'], acct['password'], acct['role'], acct['display_name'])
+                print(f"[SEED] Created test account: {acct['email']} ({acct['role']})")
+            except ValueError:
+                pass  # already exists
+        print(f"[INFO] Mock DB seeded with {len(test_accounts)} test accounts")
 
     # ──────────── Collection Properties ────────────
 
@@ -56,25 +116,91 @@ class MongoDBService:
     def users(self):
         if self.db is not None:
             return self.db.users
-        return MockCollection('users', self.mock_data)
+        return MockCollection('users', self.mock_data, self._mock_counters)
 
     @property
     def code_submissions(self):
         if self.db is not None:
             return self.db.code_submissions
-        return MockCollection('code_submissions', self.mock_data)
+        return MockCollection('code_submissions', self.mock_data, self._mock_counters)
 
     @property
     def analysis_results(self):
         if self.db is not None:
             return self.db.analysis_results
-        return MockCollection('analysis_results', self.mock_data)
+        return MockCollection('analysis_results', self.mock_data, self._mock_counters)
 
     @property
     def submissions(self):
         if self.db is not None:
             return self.db.submissions
-        return MockCollection('submissions', self.mock_data)
+        return MockCollection('submissions', self.mock_data, self._mock_counters)
+
+    @property
+    def mentor_students(self):
+        if self.db is not None:
+            return self.db.mentor_students
+        return MockCollection('mentor_students', self.mock_data, self._mock_counters)
+
+    @property
+    def mentor_feedback(self):
+        if self.db is not None:
+            return self.db.mentor_feedback
+        return MockCollection('mentor_feedback', self.mock_data, self._mock_counters)
+
+    @property
+    def practice_sets(self):
+        if self.db is not None:
+            return self.db.practice_sets
+        return MockCollection('practice_sets', self.mock_data, self._mock_counters)
+
+    @property
+    def practice_submissions(self):
+        if self.db is not None:
+            return self.db.practice_submissions
+        return MockCollection('practice_submissions', self.mock_data, self._mock_counters)
+
+    @property
+    def courses(self):
+        if self.db is not None:
+            return self.db.courses
+        return MockCollection('courses', self.mock_data, self._mock_counters)
+
+    @property
+    def enrollments(self):
+        if self.db is not None:
+            return self.db.enrollments
+        return MockCollection('enrollments', self.mock_data, self._mock_counters)
+
+    @property
+    def course_reviews(self):
+        if self.db is not None:
+            return self.db.course_reviews
+        return MockCollection('course_reviews', self.mock_data, self._mock_counters)
+
+    @property
+    def companies(self):
+        if self.db is not None:
+            return self.db.companies
+        return MockCollection('companies', self.mock_data, self._mock_counters)
+
+    @property
+    def jobs(self):
+        if self.db is not None:
+            return self.db.jobs
+        return MockCollection('jobs', self.mock_data, self._mock_counters)
+
+    @property
+    def applications(self):
+        if self.db is not None:
+            return self.db.applications
+        return MockCollection('applications', self.mock_data, self._mock_counters)
+
+    @property
+    def platform_config(self):
+        if self.db is not None:
+            return self.db.platform_config
+        return MockCollection('platform_config', self.mock_data, self._mock_counters)
 
     # ──────────── AUTH ────────────
 
@@ -96,6 +222,7 @@ class MongoDBService:
             'password_hash': self.hash_password(password),
             'display_name': display_name or email.split('@')[0],
             'role': role,
+            'onboarding_completed': False if role == 'student' else True,
             'created_at': datetime.utcnow(),
             'last_active': datetime.utcnow()
         }
@@ -121,7 +248,14 @@ class MongoDBService:
         """Get user by ID"""
         try:
             if isinstance(user_id, str):
-                user_id = ObjectId(user_id)
+                # Try ObjectId first, fall back to string match
+                try:
+                    oid = ObjectId(user_id)
+                    result = self.users.find_one({'_id': oid})
+                    if result:
+                        return result
+                except Exception:
+                    pass
             return self.users.find_one({'_id': user_id})
         except Exception:
             return self.users.find_one({'_id': user_id})
@@ -146,6 +280,34 @@ class MongoDBService:
             )
         except Exception:
             pass
+
+    def update_user(self, user_id, updates):
+        """Update user fields. Returns True on success."""
+        try:
+            # Try ObjectId first, then string
+            original_id = user_id
+            if isinstance(user_id, str):
+                try:
+                    oid = ObjectId(user_id)
+                    user = self.users.find_one({'_id': oid})
+                    if user:
+                        user_id = oid
+                    else:
+                        user = self.users.find_one({'_id': user_id})
+                except Exception:
+                    user = self.users.find_one({'_id': user_id})
+            else:
+                user = self.users.find_one({'_id': user_id})
+            if not user:
+                return False
+            updates['updated_at'] = datetime.utcnow()
+            self.users.update_one(
+                {'_id': user_id},
+                {'$set': updates}
+            )
+            return True
+        except Exception:
+            return False
 
     # ──────────── CODE SUBMISSIONS (DSA) ────────────
 
@@ -214,14 +376,15 @@ class MongoDBService:
 
 class MockCollection:
     """Mock MongoDB collection for testing without actual database"""
-    def __init__(self, name, mock_data):
+    def __init__(self, name, mock_data, counters):
         self.name = name
         self.mock_data = mock_data
-        self._counter = 1
+        self._counters = counters
 
     def insert_one(self, document):
-        document['_id'] = str(self._counter)
-        self._counter += 1
+        current = self._counters.get(self.name, 0) + 1
+        self._counters[self.name] = current
+        document['_id'] = str(current)
         self.mock_data[self.name].append(document)
 
         class InsertResult:
@@ -249,13 +412,43 @@ class MockCollection:
             results = filtered
         return MockCursor(results)
 
-    def update_one(self, query, update):
+    def update_one(self, query, update, upsert=False):
+        class UpdateResult:
+            def __init__(self, modified):
+                self.modified_count = modified
+                self.matched_count = modified
         for doc in self.mock_data[self.name]:
             if all(doc.get(k) == v for k, v in query.items()):
                 if '$set' in update:
                     doc.update(update['$set'])
-                return
-    
+                return UpdateResult(1)
+        # Handle upsert
+        if upsert:
+            new_doc = dict(query)
+            if '$set' in update:
+                new_doc.update(update['$set'])
+            self.insert_one(new_doc)
+            return UpdateResult(0)
+        return UpdateResult(0)
+
+    def count_documents(self, query=None):
+        if query is None:
+            query = {}
+        return sum(
+            1 for doc in self.mock_data[self.name]
+            if all(doc.get(k) == v for k, v in query.items())
+        )
+
+    def delete_one(self, query):
+        class DeleteResult:
+            def __init__(self, deleted):
+                self.deleted_count = deleted
+        for i, doc in enumerate(self.mock_data[self.name]):
+            if all(doc.get(k) == v for k, v in query.items()):
+                self.mock_data[self.name].pop(i)
+                return DeleteResult(1)
+        return DeleteResult(0)
+
     def create_index(self, *args, **kwargs):
         pass
 

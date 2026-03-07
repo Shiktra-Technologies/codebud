@@ -76,63 +76,126 @@ class AdminCSVService {
   }
 
   /**
-   * Generate CSV content from Supabase submissions
+   * Generate comprehensive CSV content (45+ columns) from submissions
    */
   generateCSVContent(submissions) {
-    // CSV headers
+    // Escape CSV values properly
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Comprehensive headers — 45+ columns
     const headers = [
-      'Student Name',
-      'Student Email', 
-      'Test Type',
-      'Score',
-      'Total Questions',
-      'Percentage',
-      'Time Taken (minutes)',
-      'Submission Date',
-      'Status',
-      'Violations',
-      'Device Info',
-      'Submission ID'
+      // Student info
+      'Submission ID', 'User ID', 'Student Name', 'Student Email',
+      // Test info
+      'Test Type', 'Test Title', 'Difficulty', 'Category',
+      // Score / Performance
+      'Score', 'Total Questions', 'Correct Answers', 'Wrong Answers', 'Percentage',
+      'Pass/Fail', 'Status',
+      // Time
+      'Time Taken (sec)', 'Time Taken (min)', 'Started At', 'Submitted At',
+      // Code Submission
+      'Language', 'Code Submission (truncated)',
+      // Per-question breakdown (serialised)
+      'Answers JSON',
+      // Per-test-case breakdown (serialised)
+      'Test Results JSON',
+      // Proctoring / Violations
+      'Violation Count', 'Auto Submitted', 'Submitted Due to Violation',
+      'Violation Types', 'Violation Details JSON',
+      // Device / Environment
+      'Device Type', 'User Agent', 'Browser', 'Operating System',
+      'Screen Width', 'Screen Height', 'Is Mobile',
+      // Security Assessment
+      'Fullscreen Active', 'Camera Active', 'Mic Active',
+      'Face Detection Enabled', 'Multiple People Detected',
+      // Location / Network
+      'IP Hint', 'Timezone', 'Language Preference',
+      // Meta
+      'Source', 'Created At', 'Updated At', 'Local Fallback'
     ].join(',');
 
-    // CSV rows
-    const rows = submissions.map(submission => {
-      const percentage = submission.total_questions > 0 ? 
-        Math.round((submission.score / submission.total_questions) * 100) : 0;
-      
-      const timeTakenMinutes = Math.floor((submission.time_taken || 0) / 60);
-      
-      const deviceInfo = submission.device_info && typeof submission.device_info === 'object' ? 
-        (submission.device_info.userAgent || 'Unknown Browser') : 
-        'Unknown Device';
-      
-      const submissionDate = submission.submitted_at ? 
-        new Date(submission.submitted_at).toLocaleString() : 
-        'Unknown Date';
-
-      // Escape CSV values properly
-      const escapeCSV = (value) => {
-        if (value === null || value === undefined) return '';
-        const str = String(value);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
+    const rows = submissions.map(sub => {
+      const totalQ = sub.total_questions || sub.totalQuestions || 0;
+      const score = sub.score || 0;
+      const correct = sub.correct_answers || sub.correctAnswers || 0;
+      const wrong = totalQ > 0 ? totalQ - correct : 0;
+      const percentage = totalQ > 0 ? Math.round((score / totalQ) * 100) : (score || 0);
+      const passed = percentage >= 60;
+      const timeSec = sub.time_taken || sub.timeTaken || sub.time_spent || 0;
+      const timeMin = Math.round(timeSec / 60 * 10) / 10;
+      const details = sub.details || {};
+      const violations = sub.violations || details.violations || {};
+      const violationCount = sub.violation_count || details.violationCount || violations.count || 0;
+      const device = sub.device_info || details.device || {};
+      const testResults = details.testResults || sub.testResults || [];
 
       return [
-        escapeCSV(submission.user_name || 'Unknown Student'),
-        escapeCSV(submission.user_email || 'No Email'),
-        escapeCSV(submission.test_type || 'Unknown Test'),
-        escapeCSV(submission.score || 0),
-        escapeCSV(submission.total_questions || 0),
+        // Student info
+        escapeCSV(sub._id || sub.id || ''),
+        escapeCSV(sub.user_id || sub.userId || ''),
+        escapeCSV(sub.user_name || sub.displayName || sub.userName || 'Unknown'),
+        escapeCSV(sub.user_email || sub.userEmail || ''),
+        // Test info
+        escapeCSV(sub.test_type || sub.testType || 'Unknown'),
+        escapeCSV(sub.test_title || details.title || details.test_title || ''),
+        escapeCSV(details.difficulty || ''),
+        escapeCSV(details.category || ''),
+        // Score
+        escapeCSV(score),
+        escapeCSV(totalQ),
+        escapeCSV(correct),
+        escapeCSV(wrong),
         escapeCSV(`${percentage}%`),
-        escapeCSV(timeTakenMinutes),
-        escapeCSV(submissionDate),
-        escapeCSV(submission.status || 'completed'),
-        escapeCSV(submission.violation_count || 0),
-        escapeCSV(deviceInfo),
-        escapeCSV(submission.id || '')
+        escapeCSV(passed ? 'PASS' : 'FAIL'),
+        escapeCSV(sub.status || 'completed'),
+        // Time
+        escapeCSV(timeSec),
+        escapeCSV(timeMin),
+        escapeCSV(sub.started_at || details.startedAt || ''),
+        escapeCSV(sub.submitted_at || sub.submittedAt || sub.timestamp || ''),
+        // Code
+        escapeCSV(details.language || ''),
+        escapeCSV((details.codeSubmission || '').slice(0, 200)),
+        // Answers
+        escapeCSV(sub.answers ? JSON.stringify(sub.answers).slice(0, 500) : ''),
+        // Test case results
+        escapeCSV(testResults.length > 0 ? JSON.stringify(testResults).slice(0, 500) : ''),
+        // Proctoring
+        escapeCSV(violationCount),
+        escapeCSV(sub.auto_submitted || details.autoSubmitted ? 'Yes' : 'No'),
+        escapeCSV(violations.submittedDueToViolation ? 'Yes' : 'No'),
+        escapeCSV(Array.isArray(violations.types) ? violations.types.join('; ') : ''),
+        escapeCSV(violations.details ? JSON.stringify(violations.details).slice(0, 300) : ''),
+        // Device
+        escapeCSV(device.deviceType || device.type || (device.isMobile ? 'Mobile' : 'Desktop')),
+        escapeCSV(typeof device === 'string' ? device : (device.userAgent || '')),
+        escapeCSV(device.browser || ''),
+        escapeCSV(device.os || device.operatingSystem || ''),
+        escapeCSV(device.screenWidth || ''),
+        escapeCSV(device.screenHeight || ''),
+        escapeCSV(device.isMobile ? 'Yes' : 'No'),
+        // Security
+        escapeCSV(details.fullscreenActive ? 'Yes' : 'No'),
+        escapeCSV(details.cameraActive ? 'Yes' : 'No'),
+        escapeCSV(details.micActive ? 'Yes' : 'No'),
+        escapeCSV(details.faceDetection ? 'Yes' : 'No'),
+        escapeCSV(details.multiplePeople ? 'Yes' : 'No'),
+        // Network
+        escapeCSV(device.ip || ''),
+        escapeCSV(device.timezone || ''),
+        escapeCSV(device.language || ''),
+        // Meta
+        escapeCSV(sub.local ? 'localStorage' : 'API'),
+        escapeCSV(sub.created_at || sub.createdAt || ''),
+        escapeCSV(sub.updated_at || sub.updatedAt || ''),
+        escapeCSV(sub.local ? 'Yes' : 'No'),
       ].join(',');
     });
 
@@ -153,12 +216,24 @@ class AdminCSVService {
       console.log(`📊 Searching through ${submissions.length} real submissions`);
       
       // Apply search filters
-      if (criteria.searchText) {
-        const searchLower = criteria.searchText.toLowerCase();
+      if (criteria.searchText || criteria.searchTerm) {
+        const searchLower = (criteria.searchText || criteria.searchTerm).toLowerCase();
         submissions = submissions.filter(sub => 
           (sub.user_name && sub.user_name.toLowerCase().includes(searchLower)) ||
-          (sub.user_email && sub.user_email.toLowerCase().includes(searchLower))
+          (sub.user_email && sub.user_email.toLowerCase().includes(searchLower)) ||
+          (sub.test_type && sub.test_type.toLowerCase().includes(searchLower)) ||
+          (sub.userName && sub.userName.toLowerCase().includes(searchLower)) ||
+          (sub.userEmail && sub.userEmail.toLowerCase().includes(searchLower))
         );
+      }
+
+      // Filter by test type
+      if (criteria.testType) {
+        const typeLower = criteria.testType.toLowerCase();
+        submissions = submissions.filter(sub => {
+          const subType = (sub.test_type || sub.testType || '').toLowerCase();
+          return subType.includes(typeLower);
+        });
       }
 
       // Filter by date range
