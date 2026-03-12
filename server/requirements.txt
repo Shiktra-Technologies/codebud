@@ -11,3 +11,4 @@ eventlet==0.33.3
 PyJWT==2.11.0
 bcrypt==5.0.0
 dnspython==2.8.0
+python-keycloak==3.9.0
