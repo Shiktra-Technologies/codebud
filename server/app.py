@@ -8,6 +8,8 @@ from dsa_analyzer import analyze_code, get_problem, get_all_problems
 from functools import wraps
 import os
 import jwt  # type: ignore
+import json
+import uuid
 from datetime import datetime, timedelta
 from bson import ObjectId  # type: ignore
 from dotenv import load_dotenv  # type: ignore
@@ -681,6 +683,162 @@ def get_user_submissions(user_id):
         'success': True,
         'data': [serialize_doc(s) for s in submissions],
         'count': len(submissions)
+    })
+
+
+# ──────────── APTITUDE QUESTION ROUTES ────────────
+
+def _normalize_question_options(raw_options):
+    """Normalize quiz options into a simple string array."""
+    if isinstance(raw_options, list):
+        return [str(option) for option in raw_options]
+
+    if isinstance(raw_options, dict):
+        return [str(raw_options[key]) for key in raw_options.keys()]
+
+    if isinstance(raw_options, str):
+        trimmed = raw_options.strip()
+        if not trimmed:
+            return []
+        if '|' in trimmed:
+            return [item.strip() for item in trimmed.split('|') if item.strip()]
+        if ',' in trimmed:
+            return [item.strip() for item in trimmed.split(',') if item.strip()]
+        return [trimmed]
+
+    return []
+
+
+def _resolve_question_correct_index(raw_question, options, raw_options):
+    """Resolve the correct option index from mixed question formats."""
+    candidates = [
+        raw_question.get('correct'),
+        raw_question.get('correct_answer'),
+        raw_question.get('answer'),
+    ]
+
+    for candidate in candidates:
+        if isinstance(candidate, int):
+            if 0 <= candidate < len(options):
+                return candidate
+            if 1 <= candidate <= len(options):
+                return candidate - 1
+
+        if isinstance(candidate, str):
+            value = candidate.strip()
+            if not value:
+                continue
+
+            if value.isdigit():
+                number = int(value)
+                if 0 <= number < len(options):
+                    return number
+                if 1 <= number <= len(options):
+                    return number - 1
+
+            if isinstance(raw_options, dict):
+                keys = list(raw_options.keys())
+                for idx, key in enumerate(keys):
+                    if str(key).strip().lower() == value.lower():
+                        return idx
+
+            for idx, option in enumerate(options):
+                if str(option).strip().lower() == value.lower():
+                    return idx
+
+    return -1
+
+
+def _extract_questions_from_quiz_content(raw_content, section_title, lesson_id):
+    """Extract normalized question objects from lesson JSON content."""
+    parsed = raw_content
+    if isinstance(raw_content, str):
+        try:
+            parsed = json.loads(raw_content)
+        except Exception:
+            parsed = []
+
+    if isinstance(parsed, list):
+        raw_questions = parsed
+    elif isinstance(parsed, dict) and isinstance(parsed.get('questions'), list):
+        raw_questions = parsed.get('questions')
+    else:
+        raw_questions = []
+
+    normalized = []
+    for idx, raw_question in enumerate(raw_questions):
+        if not isinstance(raw_question, dict):
+            continue
+
+        options = _normalize_question_options(raw_question.get('options'))
+        if not options:
+            continue
+
+        question_text = raw_question.get('question', 'Untitled question')
+        if not isinstance(question_text, str):
+            question_text = str(question_text)
+
+        normalized.append({
+            'id': str(raw_question.get('id', f'{lesson_id}_{idx + 1}')),
+            'question': question_text,
+            'options': options,
+            'correct': _resolve_question_correct_index(raw_question, options, raw_question.get('options')),
+            'category': raw_question.get('category', section_title),
+            'hint': raw_question.get('hint', ''),
+        })
+
+    return normalized
+
+
+@app.route('/api/aptitude/questions', methods=['GET'])
+def get_aptitude_questions():
+    """Fetch aptitude questions from DB-backed Industry Prepare course content."""
+    requested_course_id = request.args.get('course_id', '').strip()
+    limit = request.args.get('limit', type=int)
+
+    course = None
+    if requested_course_id:
+        course = _find_course(requested_course_id)
+
+    if not course:
+        course = db_service.courses.find_one({'title': 'Industry Prepare'})
+
+    if not course:
+        for item in db_service.courses.find({}):
+            title = str(item.get('title', '')).lower()
+            tags = [str(tag).lower() for tag in (item.get('tags', []) or [])]
+            if ('industry' in title and 'prepare' in title) or ('aptitude' in tags):
+                course = item
+                break
+
+    if not course:
+        return jsonify({'success': False, 'error': 'Aptitude question bank not found in database'}), 404
+
+    questions = []
+    for section in (course.get('sections', []) or []):
+        section_title = section.get('title', 'General')
+        for lesson in (section.get('lessons', []) or []):
+            if lesson.get('type') != 'quiz':
+                continue
+            lesson_id = lesson.get('_id', _gen_id())
+            lesson_questions = _extract_questions_from_quiz_content(
+                lesson.get('content', ''),
+                section_title,
+                lesson_id,
+            )
+            questions.extend(lesson_questions)
+
+    if not questions:
+        return jsonify({'success': False, 'error': 'No aptitude quiz questions found in database'}), 404
+
+    if isinstance(limit, int) and limit > 0:
+        questions = questions[:limit]
+
+    return jsonify({
+        'success': True,
+        'course_id': str(course.get('_id', '')),
+        'count': len(questions),
+        'questions': questions,
     })
 
 
@@ -1749,6 +1907,7 @@ def admin_course_stats():
     published = db_service.courses.count_documents({'is_published': True})
     total_enrollments = db_service.enrollments.count_documents({})
     completed_enrollments = db_service.enrollments.count_documents({'completed_at': {'$ne': None}})
+
     return jsonify({
         'success': True,
         'stats': {
@@ -1760,6 +1919,125 @@ def admin_course_stats():
             'completion_rate': round((completed_enrollments / total_enrollments * 100)) if total_enrollments > 0 else 0,
         }
     })
+
+# ── Bulk Course Creation for Industry Prepare ──
+
+@app.route('/api/courses/create-industry-prepare', methods=['POST'])
+@require_admin
+def create_industry_prepare_course():
+    """Create the Industry Prepare course with all structured content."""
+    try:
+        data = request.get_json() or {}
+        
+        # Check if course already exists
+        existing = db_service.courses.find_one({'title': 'Industry Prepare'})
+        if existing:
+            return jsonify({'success': False, 'error': 'Industry Prepare course already exists'}), 400
+        
+        # Create main course
+        course = {
+            'title': 'Industry Prepare',
+            'description': 'Comprehensive industry-standard aptitude test preparation covering Quantitative Aptitude, Logical Reasoning, and Verbal Ability. Based on real patterns from TCS NQT, Infosys Infy TQ, Wipro WILP, and Accenture assessments.',
+            'thumbnail_url': data.get('thumbnail_url', ''),
+            'difficulty': 'intermediate',
+            'estimated_hours': 8,
+            'tags': ['aptitude', 'quantitative', 'logical-reasoning', 'verbal-ability', 'interview-prep', 'industry-standard'],
+            'instructor_name': 'CodeBud Team',
+            'is_published': False,  # Admin can publish later
+            'display_order': 1000,  # High number to put at end
+            'sections': [],
+            'created_by': g.current_user_id,
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+        }
+        
+        # Insert course first to get ID
+        result = db_service.courses.insert_one(course)
+        course_id = result.inserted_id
+        
+        print(f"[INFO] Created Industry Prepare course: {course_id}")
+        
+        return jsonify({
+            'success': True, 
+            'course_id': str(course_id),
+            'message': 'Industry Prepare course created successfully. Add modules using /api/courses/add-industry-module endpoint.'
+        }), 201
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to create Industry Prepare course: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/courses/<course_id>/add-industry-module', methods=['POST'])
+@require_admin 
+def add_industry_module(course_id):
+    """Add a structured module (like Phase 1 questions) to Industry Prepare course."""
+    try:
+        course = _find_course(course_id)
+        if not course:
+            return jsonify({'success': False, 'error': 'Course not found'}), 404
+            
+        data = request.get_json() or {}
+        module_data = data.get('module_data')
+        
+        if not module_data:
+            return jsonify({'success': False, 'error': 'module_data is required'}), 400
+            
+        # Create section for this module
+        section_id = _gen_id()
+        section = {
+            '_id': section_id,
+            'title': module_data.get('title', 'Unnamed Module'),
+            'order': len(course.get('sections', [])),
+            'lessons': []
+        }
+        
+        # Group questions by category 
+        questions_by_category = {}
+        for question in module_data.get('questions', []):
+            category = question.get('category', 'General')
+            if category not in questions_by_category:
+                questions_by_category[category] = []
+            questions_by_category[category].append(question)
+        
+        # Create lessons for each category
+        lesson_order = 0
+        for category, questions in questions_by_category.items():
+            lesson_id = _gen_id()
+            lesson = {
+                '_id': lesson_id,
+                'title': f'{category} Quiz',
+                'type': 'quiz',
+                'content': json.dumps(questions, indent=2),  # Store questions as JSON
+                'duration_minutes': len(questions) * 2,  # 2 minutes per question
+                'order': lesson_order
+            }
+            section['lessons'].append(lesson)
+            lesson_order += 1
+            
+        # Update course with new section in a way that works for both Mongo and mock DB.
+        sections = course.get('sections', [])
+        sections.append(section)
+        db_service.courses.update_one(
+            {'_id': course['_id']},
+            {
+                '$set': {
+                    'sections': sections,
+                    'updated_at': datetime.utcnow(),
+                }
+            }
+        )
+        
+        print(f"[INFO] Added module '{section['title']}' to course {course_id}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Module "{section["title"]}" added successfully with {len(section["lessons"])} quiz sections'
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to add module to course: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def _find_course(course_id):

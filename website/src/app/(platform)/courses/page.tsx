@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useAuth } from "@/lib/hooks/useAuth";
 import { listCourses, getMyEnrollments } from "@/lib/services/courseService";
 import type { Course } from "@/lib/services/courseService";
 import {
@@ -12,11 +11,8 @@ import {
     Users,
     Star,
     Search,
-    Filter,
-    GraduationCap,
     ArrowLeft,
     Loader2,
-    ChevronRight,
 } from "lucide-react";
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -28,7 +24,6 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 };
 
 export default function CoursesPage() {
-    const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
     const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);

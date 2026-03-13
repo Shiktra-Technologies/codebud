@@ -23,6 +23,7 @@ import {
     BarChart3,
     Users as UsersIcon,
     Star,
+    GraduationCap,
 } from "lucide-react";
 import {
     createCourse,
@@ -34,7 +35,10 @@ import {
     addSection,
     addLesson,
     getCourseStats,
+    createIndustryPrepareCourse,
+    addIndustryModule,
 } from "@/lib/services/courseService";
+import { getAptitudeQuestions } from "@/lib/services/aptitudeService";
 import type { Course, Section, Lesson } from "@/lib/services/courseService";
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -124,6 +128,58 @@ export default function CourseBuilderTab({ onBack }: CourseBuilderProps) {
         }
     };
 
+    // ── Create Industry Prepare Course ──
+    const handleCreateIndustryPrepare = async () => {
+        if (!confirm("Create Industry Prepare course? This will add a comprehensive aptitude test course.")) return;
+        setSaving(true);
+        try {
+            // Create the main course
+            const createRes = await createIndustryPrepareCourse();
+            if (!createRes.success) {
+                throw new Error(createRes.error);
+            }
+            
+            console.log("Industry Prepare course created:", createRes.course_id);
+            alert("Industry Prepare course created! You can now add modules via the course editor.");
+            fetchCourses();
+        } catch (err: any) {
+            console.error("Failed to create Industry Prepare course:", err);
+            alert(err?.response?.data?.error || err.message || "Failed to create Industry Prepare course");
+        }
+        setSaving(false);
+    };
+
+    // ── Add Industry Module ──
+    const handleAddIndustryModule = async (courseId: string) => {
+        setSaving(true);
+        try {
+            const questionBank = await getAptitudeQuestions();
+            const questions = Array.isArray(questionBank?.questions) ? questionBank.questions : [];
+
+            if (!questionBank?.success || !questions.length) {
+                throw new Error(questionBank?.error || "No aptitude questions available in database");
+            }
+
+            const moduleData = {
+                module_id: "M1",
+                title: "Phase 1: Aptitude Questions",
+                description: "Loaded from DB question bank",
+                questions,
+            };
+
+            const res = await addIndustryModule(courseId, moduleData);
+            if (!res.success) {
+                throw new Error(res.error);
+            }
+            alert(res.message);
+            fetchCourses();
+        } catch (err: any) {
+            console.error("Failed to add module:", err);
+            alert(err?.response?.data?.error || err.message || "Failed to add module");
+        }
+        setSaving(false);
+    };
+
     // ── Open editor ──
     const openEditor = async (courseId: string) => {
         try {
@@ -168,6 +224,7 @@ export default function CourseBuilderTab({ onBack }: CourseBuilderProps) {
                 onSave={saveCourse}
                 onCancel={() => { setView("list"); setEditingCourse(null); }}
                 saving={saving}
+                handleAddIndustryModule={handleAddIndustryModule}
             />
         );
     }
@@ -202,12 +259,22 @@ export default function CourseBuilderTab({ onBack }: CourseBuilderProps) {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <span className="text-xs font-medium text-white/30">{courses.length} courses</span>
-                <button
-                    onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-400 text-surface-0 text-xs font-bold hover:bg-yellow-300 transition-colors"
-                >
-                    <Plus size={14} /> New Course
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleCreateIndustryPrepare}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-400 text-surface-0 text-xs font-bold hover:bg-emerald-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <GraduationCap size={14} /> 
+                        {saving ? "Creating..." : "Industry Prepare"}
+                    </button>
+                    <button
+                        onClick={() => setShowCreateForm(!showCreateForm)}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-400 text-surface-0 text-xs font-bold hover:bg-yellow-300 transition-colors"
+                    >
+                        <Plus size={14} /> New Course
+                    </button>
+                </div>
             </div>
 
             {/* Create Form */}
@@ -332,9 +399,10 @@ interface CourseEditorProps {
     onSave: (course: Course) => void;
     onCancel: () => void;
     saving: boolean;
+    handleAddIndustryModule?: (courseId: string) => Promise<void>;
 }
 
-function CourseEditor({ course: initialCourse, onSave, onCancel, saving }: CourseEditorProps) {
+function CourseEditor({ course: initialCourse, onSave, onCancel, saving, handleAddIndustryModule }: CourseEditorProps) {
     const [course, setCourse] = useState<Course>({ ...initialCourse });
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
     const [editingLesson, setEditingLesson] = useState<{ sectionId: string; lesson: Lesson } | null>(null);
@@ -501,10 +569,22 @@ function CourseEditor({ course: initialCourse, onSave, onCancel, saving }: Cours
                 <div className="lg:col-span-2 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-white/30">Sections & Lessons</h3>
-                        <button onClick={handleAddSection}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-3/50 border border-white/[0.06] text-xs text-white/40 hover:text-white/60 hover:border-white/10 transition-all">
-                            <Plus size={12} /> Add Section
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* Special button for Industry Prepare course */}
+                            {course.title.toLowerCase().includes('industry prepare') && (
+                                <button 
+                                    onClick={() => handleAddIndustryModule && handleAddIndustryModule(course._id)}
+                                    disabled={saving}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-400/20 border border-emerald-400/30 text-xs text-emerald-400 hover:bg-emerald-400/30 transition-all disabled:opacity-50"
+                                >
+                                    <GraduationCap size={12} /> Add Phase 1 Module
+                                </button>
+                            )}
+                            <button onClick={handleAddSection}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-3/50 border border-white/[0.06] text-xs text-white/40 hover:text-white/60 hover:border-white/10 transition-all">
+                                <Plus size={12} /> Add Section
+                            </button>
+                        </div>
                     </div>
 
                     {course.sections.length === 0 ? (
