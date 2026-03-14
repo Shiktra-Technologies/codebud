@@ -402,10 +402,57 @@ interface CourseEditorProps {
     handleAddIndustryModule?: (courseId: string) => Promise<void>;
 }
 
+const createClientId = (prefix: "sec" | "les") =>
+    `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+const ensureUniqueId = (candidate: unknown, prefix: "sec" | "les", seen: Set<string>) => {
+    const normalized = typeof candidate === "string" ? candidate.trim() : "";
+    if (normalized && !seen.has(normalized)) {
+        seen.add(normalized);
+        return normalized;
+    }
+
+    let next = createClientId(prefix);
+    while (seen.has(next)) next = createClientId(prefix);
+    seen.add(next);
+    return next;
+};
+
+const normalizeCourseForEditor = (rawCourse: Course): Course => {
+    const sectionIds = new Set<string>();
+    const sections = (rawCourse.sections || []).map((section, sIdx) => {
+        const sectionId = ensureUniqueId(section._id, "sec", sectionIds);
+        const lessonIds = new Set<string>();
+        const lessons = (section.lessons || []).map((lesson, lIdx) => ({
+            ...lesson,
+            _id: ensureUniqueId(lesson._id, "les", lessonIds),
+            order: typeof lesson.order === "number" ? lesson.order : lIdx,
+        }));
+
+        return {
+            ...section,
+            _id: sectionId,
+            order: typeof section.order === "number" ? section.order : sIdx,
+            lessons,
+        };
+    });
+
+    return {
+        ...rawCourse,
+        sections,
+    };
+};
+
 function CourseEditor({ course: initialCourse, onSave, onCancel, saving, handleAddIndustryModule }: CourseEditorProps) {
-    const [course, setCourse] = useState<Course>({ ...initialCourse });
+    const [course, setCourse] = useState<Course>(() => normalizeCourseForEditor(initialCourse));
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
     const [editingLesson, setEditingLesson] = useState<{ sectionId: string; lesson: Lesson } | null>(null);
+
+    useEffect(() => {
+        setCourse(normalizeCourseForEditor(initialCourse));
+        setExpandedSections(new Set());
+        setEditingLesson(null);
+    }, [initialCourse]);
 
     const updateField = (field: string, value: any) => {
         setCourse((prev) => ({ ...prev, [field]: value }));
@@ -414,7 +461,7 @@ function CourseEditor({ course: initialCourse, onSave, onCancel, saving, handleA
     // ── Section management ──
     const handleAddSection = () => {
         const newSection: Section = {
-            _id: `sec_${Date.now()}`,
+            _id: createClientId("sec"),
             title: "New Section",
             order: course.sections.length,
             lessons: [],
@@ -450,7 +497,7 @@ function CourseEditor({ course: initialCourse, onSave, onCancel, saving, handleA
     // ── Lesson management ──
     const handleAddLesson = (sectionId: string, type: string = "text") => {
         const newLesson: Lesson = {
-            _id: `les_${Date.now()}`,
+            _id: createClientId("les"),
             title: "New Lesson",
             type: type as any,
             content: "",

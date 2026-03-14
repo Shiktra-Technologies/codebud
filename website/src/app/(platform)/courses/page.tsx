@@ -29,7 +29,8 @@ export default function CoursesPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [difficulty, setDifficulty] = useState<string>("all");
-
+    
+    
     useEffect(() => {
         Promise.all([
             listCourses(),
