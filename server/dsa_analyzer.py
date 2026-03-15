@@ -74,7 +74,102 @@ problems = {
             {"input": ([5, 4, -1, 7, 8],), "expected": 23},
             {"input": ([-1, -2, -3, -4],), "expected": -1},
         ],
-    }
+    },
+    "6": {
+        "title": "Merge Two Sorted Arrays",
+        "function_name": "merge",
+        "description": "Merge two sorted arrays into one sorted array and return it.",
+        "difficulty": "Easy",
+        "test_cases": [
+            {"input": ([1, 2, 3], [2, 5, 6]), "expected": [1, 2, 2, 3, 5, 6]},
+            {"input": ([1], []), "expected": [1]},
+            {"input": ([], [1]), "expected": [1]},
+            {"input": ([1, 3, 5], [2, 4, 6]), "expected": [1, 2, 3, 4, 5, 6]},
+        ],
+    },
+    "7": {
+        "title": "Longest Substring Without Repeating Characters",
+        "function_name": "length_of_longest_substring",
+        "description": "Find the length of the longest substring without repeating characters.",
+        "difficulty": "Medium",
+        "test_cases": [
+            {"input": ("abcabcbb",), "expected": 3},
+            {"input": ("bbbbb",), "expected": 1},
+            {"input": ("pwwkew",), "expected": 3},
+            {"input": ("",), "expected": 0},
+            {"input": (" ",), "expected": 1},
+        ],
+    },
+    "8": {
+        "title": "3Sum",
+        "function_name": "three_sum",
+        "description": "Given an integer array nums, return all the triplets that sum to 0. No duplicate triplets. Return triplets sorted.",
+        "difficulty": "Medium",
+        "test_cases": [
+            {"input": ([-1, 0, 1, 2, -1, -4],), "expected": [[-1, -1, 2], [-1, 0, 1]]},
+            {"input": ([0, 1, 1],), "expected": []},
+            {"input": ([0, 0, 0],), "expected": [[0, 0, 0]]},
+        ],
+    },
+    "9": {
+        "title": "Coin Change",
+        "function_name": "coin_change",
+        "description": "Return the fewest number of coins needed to make up an amount. Return -1 if not possible.",
+        "difficulty": "Medium",
+        "test_cases": [
+            {"input": ([1, 5, 10], 12), "expected": 3},
+            {"input": ([2], 3), "expected": -1},
+            {"input": ([1], 0), "expected": 0},
+            {"input": ([1, 2, 5], 11), "expected": 3},
+        ],
+    },
+    "10": {
+        "title": "Word Search",
+        "function_name": "exist",
+        "description": "Given an m x n grid of characters and a string word, return true if word exists in the grid via adjacent cells.",
+        "difficulty": "Medium",
+        "test_cases": [
+            {"input": ([["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], "ABCCED"), "expected": True},
+            {"input": ([["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], "SEE"), "expected": True},
+            {"input": ([["A","B","C","E"],["S","F","C","S"],["A","D","E","E"]], "ABCB"), "expected": False},
+        ],
+    },
+    "11": {
+        "title": "Merge Intervals",
+        "function_name": "merge",
+        "description": "Merge all overlapping intervals and return non-overlapping intervals.",
+        "difficulty": "Medium",
+        "test_cases": [
+            {"input": ([[1,3],[2,6],[8,10],[15,18]],), "expected": [[1,6],[8,10],[15,18]]},
+            {"input": ([[1,4],[4,5]],), "expected": [[1,5]]},
+            {"input": ([[1,4],[0,4]],), "expected": [[0,4]]},
+            {"input": ([[1,4],[2,3]],), "expected": [[1,4]]},
+        ],
+    },
+    "12": {
+        "title": "Trapping Rain Water",
+        "function_name": "trap",
+        "description": "Given n non-negative integers representing an elevation map, compute how much water it can trap.",
+        "difficulty": "Hard",
+        "test_cases": [
+            {"input": ([0,1,0,2,1,0,1,3,2,1,2,1],), "expected": 6},
+            {"input": ([4,2,0,3,2,5],), "expected": 9},
+            {"input": ([0],), "expected": 0},
+            {"input": ([1,2,3,4,5],), "expected": 0},
+        ],
+    },
+    "13": {
+        "title": "Median of Two Sorted Arrays",
+        "function_name": "find_median_sorted_arrays",
+        "description": "Given two sorted arrays, return the median of the two sorted arrays.",
+        "difficulty": "Hard",
+        "test_cases": [
+            {"input": ([1, 3], [2]), "expected": 2.0},
+            {"input": ([1, 2], [3, 4]), "expected": 2.5},
+            {"input": ([0, 0], [0, 0]), "expected": 0.0},
+            {"input": ([], [1]), "expected": 1.0},
+        ],
+    },
 }
 
 # ----------------------------------------------------------
@@ -166,6 +261,24 @@ class DSAAnalyzer:
         self.memory_limit = memory_limit
         self.test_results: List[TestResult] = []
 
+    @staticmethod
+    def _compare_output(actual, expected):
+        """Compare outputs with special handling for floats and nested lists"""
+        if actual == expected:
+            return True
+        # Float / int tolerance
+        if isinstance(actual, (int, float)) and isinstance(expected, (int, float)):
+            return abs(float(actual) - float(expected)) < 1e-6
+        # List of lists — sort for order-independent comparison (e.g. 3Sum)
+        if (isinstance(actual, list) and isinstance(expected, list)
+                and len(actual) > 0 and isinstance(actual[0], list)
+                and len(expected) > 0 and isinstance(expected[0], list)):
+            try:
+                return sorted(sorted(x) for x in actual) == sorted(sorted(x) for x in expected)
+            except (TypeError, ValueError):
+                return False
+        return False
+
     def analyze(self, test_cases: List[TestCase], function_name: str):
 
         ok, msg = CodeValidator.validate_syntax(self.code)
@@ -251,7 +364,7 @@ class DSAAnalyzer:
 
             else:
                 actual = output["value"]
-                if actual == tc.expected_output:
+                if self._compare_output(actual, tc.expected_output):
                     result = TestResult(tc, TestStatus.PASSED, actual_output=actual)
                     passed += 1
                 else:
@@ -324,9 +437,34 @@ class DSAAnalyzer:
 # PROBLEM MANAGEMENT
 # ----------------------------------------------------------
 
+# ── Slug aliases for frontend problem IDs ──
+
+_slug_aliases = {
+    "two-sum": "1",
+    "valid-parentheses": "2",
+    "reverse-linked-list": "3",
+    "binary-search": "4",
+    "max-subarray": "5",
+    "maximum-subarray": "5",
+    "merge-sorted-arrays": "6",
+    "longest-substring": "7",
+    "three-sum": "8",
+    "coin-change": "9",
+    "word-search": "10",
+    "merge-intervals": "11",
+    "trapping-rain-water": "12",
+    "median-two-arrays": "13",
+}
+
+
+def _resolve_id(problem_id: str) -> str:
+    """Resolve a frontend slug or numeric string to a canonical problem ID"""
+    return _slug_aliases.get(problem_id, problem_id)
+
+
 def get_problem(problem_id: str):
-    """Get problem details by ID"""
-    return problems.get(problem_id)
+    """Get problem details by ID or slug"""
+    return problems.get(_resolve_id(problem_id))
 
 def get_all_problems():
     """Get all available problems"""
@@ -349,6 +487,7 @@ def analyze_code(problem_id: str, code: str, language: str = "python"):
             "final_stdout": ""
         }
 
+    problem_id = _resolve_id(problem_id)
     if problem_id not in problems:
         return {
             "status": SubmissionStatus.RUNTIME_ERROR.value,

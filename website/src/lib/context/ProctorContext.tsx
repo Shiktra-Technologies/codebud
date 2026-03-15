@@ -334,13 +334,18 @@ export const ProctorProvider = ({ children }: { children: React.ReactNode }) => 
         let intervalId: NodeJS.Timeout;
         let analyser: AnalyserNode | null = null;
         let source: MediaStreamAudioSourceNode | null = null;
+        let cancelled = false;
 
         const run = async () => {
             const video = videoRef.current!;
+            let faceAbsentCount = 0;
             if (!video.srcObject) {
                 video.srcObject = mediaStream;
                 await video.play().catch(() => {});
             }
+
+            // If cleanup ran while we were awaiting, bail out
+            if (cancelled) return;
 
             // Audio setup
             try {
@@ -375,6 +380,18 @@ export const ProctorProvider = ({ children }: { children: React.ReactNode }) => 
                                 `Critical: ${personCount} people detected in camera frame`
                             );
                         }
+
+                        // Face-absent detection with grace period
+                        if (personCount === 0) {
+                            faceAbsentCount++;
+                            // 3 consecutive checks (~6s) before flagging
+                            if (faceAbsentCount >= 3) {
+                                addViolation("WARNING", "No person detected in camera frame — please stay visible");
+                                faceAbsentCount = 0; // reset after flagging
+                            }
+                        } else {
+                            faceAbsentCount = 0; // reset when person is present
+                        }
                     }
 
                     // Audio speech detection
@@ -395,6 +412,7 @@ export const ProctorProvider = ({ children }: { children: React.ReactNode }) => 
         run();
 
         return () => {
+            cancelled = true;
             clearInterval(intervalId);
             if (
                 audioContextRef.current &&
@@ -409,6 +427,7 @@ export const ProctorProvider = ({ children }: { children: React.ReactNode }) => 
         proctorState.testSubmitted,
         modelsLoaded,
         mediaStream,
+        addViolation,
         submitTestDueToViolation,
     ]);
 

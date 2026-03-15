@@ -1,8 +1,8 @@
 // Hybrid DSA Code Execution Service
 // Supports both browser-based and server-based execution
+// Uses apiClient for authenticated requests to Flask backend
 
-// NOTE: unifiedCodeService removed — it eagerly loads browser scripts (Skulpt, Pyodide, TCC)
-// which crash in Next.js SSR where `document` is unavailable.
+import apiClient from '@/lib/apiClient';
 
 class DSAService {
     constructor() {
@@ -24,42 +24,21 @@ class DSAService {
      */
     async executeCode(problemId, code, language = 'python') {
         try {
-            // Create a manual timeout promise
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Code execution timed out')), this.timeout);
-            });
+            const response = await apiClient.post('/api/run', {
+                problem_id: problemId,
+                code: code,
+                language: language
+            }, { timeout: this.timeout });
 
-            const fetchPromise = fetch(`${this.baseURL}/run`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    problem_id: problemId,
-                    code: code,
-                    language: language
-                })
-            });
-
-            const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Server error: ${response.status}`);
-            }
-
-            const result = await response.json();
-            return result;
-
+            return response.data;
         } catch (error) {
-            if (error.message === 'Code execution timed out') {
+            if (error.code === 'ECONNABORTED') {
                 throw new Error('Code execution timed out. Please optimize your solution.');
             }
-            if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                throw new Error('Unable to connect to code execution server. Please try again later.');
+            if (error.response) {
+                throw new Error(error.response.data?.error || `Server error: ${error.response.status}`);
             }
-            // Handle network errors
-            if (!navigator.onLine) {
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
                 throw new Error('No internet connection. Please check your network.');
             }
             throw new Error(`Connection failed: ${error.message}`);
@@ -72,15 +51,8 @@ class DSAService {
      */
     async getProblems() {
         try {
-            const response = await fetch(`${this.baseURL}/problems`);
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch problems: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return data.problems || [];
-
+            const response = await apiClient.get('/api/problems');
+            return response.data.problems || [];
         } catch (error) {
             console.error('Error fetching problems:', error);
             throw new Error('Failed to load problems. Please try again later.');
@@ -94,19 +66,12 @@ class DSAService {
      */
     async getProblem(problemId) {
         try {
-            const response = await fetch(`${this.baseURL}/problem/${problemId}`);
-            
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error(`Problem ${problemId} not found`);
-                }
-                throw new Error(`Failed to fetch problem: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return data.problem;
-
+            const response = await apiClient.get(`/api/problem/${problemId}`);
+            return response.data.problem;
         } catch (error) {
+            if (error.response?.status === 404) {
+                throw new Error(`Problem ${problemId} not found`);
+            }
             console.error('Error fetching problem:', error);
             throw error;
         }
@@ -118,17 +83,8 @@ class DSAService {
      */
     async checkHealth() {
         try {
-            // Create a manual timeout promise
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Health check timeout')), 5000);
-            });
-
-            const fetchPromise = fetch(`${this.baseURL}/health`, {
-                method: 'GET'
-            });
-
-            const response = await Promise.race([fetchPromise, timeoutPromise]);
-            return response.ok;
+            const response = await apiClient.get('/api/health', { timeout: 5000 });
+            return response.status === 200;
         } catch (error) {
             console.warn('DSA server health check failed:', error.message);
             return false;

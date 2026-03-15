@@ -19,7 +19,8 @@ import {
 const ease = [0.16, 1, 0.3, 1] as const;
 
 interface Student {
-    id: string;
+    _id: string;
+    id?: string;
     email: string;
     display_name?: string;
     role?: string;
@@ -28,7 +29,8 @@ interface Student {
 }
 
 interface Submission {
-    id: string;
+    _id: string;
+    id?: string;
     user_id: string;
     test_type: string;
     score: number;
@@ -70,12 +72,13 @@ export default function ActiveUsersTab({ activeStudents, submissions }: ActiveUs
             { count: number; avgScore: number; lastActivity: string }
         >();
         activeStudents.forEach((student) => {
-            const subs = userSubmissions.get(student.id) || [];
+            const sid = student._id || student.id || '';
+            const subs = userSubmissions.get(sid) || [];
             const avgScore =
                 subs.length > 0
                     ? Math.round(subs.reduce((sum, s) => sum + s.score, 0) / subs.length)
                     : 0;
-            stats.set(student.id, {
+            stats.set(sid, {
                 count: subs.length,
                 avgScore,
                 lastActivity: student.last_active || student.created_at || "",
@@ -135,14 +138,15 @@ export default function ActiveUsersTab({ activeStudents, submissions }: ActiveUs
             className="space-y-3"
         >
             {activeStudents.map((student, i) => {
-                const stats = userStats.get(student.id);
-                const subs = userSubmissions.get(student.id) || [];
-                const isExpanded = expandedUser === student.id;
+                const sid = student._id || student.id || '';
+                const stats = userStats.get(sid);
+                const subs = userSubmissions.get(sid) || [];
+                const isExpanded = expandedUser === sid;
                 const isLive = stats && formatTime(stats.lastActivity).includes("Just now");
 
                 return (
                     <motion.div
-                        key={student.id}
+                        key={sid}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05, duration: 0.3, ease }}
@@ -151,7 +155,7 @@ export default function ActiveUsersTab({ activeStudents, submissions }: ActiveUs
                         {/* Header */}
                         <div
                             onClick={() =>
-                                setExpandedUser(isExpanded ? null : student.id)
+                                setExpandedUser(isExpanded ? null : sid)
                             }
                             className={`p-4 cursor-pointer transition-colors ${
                                 isExpanded
@@ -264,7 +268,7 @@ export default function ActiveUsersTab({ activeStudents, submissions }: ActiveUs
                                                         (sub.score / sub.total_questions) * 100 >= 60;
                                                     return (
                                                         <div
-                                                            key={sub.id}
+                                                            key={sub._id || sub.id}
                                                             className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-surface-3/30 border border-white/[0.04]"
                                                         >
                                                             <div className="flex items-center gap-2 flex-1 min-w-0">

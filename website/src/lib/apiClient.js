@@ -22,11 +22,16 @@ export function getToken() {
 export function setToken(token) {
     if (typeof window === 'undefined') return;
     localStorage.setItem(TOKEN_KEY, token);
+    // Sync to cookie so Next.js middleware can read it server-side
+    // encodeURIComponent handles any special chars in the JWT
+    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=${60 * 60 * 72}; SameSite=Lax`;
 }
 
 export function removeToken() {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(TOKEN_KEY);
+    // Clear the cookie as well
+    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }
 
 // ──────── Request Interceptor (attach JWT) ────────

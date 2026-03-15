@@ -1,452 +1,292 @@
 /**
- * Leaderboard Service - Manage leaderboard data and calculations
+ * Leaderboard Service - Backend-powered leaderboard with caching
+ * Fetches real submission data via API, builds ranked leaderboard,
+ * and keeps cross-tab sync through BroadcastChannel.
  */
 
-const LEADERBOARD_STORAGE_KEY = 'leaderboard_data';
-const USER_SCORES_KEY = 'user_scores';
+import apiClient from '@/lib/apiClient';
+
+const CACHE_KEY = 'leaderboard_cache';
+const CACHE_TTL = 60_000; // 1 minute local cache
 
 export const leaderboardService = {
-  // Initialize listeners when service is created
+  _cache: null,
+  _cacheTime: 0,
+  _broadcastChannel: null,
+  _storageListener: null,
+
   init() {
     this.startListeningForUpdates();
     return this;
   },
 
-  /**
-   * Get current leaderboard data
-   */
-  getLeaderboard() {
-    try {
-      // First try to build leaderboard from real submissions
-      const realLeaderboard = this.buildLeaderboardFromSubmissions();
-      
-      if (realLeaderboard.length > 0) {
-        console.log('[DATA] Using real submission data for leaderboard');
-        return realLeaderboard;
-      }
-      
-      // Fallback to stored leaderboard data (for backwards compatibility)
-      console.log('[DATA] Using stored leaderboard data (no real submissions found)');
-      const leaderboardData = JSON.parse(localStorage.getItem(LEADERBOARD_STORAGE_KEY) || '[]');
-      return leaderboardData.sort((a, b) => b.totalScore - a.totalScore);
-    } catch (error) {
-      console.error('Error loading leaderboard:', error);
-      return [];
-    }
-  },
+  // ──────── Core: fetch from backend API ────────
 
   /**
-   * Update user score
+   * Fetch all submissions from backend and build leaderboard locally.
+   * Falls back to localStorage cache when offline.
    */
-  updateUserScore(userId, userName, testType, score) {
+  async fetchLeaderboardFromAPI() {
     try {
-      const userScores = JSON.parse(localStorage.getItem(USER_SCORES_KEY) || '{}');
-      
-      if (!userScores[userId]) {
-        userScores[userId] = {
-          userId,
-          userName,
-          scores: {},
-          totalScore: 0,
-          testsCompleted: 0
-        };
-      }
-
-      // Update the specific test score
-      userScores[userId].scores[testType] = Math.max(
-        userScores[userId].scores[testType] || 0,
-        score
-      );
-
-      // Recalculate total score and tests completed
-      const scores = Object.values(userScores[userId].scores);
-      userScores[userId].totalScore = scores.reduce((sum, s) => sum + s, 0);
-      userScores[userId].testsCompleted = scores.length;
-      userScores[userId].averageScore = Math.round(userScores[userId].totalScore / userScores[userId].testsCompleted);
-
-      localStorage.setItem(USER_SCORES_KEY, JSON.stringify(userScores));
-      
-      // Update leaderboard
-      this.updateLeaderboard();
-      
-      return userScores[userId];
-    } catch (error) {
-      console.error('Error updating user score:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Update the leaderboard based on user scores
-   */
-  updateLeaderboard() {
-    try {
-      const userScores = JSON.parse(localStorage.getItem(USER_SCORES_KEY) || '{}');
-      const leaderboard = Object.values(userScores).map((user, index) => ({
-        ...user,
-        rank: index + 1,
-        lastUpdated: new Date().toISOString()
-      }));
-
-      // Sort by total score (descending) then by tests completed (descending)
-      leaderboard.sort((a, b) => {
-        if (b.totalScore !== a.totalScore) {
-          return b.totalScore - a.totalScore;
-        }
-        return b.testsCompleted - a.testsCompleted;
-      });
-
-      // Update ranks
-      leaderboard.forEach((user, index) => {
-        user.rank = index + 1;
-      });
-
-      localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(leaderboard));
-      return leaderboard;
-    } catch (error) {
-      console.error('Error updating leaderboard:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Build leaderboard from real test submissions
-   */
-  buildLeaderboardFromSubmissions() {
-    try {
-      // Get all submissions from localStorage (real test data)
-      const allSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
-      console.log('Building leaderboard from submissions:', allSubmissions.length);
+      const response = await apiClient.get('/api/submissions');
+      const allSubmissions = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || [];
 
       if (allSubmissions.length === 0) {
-        console.log('No real submissions found, returning empty leaderboard');
+        console.log('[Leaderboard] No submissions from API');
         return [];
       }
 
-      // Group submissions by user
-      const userSubmissions = {};
-      
-      allSubmissions.forEach(submission => {
-        const userId = submission.user_id;
-        const userName = submission.user_name || submission.student_name || 'Unknown Student';
-        const userEmail = submission.user_email || submission.student_email || '';
-        const testType = submission.test_type || 'unknown';
-        const score = parseInt(submission.score) || 0;
-        const submittedAt = submission.submitted_at || submission.created_at;
+      const leaderboard = this._buildFromSubmissions(allSubmissions);
 
-        if (!userSubmissions[userId]) {
-          userSubmissions[userId] = {
-            userId,
-            userName,
-            userEmail,
-            scores: {},
-            totalScore: 0,
-            testsCompleted: 0,
-            lastSubmission: submittedAt
-          };
-        }
+      // Cache locally
+      this._cache = leaderboard;
+      this._cacheTime = Date.now();
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ data: leaderboard, time: Date.now() }));
+      } catch { /* quota exceeded — fine */ }
 
-        // Keep the best score for each test type
-        if (!userSubmissions[userId].scores[testType] || userSubmissions[userId].scores[testType] < score) {
-          userSubmissions[userId].scores[testType] = score;
-        }
-
-        // Update last submission date
-        if (!userSubmissions[userId].lastSubmission || new Date(submittedAt) > new Date(userSubmissions[userId].lastSubmission)) {
-          userSubmissions[userId].lastSubmission = submittedAt;
-        }
-      });
-
-      // Calculate totals and create leaderboard
-      const leaderboard = Object.values(userSubmissions).map(user => {
-        const scores = Object.values(user.scores);
-        user.totalScore = scores.reduce((sum, score) => sum + score, 0);
-        user.testsCompleted = scores.length;
-        user.averageScore = user.testsCompleted > 0 ? Math.round(user.totalScore / user.testsCompleted) : 0;
-        return user;
-      });
-
-      // Sort by total score (descending) then by tests completed (descending)
-      leaderboard.sort((a, b) => {
-        if (b.totalScore !== a.totalScore) {
-          return b.totalScore - a.totalScore;
-        }
-        return b.testsCompleted - a.testsCompleted;
-      });
-
-      // Assign ranks
-      leaderboard.forEach((user, index) => {
-        user.rank = index + 1;
-        user.lastUpdated = new Date().toISOString();
-      });
-
-      // Store in both locations for consistency
-      localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(leaderboard));
-      
-      // Also update user scores storage
-      const userScoresData = {};
-      leaderboard.forEach(user => {
-        userScoresData[user.userId] = user;
-      });
-      localStorage.setItem(USER_SCORES_KEY, JSON.stringify(userScoresData));
-
-      console.log(`✅ Built leaderboard with ${leaderboard.length} users from real submissions`);
+      console.log(`✅ Leaderboard built from API: ${leaderboard.length} users`);
       return leaderboard;
     } catch (error) {
-      console.error('Error building leaderboard from submissions:', error);
-      return [];
+      console.warn('[Leaderboard] API fetch failed, using cache:', error.message);
+      return this._getFromCache();
     }
   },
 
   /**
-   * Get user's current rank and position
+   * Build a ranked leaderboard array from raw submissions.
    */
-  getUserRank(userId) {
-    try {
-      const leaderboard = this.getLeaderboard();
-      const userPosition = leaderboard.findIndex(user => user.userId === userId);
-      
-      if (userPosition === -1) {
-        return { rank: null, position: null, totalUsers: leaderboard.length };
+  _buildFromSubmissions(submissions) {
+    const userMap = {};
+
+    submissions.forEach(sub => {
+      const userId = sub.user_id || sub.userId;
+      const userName = sub.user_name || sub.userName || sub.student_name || 'Unknown';
+      const userEmail = sub.user_email || sub.userEmail || sub.student_email || '';
+      const testType = sub.test_type || sub.testType || 'unknown';
+      const score = parseInt(sub.score) || 0;
+      const submittedAt = sub.submitted_at || sub.submittedAt || sub.created_at;
+
+      if (!userId) return;
+
+      if (!userMap[userId]) {
+        userMap[userId] = {
+          userId,
+          userName,
+          userEmail,
+          scores: {},
+          totalScore: 0,
+          testsCompleted: 0,
+          averageScore: 0,
+          lastSubmission: submittedAt,
+        };
       }
 
-      return {
-        rank: userPosition + 1,
-        position: userPosition,
-        totalUsers: leaderboard.length,
-        userStats: leaderboard[userPosition]
-      };
-    } catch (error) {
-      console.error('Error getting user rank:', error);
+      // Best score per test type
+      if (!userMap[userId].scores[testType] || userMap[userId].scores[testType] < score) {
+        userMap[userId].scores[testType] = score;
+      }
+
+      // Latest submission date
+      if (submittedAt && (!userMap[userId].lastSubmission || new Date(submittedAt) > new Date(userMap[userId].lastSubmission))) {
+        userMap[userId].lastSubmission = submittedAt;
+      }
+    });
+
+    const leaderboard = Object.values(userMap).map(user => {
+      const scores = Object.values(user.scores);
+      user.totalScore = scores.reduce((sum, s) => sum + s, 0);
+      user.testsCompleted = scores.length;
+      user.averageScore = user.testsCompleted > 0 ? Math.round(user.totalScore / user.testsCompleted) : 0;
+      return user;
+    });
+
+    // Sort: total score desc, then tests completed desc
+    leaderboard.sort((a, b) => {
+      if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+      return b.testsCompleted - a.testsCompleted;
+    });
+
+    leaderboard.forEach((user, idx) => {
+      user.rank = idx + 1;
+      user.lastUpdated = new Date().toISOString();
+    });
+
+    return leaderboard;
+  },
+
+  /**
+   * Read cached leaderboard from localStorage when API is unavailable.
+   */
+  _getFromCache() {
+    try {
+      if (this._cache && Date.now() - this._cacheTime < CACHE_TTL) {
+        return this._cache;
+      }
+      const stored = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+      return stored.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  // ──────── Public API (consumed by components) ────────
+
+  /**
+   * Get current leaderboard.  Returns cached data immediately, then
+   * refreshes in background if stale.
+   */
+  async getLeaderboard() {
+    // If we have a fresh in-memory cache, return it instantly
+    if (this._cache && Date.now() - this._cacheTime < CACHE_TTL) {
+      return this._cache;
+    }
+    return this.fetchLeaderboardFromAPI();
+  },
+
+  /**
+   * Synchronous getter that returns whatever is in cache right now
+   * (useful for SSR hydration or initial render).
+   */
+  getLeaderboardSync() {
+    if (this._cache) return this._cache;
+    return this._getFromCache();
+  },
+
+  /**
+   * Get top N users.
+   */
+  async getTopUsers(limit = 10) {
+    try {
+      const lb = await this.getLeaderboard();
+      return lb.slice(0, limit);
+    } catch {
+      return this.getLeaderboardSync().slice(0, limit);
+    }
+  },
+
+  /**
+   * Get a user's rank.
+   */
+  async getUserRank(userId) {
+    try {
+      const lb = await this.getLeaderboard();
+      const pos = lb.findIndex(u => u.userId === userId);
+      if (pos === -1) return { rank: null, position: null, totalUsers: lb.length };
+      return { rank: pos + 1, position: pos, totalUsers: lb.length, userStats: lb[pos] };
+    } catch {
       return { rank: null, position: null, totalUsers: 0 };
     }
   },
 
   /**
-   * Get top N users from leaderboard
+   * Force refresh from API and broadcast update.
    */
-  getTopUsers(limit = 10) {
-    try {
-      const leaderboard = this.getLeaderboard();
-      return leaderboard.slice(0, limit);
-    } catch (error) {
-      console.error('Error getting top users:', error);
-      return [];
+  async refreshLeaderboard() {
+    console.log('🔄 Refreshing leaderboard from API');
+    const updated = await this.fetchLeaderboardFromAPI();
+    this.broadcastLeaderboardUpdate(updated);
+
+    if (typeof window !== 'undefined' && window.leaderboardUpdateCallbacks) {
+      window.leaderboardUpdateCallbacks.forEach(cb => cb(updated));
     }
+    return updated;
   },
 
   /**
-   * Initialize leaderboard (refresh from real data)
+   * Called after a new submission to update scores.
    */
-  initializeLeaderboard() {
-    try {
-      console.log('🔄 Initializing leaderboard from real submission data');
-      return this.buildLeaderboardFromSubmissions();
-    } catch (error) {
-      console.error('Error initializing leaderboard:', error);
-      return [];
-    }
+  updateUserScore(userId, userName, testType, score) {
+    // Invalidate cache so next getLeaderboard() will re-fetch
+    this._cache = null;
+    this._cacheTime = 0;
+    // Fire-and-forget refresh
+    this.refreshLeaderboard().catch(() => {});
   },
 
   /**
-   * Get user's detailed performance
+   * Get user performance details.
    */
-  getUserPerformance(userId) {
-    try {
-      const userScores = JSON.parse(localStorage.getItem(USER_SCORES_KEY) || '{}');
-      if (!userScores[userId]) {
-        return null;
-      }
-
-      const userRank = this.getUserRank(userId);
-      return {
-        ...userScores[userId],
-        ...userRank
-      };
-    } catch (error) {
-      console.error('Error getting user performance:', error);
-      return null;
-    }
+  async getUserPerformance(userId) {
+    const lb = await this.getLeaderboard();
+    const user = lb.find(u => u.userId === userId);
+    if (!user) return null;
+    const rankInfo = await this.getUserRank(userId);
+    return { ...user, ...rankInfo };
   },
 
-  /**
-   * Refresh leaderboard after new submission
-   * Call this after a test is submitted to update rankings
-   */
-  refreshLeaderboard() {
-    try {
-      console.log('🔄 Refreshing leaderboard after new submission');
-      const updatedLeaderboard = this.buildLeaderboardFromSubmissions();
-      
-      // Broadcast update to other tabs/devices
-      this.broadcastLeaderboardUpdate(updatedLeaderboard);
-      
-      // Trigger any listeners or callbacks
-      if (typeof window !== 'undefined' && window.leaderboardUpdateCallbacks) {
-        window.leaderboardUpdateCallbacks.forEach(callback => callback(updatedLeaderboard));
-      }
-      
-      return updatedLeaderboard;
-    } catch (error) {
-      console.error('Error refreshing leaderboard:', error);
-      return [];
-    }
-  },
+  // ──────── Cross-tab sync via BroadcastChannel ────────
 
-  /**
-   * Broadcast leaderboard update across devices/tabs
-   */
   broadcastLeaderboardUpdate(leaderboardData) {
     try {
-      const updatePayload = {
+      const payload = {
         type: 'leaderboard_update',
         timestamp: new Date().toISOString(),
-        data: leaderboardData
+        data: leaderboardData,
       };
 
-      // BroadcastChannel for cross-tab communication
       if (typeof BroadcastChannel !== 'undefined') {
-        if (!this.broadcastChannel) {
-          this.broadcastChannel = new BroadcastChannel('leaderboard_updates');
+        if (!this._broadcastChannel) {
+          this._broadcastChannel = new BroadcastChannel('leaderboard_updates');
         }
-        this.broadcastChannel.postMessage(updatePayload);
+        this._broadcastChannel.postMessage(payload);
       }
 
-      // localStorage event for cross-device sync (when multiple browsers/devices)
-      localStorage.setItem('leaderboard_last_update', JSON.stringify(updatePayload));
-      
-      // Custom event for same-tab components
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('leaderboard_updated', { 
-          detail: updatePayload 
-        }));
+        window.dispatchEvent(new CustomEvent('leaderboard_updated', { detail: payload }));
       }
-      
-      console.log('📡 Leaderboard update broadcasted to all devices/tabs');
-    } catch (error) {
-      console.error('Error broadcasting leaderboard update:', error);
+    } catch (err) {
+      console.warn('Broadcast failed:', err.message);
     }
   },
 
-  /**
-   * Listen for leaderboard updates from other devices/tabs
-   */
   startListeningForUpdates() {
     try {
-      // BroadcastChannel listener
       if (typeof BroadcastChannel !== 'undefined') {
-        if (!this.broadcastChannel) {
-          this.broadcastChannel = new BroadcastChannel('leaderboard_updates');
+        if (!this._broadcastChannel) {
+          this._broadcastChannel = new BroadcastChannel('leaderboard_updates');
         }
-        
-        this.broadcastChannel.onmessage = (event) => {
-          try {
-            console.log('📨 Received leaderboard update from another tab');
-            this.handleIncomingUpdate(event.data);
-          } catch (error) {
-            console.error('Error handling leaderboard broadcast message:', error);
+        this._broadcastChannel.onmessage = (e) => {
+          if (e.data?.type === 'leaderboard_update' && e.data?.data) {
+            this._cache = e.data.data;
+            this._cacheTime = Date.now();
+            if (typeof window !== 'undefined' && window.leaderboardUpdateCallbacks) {
+              window.leaderboardUpdateCallbacks.forEach(cb => cb(e.data.data));
+            }
           }
-        };
-        
-        this.broadcastChannel.onmessageerror = (event) => {
-          console.warn('Leaderboard broadcast message error:', event);
         };
       }
-
-      // localStorage listener for cross-device updates
-      const handleStorageChange = (event) => {
-        if (event.key === 'leaderboard_last_update' && event.newValue) {
-          try {
-            const updateData = JSON.parse(event.newValue);
-            console.log('📨 Received leaderboard update from another device');
-            this.handleIncomingUpdate(updateData);
-          } catch (error) {
-            console.error('Error parsing leaderboard update:', error);
-          }
-        }
-      };
-
-      window.addEventListener('storage', handleStorageChange);
-      
-      // Store reference for cleanup
-      this._storageListener = handleStorageChange;
-      
-      console.log('👂 Started listening for leaderboard updates');
-    } catch (error) {
-      console.error('Error setting up leaderboard listeners:', error);
+    } catch {
+      // BroadcastChannel not supported — silent
     }
   },
 
-  /**
-   * Handle incoming leaderboard updates
-   */
-  handleIncomingUpdate(updateData) {
-    try {
-      if (updateData.type === 'leaderboard_update' && updateData.data) {
-        // Update local storage
-        localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(updateData.data));
-        
-        // Trigger callbacks
-        if (typeof window !== 'undefined' && window.leaderboardUpdateCallbacks) {
-          window.leaderboardUpdateCallbacks.forEach(callback => callback(updateData.data));
-        }
-        
-        // Trigger custom event
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('leaderboard_updated', { 
-            detail: updateData 
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Error handling incoming leaderboard update:', error);
-    }
-  },
-
-  /**
-   * Stop listening for updates (cleanup)
-   */
   stopListeningForUpdates() {
     try {
-      if (this.broadcastChannel) {
-        this.broadcastChannel.close();
-        this.broadcastChannel = null;
+      if (this._broadcastChannel) {
+        this._broadcastChannel.close();
+        this._broadcastChannel = null;
       }
-      
-      if (this._storageListener) {
-        window.removeEventListener('storage', this._storageListener);
-        this._storageListener = null;
-      }
-      
-      console.log('🔕 Stopped listening for leaderboard updates');
-    } catch (error) {
-      console.error('Error stopping leaderboard listeners:', error);
-    }
+    } catch {}
   },
 
-  /**
-   * Register callback for leaderboard updates
-   */
+  // ──────── Callback registration ────────
+
   onLeaderboardUpdate(callback) {
     if (typeof window !== 'undefined') {
-      if (!window.leaderboardUpdateCallbacks) {
-        window.leaderboardUpdateCallbacks = [];
-      }
+      if (!window.leaderboardUpdateCallbacks) window.leaderboardUpdateCallbacks = [];
       window.leaderboardUpdateCallbacks.push(callback);
     }
   },
 
-  /**
-   * Unregister callback for leaderboard updates
-   */
   offLeaderboardUpdate(callback) {
     if (typeof window !== 'undefined' && window.leaderboardUpdateCallbacks) {
       window.leaderboardUpdateCallbacks = window.leaderboardUpdateCallbacks.filter(cb => cb !== callback);
     }
-  }
+  },
 };
 
-// Initialize the service with real-time listeners
 const initializedLeaderboardService = leaderboardService.init();
-
 export default initializedLeaderboardService;
