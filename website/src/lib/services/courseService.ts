@@ -149,6 +149,22 @@ export async function getCourseStats() {
     return res.data;
 }
 
+// ── Industry Prepare Course Creation ──
+
+export async function createIndustryPrepareCourse(thumbnailUrl?: string) {
+    const res = await apiClient.post('/api/courses/create-industry-prepare', {
+        thumbnail_url: thumbnailUrl || ''
+    });
+    return res.data;
+}
+
+export async function addIndustryModule(courseId: string, moduleData: any) {
+    const res = await apiClient.post(`/api/courses/${courseId}/add-industry-module`, {
+        module_data: moduleData
+    });
+    return res.data;
+}
+
 export default {
     createCourse,
     listCourses,
