@@ -14,6 +14,8 @@ import {
 } from "./components/sections";
 import { CursorGlow } from "./components/ui/cursor-glow";
 
+
+
 export default function HomePage() {
     useEffect(() => {
         const lenis = new Lenis({

@@ -32,6 +32,8 @@ import {
 import leaderboardService from "@/lib/services/leaderboardService";
 import { getUserSubmissions } from "@/lib/services/submissionService";
 
+import BootSequence from "@/app/components/BootSequence";
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -247,361 +249,360 @@ export default function DashboardPage() {
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
-        <div className="min-h-screen bg-surface-0">
-            {/* ── Top Navbar ─────────────────────────────────────────────── */}
-            <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-1/80 backdrop-blur-2xl border-b border-white/[0.06]">
-                <div className="h-full flex items-center justify-between px-4 lg:px-8">
-                    {/* Logo */}
-                    <Link
-                        href="/dashboard"
-                        className="flex items-center gap-3 group"
-                    >
-                        <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_30px_rgba(255,193,7,0.25)] transition-shadow">
-                            <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="black"
-                                strokeWidth="2.5"
-                                className="w-4 h-4"
-                            >
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                            </svg>
-                        </div>
-                        <span className="text-sm font-bold tracking-tight text-white/90 hidden sm:block">
-                            CODE{" "}
-                            <span className="text-yellow-400">BUD</span>
-                        </span>
-                    </Link>
+        <BootSequence>
+            <div className="min-h-screen bg-surface-0">
+                {/* ── Top Navbar ─────────────────────────────────────────────── */}
+                <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-1/80 backdrop-blur-2xl border-b border-white/[0.06]">
+                    <div className="h-full flex items-center justify-between px-4 lg:px-8">
+                        {/* Logo */}
+                        <Link
+                            href="/dashboard"
+                            className="flex items-center gap-3 group"
+                        >
+                            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_30px_rgba(255,193,7,0.25)] transition-shadow">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="black"
+                                    strokeWidth="2.5"
+                                    className="w-4 h-4"
+                                >
+                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                                </svg>
+                            </div>
+                            <span className="text-sm font-bold tracking-tight text-white/90 hidden sm:block">
+                                CODE{" "}
+                                <span className="text-yellow-400">BUD</span>
+                            </span>
+                        </Link>
 
-                    {/* Desktop Nav */}
-                    <nav className="hidden md:flex items-center gap-1">
-                        {navItems.map((item) => {
-                            const Icon = item.icon;
-                            const isActive = activePage === item.id;
-                            return (
-                                <Link
-                                    key={item.id}
-                                    href={item.href}
-                                    onClick={() => setActivePage(item.id)}
-                                    className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
-                                        isActive
+                        {/* Desktop Nav */}
+                        <nav className="hidden md:flex items-center gap-1">
+                            {navItems.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = activePage === item.id;
+                                return (
+                                    <Link
+                                        key={item.id}
+                                        href={item.href}
+                                        onClick={() => setActivePage(item.id)}
+                                        className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
                                             ? "text-yellow-400"
                                             : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
-                                    }`}
-                                >
-                                    <Icon size={16} />
-                                    {item.label}
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="activeNav"
-                                            className="absolute inset-0 rounded-lg bg-yellow-400/[0.08] border border-yellow-400/20"
-                                            transition={{
-                                                type: "spring",
-                                                duration: 0.5,
-                                                bounce: 0.2,
-                                            }}
-                                        />
-                                    )}
-                                </Link>
-                            );
-                        })}
-                    </nav>
-
-                    {/* Right Side */}
-                    <div className="flex items-center gap-3">
-                        {/* Role Badge */}
-                        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-3/50 border border-white/[0.06]">
-                            <GraduationCap
-                                size={12}
-                                className="text-yellow-400"
-                            />
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-                                {userRole || "student"}
-                            </span>
-                        </div>
-
-                        {/* Profile Dropdown */}
-                        <div className="relative" ref={profileRef}>
-                            <button
-                                onClick={() =>
-                                    setShowProfileMenu(!showProfileMenu)
-                                }
-                                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors group"
-                            >
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-sm font-bold text-surface-0 shadow-[0_0_15px_rgba(255,193,7,0.15)]">
-                                    {initial}
-                                </div>
-                                <ChevronDown
-                                    size={14}
-                                    className={`text-white/30 transition-transform duration-200 ${showProfileMenu ? "rotate-180" : ""}`}
-                                />
-                            </button>
-
-                            <AnimatePresence>
-                                {showProfileMenu && (
-                                    <motion.div
-                                        initial={{
-                                            opacity: 0,
-                                            y: 8,
-                                            scale: 0.95,
-                                        }}
-                                        animate={{
-                                            opacity: 1,
-                                            y: 0,
-                                            scale: 1,
-                                        }}
-                                        exit={{
-                                            opacity: 0,
-                                            y: 8,
-                                            scale: 0.95,
-                                        }}
-                                        transition={{ duration: 0.2, ease }}
-                                        className="absolute right-0 top-full mt-2 w-64 bg-surface-2/95 backdrop-blur-2xl rounded-xl border border-white/[0.08] shadow-2xl shadow-black/40 overflow-hidden"
-                                    >
-                                        <div className="p-4 border-b border-white/[0.06]">
-                                            <p className="text-sm font-semibold text-white truncate">
-                                                {displayName}
-                                            </p>
-                                            <p className="text-xs text-white/30 truncate mt-0.5">
-                                                {email}
-                                            </p>
-                                        </div>
-                                        <div className="p-2">
-                                            <Link
-                                                href="/profile"
-                                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/[0.05] transition-colors"
-                                                onClick={() =>
-                                                    setShowProfileMenu(false)
-                                                }
-                                            >
-                                                <User size={15} />
-                                                Profile
-                                            </Link>
-                                            <button
-                                                onClick={handleLogout}
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400/60 hover:text-red-400 hover:bg-red-400/[0.05] transition-colors"
-                                            >
-                                                <LogOut size={15} />
-                                                Sign Out
-                                            </button>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Mobile Menu Toggle */}
-                        <button
-                            onClick={() =>
-                                setIsMobileMenuOpen(!isMobileMenuOpen)
-                            }
-                            className="md:hidden p-2 rounded-lg hover:bg-white/[0.05] transition-colors text-white/40"
-                        >
-                            {isMobileMenuOpen ? (
-                                <X size={20} />
-                            ) : (
-                                <Menu size={20} />
-                            )}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Mobile Nav */}
-                <AnimatePresence>
-                    {isMobileMenuOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="md:hidden bg-surface-1/95 backdrop-blur-2xl border-b border-white/[0.06] overflow-hidden"
-                        >
-                            <nav className="p-4 space-y-1">
-                                {navItems.map((item) => {
-                                    const Icon = item.icon;
-                                    const isActive = activePage === item.id;
-                                    return (
-                                        <Link
-                                            key={item.id}
-                                            href={item.href}
-                                            onClick={() => {
-                                                setActivePage(item.id);
-                                                setIsMobileMenuOpen(false);
-                                            }}
-                                            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                                                isActive
-                                                    ? "text-yellow-400 bg-yellow-400/[0.08] border border-yellow-400/20"
-                                                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
                                             }`}
-                                        >
-                                            <Icon size={18} />
-                                            {item.label}
-                                        </Link>
-                                    );
-                                })}
-                            </nav>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </header>
-
-            {/* ── Content ────────────────────────────────────────────────── */}
-            <main className="pt-16">
-                <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-                    {/* Welcome + Refresh */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, ease }}
-                        className="flex items-start justify-between mb-8 gap-4"
-                    >
-                        <div>
-                            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                                Welcome back,{" "}
-                                <span className="text-yellow-400">
-                                    {displayName}
-                                </span>
-                            </h1>
-                            <p className="text-sm text-white/30 mt-1">
-                                Continue your coding journey where you left off
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => fetchData(true)}
-                            disabled={refreshing}
-                            className="shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-2/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/[0.1] transition-all disabled:opacity-50"
-                        >
-                            <RefreshCw
-                                size={14}
-                                className={
-                                    refreshing ? "animate-spin" : ""
-                                }
-                            />
-                            {refreshing ? "Refreshing…" : "Refresh"}
-                        </button>
-                    </motion.div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                        {stats.map((stat, i) => {
-                            const Icon = stat.icon;
-                            return (
-                                <motion.div
-                                    key={stat.label}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{
-                                        duration: 0.5,
-                                        delay: i * 0.08,
-                                        ease,
-                                    }}
-                                    className="relative group"
-                                >
-                                    <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                                    <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-colors">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
-                                                {stat.label}
-                                            </span>
-                                            <div
-                                                className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}
-                                            >
-                                                <Icon
-                                                    size={14}
-                                                    className="text-white"
-                                                />
-                                            </div>
-                                        </div>
-                                        <p className="text-2xl font-bold text-white">
-                                            {stat.value}
-                                        </p>
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Section Tabs */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.35, ease }}
-                        className="mb-6"
-                    >
-                        <div className="flex items-center gap-1 p-1 bg-surface-2/30 rounded-xl border border-white/[0.04] w-fit">
-                            {tabItems.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = activeTab === tab.id;
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() =>
-                                            setActiveTab(tab.id)
-                                        }
-                                        className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
-                                            isActive
-                                                ? "text-yellow-400"
-                                                : "text-white/35 hover:text-white/55"
-                                        }`}
                                     >
-                                        <Icon size={14} />
-                                        <span className="hidden sm:inline">
-                                            {tab.label}
-                                        </span>
+                                        <Icon size={16} />
+                                        {item.label}
                                         {isActive && (
                                             <motion.div
-                                                layoutId="activeTab"
-                                                className="absolute inset-0 rounded-lg bg-surface-3/80 border border-white/[0.08]"
+                                                layoutId="activeNav"
+                                                className="absolute inset-0 rounded-lg bg-yellow-400/[0.08] border border-yellow-400/20"
                                                 transition={{
                                                     type: "spring",
-                                                    duration: 0.4,
-                                                    bounce: 0.15,
+                                                    duration: 0.5,
+                                                    bounce: 0.2,
                                                 }}
-                                                style={{ zIndex: -1 }}
                                             />
                                         )}
-                                    </button>
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+
+                        {/* Right Side */}
+                        <div className="flex items-center gap-3">
+                            {/* Role Badge */}
+                            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-3/50 border border-white/[0.06]">
+                                <GraduationCap
+                                    size={12}
+                                    className="text-yellow-400"
+                                />
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                                    {userRole || "student"}
+                                </span>
+                            </div>
+
+                            {/* Profile Dropdown */}
+                            <div className="relative" ref={profileRef}>
+                                <button
+                                    onClick={() =>
+                                        setShowProfileMenu(!showProfileMenu)
+                                    }
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-sm font-bold text-surface-0 shadow-[0_0_15px_rgba(255,193,7,0.15)]">
+                                        {initial}
+                                    </div>
+                                    <ChevronDown
+                                        size={14}
+                                        className={`text-white/30 transition-transform duration-200 ${showProfileMenu ? "rotate-180" : ""}`}
+                                    />
+                                </button>
+
+                                <AnimatePresence>
+                                    {showProfileMenu && (
+                                        <motion.div
+                                            initial={{
+                                                opacity: 0,
+                                                y: 8,
+                                                scale: 0.95,
+                                            }}
+                                            animate={{
+                                                opacity: 1,
+                                                y: 0,
+                                                scale: 1,
+                                            }}
+                                            exit={{
+                                                opacity: 0,
+                                                y: 8,
+                                                scale: 0.95,
+                                            }}
+                                            transition={{ duration: 0.2, ease }}
+                                            className="absolute right-0 top-full mt-2 w-64 bg-surface-2/95 backdrop-blur-2xl rounded-xl border border-white/[0.08] shadow-2xl shadow-black/40 overflow-hidden"
+                                        >
+                                            <div className="p-4 border-b border-white/[0.06]">
+                                                <p className="text-sm font-semibold text-white truncate">
+                                                    {displayName}
+                                                </p>
+                                                <p className="text-xs text-white/30 truncate mt-0.5">
+                                                    {email}
+                                                </p>
+                                            </div>
+                                            <div className="p-2">
+                                                <Link
+                                                    href="/profile"
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/[0.05] transition-colors"
+                                                    onClick={() =>
+                                                        setShowProfileMenu(false)
+                                                    }
+                                                >
+                                                    <User size={15} />
+                                                    Profile
+                                                </Link>
+                                                <button
+                                                    onClick={handleLogout}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400/60 hover:text-red-400 hover:bg-red-400/[0.05] transition-colors"
+                                                >
+                                                    <LogOut size={15} />
+                                                    Sign Out
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Mobile Menu Toggle */}
+                            <button
+                                onClick={() =>
+                                    setIsMobileMenuOpen(!isMobileMenuOpen)
+                                }
+                                className="md:hidden p-2 rounded-lg hover:bg-white/[0.05] transition-colors text-white/40"
+                            >
+                                {isMobileMenuOpen ? (
+                                    <X size={20} />
+                                ) : (
+                                    <Menu size={20} />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Mobile Nav */}
+                    <AnimatePresence>
+                        {isMobileMenuOpen && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="md:hidden bg-surface-1/95 backdrop-blur-2xl border-b border-white/[0.06] overflow-hidden"
+                            >
+                                <nav className="p-4 space-y-1">
+                                    {navItems.map((item) => {
+                                        const Icon = item.icon;
+                                        const isActive = activePage === item.id;
+                                        return (
+                                            <Link
+                                                key={item.id}
+                                                href={item.href}
+                                                onClick={() => {
+                                                    setActivePage(item.id);
+                                                    setIsMobileMenuOpen(false);
+                                                }}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${isActive
+                                                    ? "text-yellow-400 bg-yellow-400/[0.08] border border-yellow-400/20"
+                                                    : "text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+                                                    }`}
+                                            >
+                                                <Icon size={18} />
+                                                {item.label}
+                                            </Link>
+                                        );
+                                    })}
+                                </nav>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </header>
+
+                {/* ── Content ────────────────────────────────────────────────── */}
+                <main className="pt-16">
+                    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+                        {/* Welcome + Refresh */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, ease }}
+                            className="flex items-start justify-between mb-8 gap-4"
+                        >
+                            <div>
+                                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                                    Welcome back,{" "}
+                                    <span className="text-yellow-400">
+                                        {displayName}
+                                    </span>
+                                </h1>
+                                <p className="text-sm text-white/30 mt-1">
+                                    Continue your coding journey where you left off
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => fetchData(true)}
+                                disabled={refreshing}
+                                className="shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-2/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/[0.1] transition-all disabled:opacity-50"
+                            >
+                                <RefreshCw
+                                    size={14}
+                                    className={
+                                        refreshing ? "animate-spin" : ""
+                                    }
+                                />
+                                {refreshing ? "Refreshing…" : "Refresh"}
+                            </button>
+                        </motion.div>
+
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                            {stats.map((stat, i) => {
+                                const Icon = stat.icon;
+                                return (
+                                    <motion.div
+                                        key={stat.label}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{
+                                            duration: 0.5,
+                                            delay: i * 0.08,
+                                            ease,
+                                        }}
+                                        className="relative group"
+                                    >
+                                        <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                                        <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-colors">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
+                                                    {stat.label}
+                                                </span>
+                                                <div
+                                                    className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}
+                                                >
+                                                    <Icon
+                                                        size={14}
+                                                        className="text-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <p className="text-2xl font-bold text-white">
+                                                {stat.value}
+                                            </p>
+                                        </div>
+                                    </motion.div>
                                 );
                             })}
                         </div>
-                    </motion.div>
 
-                    {/* Tab Content */}
-                    <AnimatePresence mode="wait">
-                        {/* ── Overview Tab ───────────────────────────────── */}
-                        {activeTab === "overview" && (
-                            <OverviewTab
-                                submissions={submissions}
-                                leaderboard={leaderboard}
-                                userEmail={email}
-                                onViewLeaderboard={() =>
-                                    setActiveTab("leaderboard")
-                                }
-                            />
-                        )}
+                        {/* Section Tabs */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.35, ease }}
+                            className="mb-6"
+                        >
+                            <div className="flex items-center gap-1 p-1 bg-surface-2/30 rounded-xl border border-white/[0.04] w-fit">
+                                {tabItems.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = activeTab === tab.id;
+                                    return (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() =>
+                                                setActiveTab(tab.id)
+                                            }
+                                            className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
+                                                ? "text-yellow-400"
+                                                : "text-white/35 hover:text-white/55"
+                                                }`}
+                                        >
+                                            <Icon size={14} />
+                                            <span className="hidden sm:inline">
+                                                {tab.label}
+                                            </span>
+                                            {isActive && (
+                                                <motion.div
+                                                    layoutId="activeTab"
+                                                    className="absolute inset-0 rounded-lg bg-surface-3/80 border border-white/[0.08]"
+                                                    transition={{
+                                                        type: "spring",
+                                                        duration: 0.4,
+                                                        bounce: 0.15,
+                                                    }}
+                                                    style={{ zIndex: -1 }}
+                                                />
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </motion.div>
 
-                        {/* ── Courses Tab ─────────────────────────────────── */}
-                        {activeTab === "courses" && <CoursesTab />}
+                        {/* Tab Content */}
+                        <AnimatePresence mode="wait">
+                            {/* ── Overview Tab ───────────────────────────────── */}
+                            {activeTab === "overview" && (
+                                <OverviewTab
+                                    submissions={submissions}
+                                    leaderboard={leaderboard}
+                                    userEmail={email}
+                                    onViewLeaderboard={() =>
+                                        setActiveTab("leaderboard")
+                                    }
+                                />
+                            )}
 
-                        {/* ── Assessments Tab ────────────────────────────── */}
-                        {activeTab === "assessments" && <AssessmentsTab />}
+                            {/* ── Courses Tab ─────────────────────────────────── */}
+                            {activeTab === "courses" && <CoursesTab />}
 
-                        {/* ── Leaderboard Tab ────────────────────────────── */}
-                        {activeTab === "leaderboard" && (
-                            <LeaderboardTab
-                                leaderboard={leaderboard}
-                                userRank={userRank}
-                                userEmail={email}
-                            />
-                        )}
+                            {/* ── Assessments Tab ────────────────────────────── */}
+                            {activeTab === "assessments" && <AssessmentsTab />}
 
-                        {/* ── Jobs Tab ────────────────────────────────────── */}
-                        {activeTab === "jobs" && (
-                            <JobsTab />
-                        )}
-                    </AnimatePresence>
-                </div>
-            </main>
-        </div>
+                            {/* ── Leaderboard Tab ────────────────────────────── */}
+                            {activeTab === "leaderboard" && (
+                                <LeaderboardTab
+                                    leaderboard={leaderboard}
+                                    userRank={userRank}
+                                    userEmail={email}
+                                />
+                            )}
+
+                            {/* ── Jobs Tab ────────────────────────────────────── */}
+                            {activeTab === "jobs" && (
+                                <JobsTab />
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </main>
+            </div>
+        </BootSequence>
     );
 }
 
@@ -757,11 +758,10 @@ function OverviewTab({
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div
-                                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                                    passed
-                                                        ? "bg-emerald-400/10 text-emerald-400"
-                                                        : "bg-red-400/10 text-red-400"
-                                                }`}
+                                                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${passed
+                                                    ? "bg-emerald-400/10 text-emerald-400"
+                                                    : "bg-red-400/10 text-red-400"
+                                                    }`}
                                             >
                                                 {passed ? (
                                                     <CheckCircle2
@@ -778,19 +778,18 @@ function OverviewTab({
                                                 <p className="text-[11px] text-white/25">
                                                     {time
                                                         ? new Date(
-                                                              time as string,
-                                                          ).toLocaleDateString()
+                                                            time as string,
+                                                        ).toLocaleDateString()
                                                         : "—"}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="text-right shrink-0 ml-3">
                                             <p
-                                                className={`text-sm font-bold ${
-                                                    passed
-                                                        ? "text-emerald-400"
-                                                        : "text-red-400"
-                                                }`}
+                                                className={`text-sm font-bold ${passed
+                                                    ? "text-emerald-400"
+                                                    : "text-red-400"
+                                                    }`}
                                             >
                                                 {pct}%
                                             </p>
@@ -841,31 +840,29 @@ function OverviewTab({
                                 return (
                                     <div
                                         key={entry.userId || i}
-                                        className={`flex items-center gap-3 px-5 py-3 ${
-                                            isMe
-                                                ? "bg-yellow-400/[0.04]"
-                                                : "hover:bg-white/[0.02]"
-                                        } transition-colors`}
+                                        className={`flex items-center gap-3 px-5 py-3 ${isMe
+                                            ? "bg-yellow-400/[0.04]"
+                                            : "hover:bg-white/[0.02]"
+                                            } transition-colors`}
                                     >
                                         <span className="w-6 text-center text-xs font-bold text-white/30">
                                             {i === 0
                                                 ? "🥇"
                                                 : i === 1
-                                                  ? "🥈"
-                                                  : i === 2
-                                                    ? "🥉"
-                                                    : `${i + 1}`}
+                                                    ? "🥈"
+                                                    : i === 2
+                                                        ? "🥉"
+                                                        : `${i + 1}`}
                                         </span>
                                         <div className="w-7 h-7 rounded-md bg-surface-3/80 border border-white/[0.06] flex items-center justify-center text-[11px] font-bold text-white/40 shrink-0">
                                             {name.charAt(0).toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p
-                                                className={`text-[13px] font-medium truncate ${
-                                                    isMe
-                                                        ? "text-yellow-400"
-                                                        : "text-white/60"
-                                                }`}
+                                                className={`text-[13px] font-medium truncate ${isMe
+                                                    ? "text-yellow-400"
+                                                    : "text-white/60"
+                                                    }`}
                                             >
                                                 {name}{" "}
                                                 {isMe && (
@@ -937,7 +934,7 @@ function CoursesTab() {
                 const map: Record<string, any> = {};
                 (coursesRes.courses || []).forEach((c: any) => { map[c._id] = c; });
                 setCourseMap(map);
-            } catch {}
+            } catch { }
             setLoading(false);
         })();
     }, []);
@@ -1244,15 +1241,13 @@ function LeaderboardTab({
                                             className="flex flex-col items-center gap-2"
                                         >
                                             <div
-                                                className={`w-10 h-10 rounded-xl ${
-                                                    isMe
-                                                        ? "bg-gradient-to-br from-yellow-400 to-amber-500"
-                                                        : "bg-surface-3/80 border border-white/[0.08]"
-                                                } flex items-center justify-center text-sm font-bold ${
-                                                    isMe
+                                                className={`w-10 h-10 rounded-xl ${isMe
+                                                    ? "bg-gradient-to-br from-yellow-400 to-amber-500"
+                                                    : "bg-surface-3/80 border border-white/[0.08]"
+                                                    } flex items-center justify-center text-sm font-bold ${isMe
                                                         ? "text-surface-0"
                                                         : "text-white/40"
-                                                }`}
+                                                    }`}
                                             >
                                                 {name
                                                     .charAt(0)
@@ -1294,31 +1289,28 @@ function LeaderboardTab({
                                 return (
                                     <div
                                         key={entry.userId || i}
-                                        className={`flex items-center gap-4 px-5 py-3.5 ${
-                                            isMe
-                                                ? "bg-yellow-400/[0.04]"
-                                                : "hover:bg-white/[0.015]"
-                                        } transition-colors`}
+                                        className={`flex items-center gap-4 px-5 py-3.5 ${isMe
+                                            ? "bg-yellow-400/[0.04]"
+                                            : "hover:bg-white/[0.015]"
+                                            } transition-colors`}
                                     >
                                         <span className="w-8 text-center text-xs font-bold text-white/25">
                                             {i === 0
                                                 ? "🥇"
                                                 : i === 1
-                                                  ? "🥈"
-                                                  : i === 2
-                                                    ? "🥉"
-                                                    : `#${i + 1}`}
+                                                    ? "🥈"
+                                                    : i === 2
+                                                        ? "🥉"
+                                                        : `#${i + 1}`}
                                         </span>
                                         <div
-                                            className={`w-8 h-8 rounded-lg ${
-                                                isMe
-                                                    ? "bg-gradient-to-br from-yellow-400 to-amber-500"
-                                                    : "bg-surface-3/80 border border-white/[0.06]"
-                                            } flex items-center justify-center text-[12px] font-bold ${
-                                                isMe
+                                            className={`w-8 h-8 rounded-lg ${isMe
+                                                ? "bg-gradient-to-br from-yellow-400 to-amber-500"
+                                                : "bg-surface-3/80 border border-white/[0.06]"
+                                                } flex items-center justify-center text-[12px] font-bold ${isMe
                                                     ? "text-surface-0"
                                                     : "text-white/35"
-                                            } shrink-0`}
+                                                } shrink-0`}
                                         >
                                             {name
                                                 .charAt(0)
@@ -1326,11 +1318,10 @@ function LeaderboardTab({
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p
-                                                className={`text-[13px] font-medium truncate ${
-                                                    isMe
-                                                        ? "text-yellow-400"
-                                                        : "text-white/60"
-                                                }`}
+                                                className={`text-[13px] font-medium truncate ${isMe
+                                                    ? "text-yellow-400"
+                                                    : "text-white/60"
+                                                    }`}
                                             >
                                                 {name}{" "}
                                                 {isMe && (
@@ -1383,7 +1374,7 @@ function JobsTab() {
                 ]);
                 if (jobsRes.success) setJobs((jobsRes.jobs || []).slice(0, 6));
                 if (appsRes.success) setMyApps(appsRes.applications || []);
-            } catch {}
+            } catch { }
             setLoading(false);
         })();
     }, []);

@@ -3,13 +3,14 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room
 from services.mongodb_service import db_service
 from services.s3_service import s3_service
-from services.keycloak_service import keycloak_service
 from dsa_analyzer import analyze_code, get_problem, get_all_problems
 from functools import wraps
 import os
 import jwt  # type: ignore
 import json
 import uuid
+import re
+import html
 from datetime import datetime, timedelta
 from bson import ObjectId  # type: ignore
 from dotenv import load_dotenv  # type: ignore
@@ -19,7 +20,7 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 JWT_SECRET = os.getenv('JWT_SECRET', 'codebud-jwt-secret-dev-2026')
-JWT_EXPIRY_HOURS = 72
+JWT_EXPIRY_DAYS = int(os.getenv('JWT_EXPIRY_DAYS', '7'))
 
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -31,17 +32,7 @@ print("=" * 50)
 print("CodeBud Backend Server Starting...")
 print("=" * 50)
 
-# Display Keycloak status
-if keycloak_service.is_enabled():
-    print("[INFO] Keycloak authentication: ENABLED")
-    print(f"[INFO] Keycloak Server: {keycloak_service.server_url}")
-    print(f"[INFO] Keycloak Realm: {keycloak_service.realm_name}")
-    if keycloak_service.keycloak_admin:
-        print("[INFO] Keycloak Admin: CONNECTED")
-    else:
-        print("[WARNING] Keycloak Admin: NOT CONNECTED (user management disabled)")
-else:
-    print("[INFO] Keycloak authentication: DISABLED (using JWT only)")
+print("[INFO] Custom JWT authentication: ENABLED")
 
 
 # ──────────── HELPERS ────────────
@@ -67,7 +58,23 @@ def serialize_user(user):
     """Serialize user for API response (no password hash)"""
     if not user:
         return None
-    return serialize_doc(user)
+    serialized = serialize_doc(user)
+    if serialized is None:
+        return None
+    # Keep a stable `name` field for frontend/API clients while preserving legacy display_name.
+    serialized['name'] = serialized.get('name') or serialized.get('display_name') or serialized.get('email', '').split('@')[0]
+    return serialized
+
+
+def sanitize_name(name: str) -> str:
+    """Sanitize display name to mitigate script injection in downstream clients."""
+    safe = html.escape(str(name or '').strip())
+    return safe[:80]
+
+
+def is_valid_email(email: str) -> bool:
+    """Basic RFC-like email validation for auth endpoints."""
+    return bool(re.match(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$', str(email or '')))
 
 
 def generate_token(user):
@@ -77,7 +84,7 @@ def generate_token(user):
         'email': user['email'],
         'role': user.get('role', 'student'),
         'onboarding_completed': user.get('onboarding_completed', True),
-        'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
+        'exp': datetime.utcnow() + timedelta(days=JWT_EXPIRY_DAYS),
         'iat': datetime.utcnow()
     }
     return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
@@ -86,7 +93,7 @@ def generate_token(user):
 # ──────────── AUTH MIDDLEWARE ────────────
 
 def require_auth(f):
-    """Decorator to require JWT or Keycloak authentication"""
+    """Decorator to require JWT authentication"""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
@@ -98,25 +105,6 @@ def require_auth(f):
         if not token:
             return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
-        # Try Keycloak authentication first (if enabled)
-        if keycloak_service.is_enabled():
-            token_info = keycloak_service.verify_token(token)
-            if token_info:
-                # Successfully authenticated with Keycloak
-                g.current_user_id = token_info.get('sub')  # Keycloak user ID
-                g.current_user_email = token_info.get('email', token_info.get('preferred_username'))
-                
-                # Map Keycloak roles to app roles
-                keycloak_roles = keycloak_service.get_user_roles(token_info)
-                g.current_user_role = keycloak_service.map_keycloak_role_to_app_role(keycloak_roles)
-                g.auth_method = 'keycloak'
-                
-                # Store full token info for later use
-                g.keycloak_token_info = token_info
-                
-                return f(*args, **kwargs)
-
-        # Fallback to custom JWT authentication
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
             g.current_user_id = payload['user_id']
@@ -133,7 +121,7 @@ def require_auth(f):
 
 
 def require_admin(f):
-    """Decorator to require admin role (includes auth check) - supports JWT and Keycloak"""
+    """Decorator to require admin role (includes JWT auth check)"""
     @wraps(f)
     def decorated(*args, **kwargs):
         # Auth check (inline version of require_auth)
@@ -144,23 +132,6 @@ def require_admin(f):
         if not token:
             return jsonify({'success': False, 'error': 'Authentication required'}), 401
         
-        # Try Keycloak authentication first (if enabled)
-        if keycloak_service.is_enabled():
-            token_info = keycloak_service.verify_token(token)
-            if token_info:
-                g.current_user_id = token_info.get('sub')
-                g.current_user_email = token_info.get('email', token_info.get('preferred_username'))
-                keycloak_roles = keycloak_service.get_user_roles(token_info)
-                g.current_user_role = keycloak_service.map_keycloak_role_to_app_role(keycloak_roles)
-                g.auth_method = 'keycloak'
-                g.keycloak_token_info = token_info
-                
-                # Admin check
-                if g.current_user_role not in ('admin', 'super_admin'):
-                    return jsonify({'success': False, 'error': 'Admin access required'}), 403
-                return f(*args, **kwargs)
-        
-        # Fallback to custom JWT
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
             g.current_user_id = payload['user_id']
@@ -180,7 +151,7 @@ def require_admin(f):
 
 
 def require_mentor(f):
-    """Decorator to require mentor role (includes auth check). Admins/super_admins also pass. Supports JWT and Keycloak."""
+    """Decorator to require mentor role (includes auth check). Admins/super_admins also pass."""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
@@ -190,23 +161,6 @@ def require_mentor(f):
         if not token:
             return jsonify({'success': False, 'error': 'Authentication required'}), 401
         
-        # Try Keycloak authentication first (if enabled)
-        if keycloak_service.is_enabled():
-            token_info = keycloak_service.verify_token(token)
-            if token_info:
-                g.current_user_id = token_info.get('sub')
-                g.current_user_email = token_info.get('email', token_info.get('preferred_username'))
-                keycloak_roles = keycloak_service.get_user_roles(token_info)
-                g.current_user_role = keycloak_service.map_keycloak_role_to_app_role(keycloak_roles)
-                g.auth_method = 'keycloak'
-                g.keycloak_token_info = token_info
-                
-                # Mentor check
-                if g.current_user_role not in ('mentor', 'admin', 'super_admin'):
-                    return jsonify({'success': False, 'error': 'Mentor access required'}), 403
-                return f(*args, **kwargs)
-        
-        # Fallback to custom JWT
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
             g.current_user_id = payload['user_id']
@@ -225,7 +179,7 @@ def require_mentor(f):
 
 
 def require_super_admin(f):
-    """Decorator to require super_admin role. Supports JWT and Keycloak."""
+    """Decorator to require super_admin role."""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
@@ -235,23 +189,6 @@ def require_super_admin(f):
         if not token:
             return jsonify({'success': False, 'error': 'Authentication required'}), 401
         
-        # Try Keycloak authentication first (if enabled)
-        if keycloak_service.is_enabled():
-            token_info = keycloak_service.verify_token(token)
-            if token_info:
-                g.current_user_id = token_info.get('sub')
-                g.current_user_email = token_info.get('email', token_info.get('preferred_username'))
-                keycloak_roles = keycloak_service.get_user_roles(token_info)
-                g.current_user_role = keycloak_service.map_keycloak_role_to_app_role(keycloak_roles)
-                g.auth_method = 'keycloak'
-                g.keycloak_token_info = token_info
-                
-                # Super admin check
-                if g.current_user_role != 'super_admin':
-                    return jsonify({'success': False, 'error': 'Super admin access required'}), 403
-                return f(*args, **kwargs)
-        
-        # Fallback to custom JWT
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
             g.current_user_id = payload['user_id']
@@ -270,7 +207,7 @@ def require_super_admin(f):
 
 
 def require_company(f):
-    """Decorator to require company role. Admins/super_admins also pass. Supports JWT and Keycloak."""
+    """Decorator to require company role. Admins/super_admins also pass."""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
@@ -280,23 +217,6 @@ def require_company(f):
         if not token:
             return jsonify({'success': False, 'error': 'Authentication required'}), 401
         
-        # Try Keycloak authentication first (if enabled)
-        if keycloak_service.is_enabled():
-            token_info = keycloak_service.verify_token(token)
-            if token_info:
-                g.current_user_id = token_info.get('sub')
-                g.current_user_email = token_info.get('email', token_info.get('preferred_username'))
-                keycloak_roles = keycloak_service.get_user_roles(token_info)
-                g.current_user_role = keycloak_service.map_keycloak_role_to_app_role(keycloak_roles)
-                g.auth_method = 'keycloak'
-                g.keycloak_token_info = token_info
-                
-                # Company check
-                if g.current_user_role not in ('company', 'admin', 'super_admin'):
-                    return jsonify({'success': False, 'error': 'Company access required'}), 403
-                return f(*args, **kwargs)
-        
-        # Fallback to custom JWT
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
             g.current_user_id = payload['user_id']
@@ -316,8 +236,8 @@ def require_company(f):
 
 # ──────────── AUTH ROUTES ────────────
 
-@app.route('/api/auth/signup', methods=['POST'])
-def signup():
+@app.route('/api/auth/register', methods=['POST'])
+def register():
     """Create a new account"""
     data = request.get_json()
     if not data:
@@ -326,10 +246,16 @@ def signup():
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
     role = data.get('role', 'student')
-    display_name = data.get('displayName', '')
+    name = sanitize_name(data.get('name', data.get('displayName', '')))
+
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
 
     if not email or not password:
-        return jsonify({'success': False, 'error': 'Email and password are required'}), 400
+        return jsonify({'success': False, 'error': 'Name, email and password are required'}), 400
+
+    if not is_valid_email(email):
+        return jsonify({'success': False, 'error': 'Invalid email format'}), 400
 
     if len(password) < 6:
         return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
@@ -363,7 +289,7 @@ def signup():
             return jsonify({'success': False, 'error': 'Admin account creation requires admin authorization'}), 403
 
     try:
-        user = db_service.create_user(email, password, role, display_name)
+        user = db_service.create_user(email, password, role, name)
         token = generate_token(user)
         print(f"[INFO] New user signed up: {email} ({role})")
         return jsonify({
@@ -376,6 +302,12 @@ def signup():
     except Exception as e:
         print(f"[ERROR] Signup error: {e}")
         return jsonify({'success': False, 'error': 'Signup failed'}), 500
+
+
+@app.route('/api/auth/signup', methods=['POST'])
+def signup_alias():
+    """Backward-compatible alias for existing frontend clients."""
+    return register()
 
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -391,6 +323,9 @@ def login():
 
     if not email or not password:
         return jsonify({'success': False, 'error': 'Email and password are required'}), 400
+
+    if not is_valid_email(email):
+        return jsonify({'success': False, 'error': 'Invalid email format'}), 400
 
     user = db_service.authenticate_user(email, password)
     if not user:
@@ -2762,7 +2697,7 @@ if __name__ == '__main__':
     print(f"   Storage: {'Mock S3 (Local Files)' if s3_service.use_mock else 'AWS S3'}")
     print(f"   Environment: {os.getenv('FLASK_ENV', 'development')}")
     print(f"   JWT Secret: {'custom' if os.getenv('JWT_SECRET') else 'default (dev)'}")
-    print(f"   Keycloak: {'✅ Enabled ({})'.format(keycloak_service.realm_name) if keycloak_service.is_enabled() else '❌ Disabled (using JWT only)'}")
+    print(f"   JWT Expiry (days): {JWT_EXPIRY_DAYS}")
     print("\n[INFO] Server running on: http://localhost:5001")
     print("=" * 50 + "\n")
 

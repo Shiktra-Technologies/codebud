@@ -15,6 +15,7 @@ import {
     type DashboardStats,
     type MentorStudent,
 } from "@/lib/services/mentorService";
+import BootSequence from "@/app/components/BootSequence";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -376,11 +377,10 @@ function SubmissionsTab({ students, loading }: {
                     <button
                         key={tab.id}
                         onClick={() => setSubView(tab.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                            subView === tab.id
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${subView === tab.id
                                 ? "bg-yellow-400/10 border-yellow-400/30 text-yellow-400"
                                 : "bg-surface-2/50 border-white/[0.06] text-white/40 hover:text-white/60"
-                        }`}
+                            }`}
                     >
                         {tab.label} ({tab.count})
                     </button>
@@ -452,11 +452,10 @@ function SubmissionsTab({ students, loading }: {
                                                 <span className="text-xs text-white/30">{sub.language || 'Unknown'}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                                                    sub.status === 'passed' || sub.passed ? "bg-green-400/10 text-green-400" :
-                                                    sub.status === 'failed' ? "bg-red-400/10 text-red-400" :
-                                                    "bg-white/5 text-white/30"
-                                                }`}>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${sub.status === 'passed' || sub.passed ? "bg-green-400/10 text-green-400" :
+                                                        sub.status === 'failed' ? "bg-red-400/10 text-red-400" :
+                                                            "bg-white/5 text-white/30"
+                                                    }`}>
                                                     {sub.status || (sub.passed ? 'Passed' : 'Failed')}
                                                 </span>
                                                 <span className="text-xs text-white/20">{sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : ''}</span>
@@ -509,12 +508,11 @@ function SubmissionsTab({ students, loading }: {
                                     <div key={fb._id} className="bg-surface-2/30 border border-white/[0.04] rounded-xl p-4">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2">
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                                                    fb.category === 'code_quality' ? "bg-purple-400/10 text-purple-400" :
-                                                    fb.category === 'approach' ? "bg-blue-400/10 text-blue-400" :
-                                                    fb.category === 'optimization' ? "bg-green-400/10 text-green-400" :
-                                                    "bg-white/5 text-white/30"
-                                                }`}>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${fb.category === 'code_quality' ? "bg-purple-400/10 text-purple-400" :
+                                                        fb.category === 'approach' ? "bg-blue-400/10 text-blue-400" :
+                                                            fb.category === 'optimization' ? "bg-green-400/10 text-green-400" :
+                                                                "bg-white/5 text-white/30"
+                                                    }`}>
                                                     {fb.category || 'general'}
                                                 </span>
                                                 {fb.rating && (
@@ -670,11 +668,10 @@ function PracticeTab({ students }: { students: MentorStudent[] }) {
                                         onClick={() => setSelectedStudents(prev =>
                                             prev.includes(s._id) ? prev.filter(id => id !== s._id) : [...prev, s._id]
                                         )}
-                                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all border ${
-                                            selectedStudents.includes(s._id)
+                                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all border ${selectedStudents.includes(s._id)
                                                 ? "bg-yellow-400/10 border-yellow-400/30 text-yellow-400"
                                                 : "bg-surface-3/50 border-white/[0.06] text-white/40 hover:text-white/60"
-                                        }`}
+                                            }`}
                                     >
                                         {s.display_name || s.email.split('@')[0]}
                                     </button>
@@ -708,11 +705,10 @@ function PracticeTab({ students }: { students: MentorStudent[] }) {
                                     <p className="text-sm font-semibold text-white">{ps.title}</p>
                                     {ps.description && <p className="text-xs text-white/30 mt-0.5">{ps.description}</p>}
                                 </div>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                                    ps.completion_rate >= 80 ? "bg-green-400/10 text-green-400" :
-                                    ps.completion_rate >= 40 ? "bg-yellow-400/10 text-yellow-400" :
-                                    "bg-white/5 text-white/30"
-                                }`}>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${ps.completion_rate >= 80 ? "bg-green-400/10 text-green-400" :
+                                        ps.completion_rate >= 40 ? "bg-yellow-400/10 text-yellow-400" :
+                                            "bg-white/5 text-white/30"
+                                    }`}>
                                     {ps.completion_rate}% done
                                 </span>
                             </div>
@@ -777,166 +773,167 @@ export default function MentorDashboardPage() {
     }, {} as Record<string, typeof SIDEBAR_ITEMS>);
 
     return (
-        <div className="min-h-screen bg-surface-0 flex">
-            {/* ── Sidebar ── */}
-            <aside className="w-64 bg-surface-1/50 backdrop-blur-xl border-r border-white/[0.04] flex flex-col shrink-0">
-                {/* Logo */}
-                <div className="p-6 border-b border-white/[0.04]">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)]">
-                            <GraduationCap size={18} className="text-black" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-white">CodeBud</p>
-                            <p className="text-[10px] text-yellow-400/60 uppercase tracking-wider font-semibold">Mentor Panel</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Nav */}
-                <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
-                    {Object.entries(groups).map(([group, items]) => (
-                        <div key={group}>
-                            <p className="text-[10px] font-semibold text-white/20 uppercase tracking-[0.15em] mb-2 px-3">{group}</p>
-                            <div className="space-y-1">
-                                {items.map((item) => {
-                                    const Icon = item.icon;
-                                    const active = activeTab === item.id;
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setActiveTab(item.id)}
-                                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                                                active
-                                                    ? "bg-yellow-400/10 text-yellow-400 border border-yellow-400/20"
-                                                    : "text-white/40 hover:text-white/60 hover:bg-surface-2/30 border border-transparent"
-                                            }`}
-                                        >
-                                            <Icon size={16} />
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
+        <BootSequence>
+            <div className="min-h-screen bg-surface-0 flex">
+                {/* ── Sidebar ── */}
+                <aside className="w-64 bg-surface-1/50 backdrop-blur-xl border-r border-white/[0.04] flex flex-col shrink-0">
+                    {/* Logo */}
+                    <div className="p-6 border-b border-white/[0.04]">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)]">
+                                <GraduationCap size={18} className="text-black" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-white">CodeBud</p>
+                                <p className="text-[10px] text-yellow-400/60 uppercase tracking-wider font-semibold">Mentor Panel</p>
                             </div>
                         </div>
-                    ))}
-                </nav>
-
-                {/* User */}
-                <div className="p-4 border-t border-white/[0.04]">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-yellow-400/10 flex items-center justify-center text-yellow-400 font-bold text-xs">
-                            {(user?.display_name || user?.email || 'M')[0].toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-xs font-medium text-white truncate">{user?.display_name || user?.email}</p>
-                            <p className="text-[10px] text-white/30">Mentor</p>
-                        </div>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="w-full py-2 text-xs font-medium text-white/30 hover:text-red-400 border border-white/[0.06] hover:border-red-400/20 rounded-lg transition-all"
-                    >
-                        Sign Out
-                    </button>
-                </div>
-            </aside>
 
-            {/* ── Main Content ── */}
-            <main className="flex-1 overflow-y-auto">
-                {/* Header */}
-                <div className="sticky top-0 z-10 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04] px-8 py-5">
-                    <h1 className="text-xl font-bold text-white">
-                        {SIDEBAR_ITEMS.find(i => i.id === activeTab)?.label || "Mentor Dashboard"}
-                    </h1>
-                    <p className="text-xs text-white/30 mt-0.5">
-                        {students.length} students assigned • {stats?.practice_sets || 0} practice sets
-                    </p>
-                </div>
+                    {/* Nav */}
+                    <nav className="flex-1 p-4 space-y-6 overflow-y-auto">
+                        {Object.entries(groups).map(([group, items]) => (
+                            <div key={group}>
+                                <p className="text-[10px] font-semibold text-white/20 uppercase tracking-[0.15em] mb-2 px-3">{group}</p>
+                                <div className="space-y-1">
+                                    {items.map((item) => {
+                                        const Icon = item.icon;
+                                        const active = activeTab === item.id;
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => setActiveTab(item.id)}
+                                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${active
+                                                        ? "bg-yellow-400/10 text-yellow-400 border border-yellow-400/20"
+                                                        : "text-white/40 hover:text-white/60 hover:bg-surface-2/30 border border-transparent"
+                                                    }`}
+                                            >
+                                                <Icon size={16} />
+                                                {item.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </nav>
 
-                <div className="p-8">
-                    <AnimatePresence mode="wait">
-                        {activeTab === "overview" && (
-                            <motion.div
-                                key="overview"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                transition={{ duration: 0.3 }}
-                            >
-                                {loading ? (
-                                    <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-yellow-400 animate-spin" /></div>
-                                ) : (
-                                    <>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                                            <StatCard label="My Students" value={stats?.total_students || 0} icon={Users} color="#FBBF24" delay={0} />
-                                            <StatCard label="Active Today" value={stats?.active_today || 0} icon={Activity} color="#34D399" delay={0.1} />
-                                            <StatCard label="Avg Aptitude" value={`${stats?.avg_aptitude_score || 0}%`} icon={Award} color="#60A5FA" delay={0.2} />
-                                            <StatCard label="DSA Pass Rate" value={`${stats?.dsa_pass_rate || 0}%`} icon={Target} color="#F472B6" delay={0.3} />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            <StatCard label="DSA Submissions" value={stats?.dsa_submissions || 0} icon={FileText} color="#A78BFA" delay={0.4} />
-                                            <StatCard label="Practice Sets" value={stats?.practice_sets || 0} icon={BookOpen} color="#FB923C" delay={0.5} />
-                                            <StatCard label="Feedbacks Given" value={stats?.feedbacks_given || 0} icon={MessageSquare} color="#2DD4BF" delay={0.6} />
-                                        </div>
+                    {/* User */}
+                    <div className="p-4 border-t border-white/[0.04]">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-8 h-8 rounded-lg bg-yellow-400/10 flex items-center justify-center text-yellow-400 font-bold text-xs">
+                                {(user?.display_name || user?.email || 'M')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-medium text-white truncate">{user?.display_name || user?.email}</p>
+                                <p className="text-[10px] text-white/30">Mentor</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="w-full py-2 text-xs font-medium text-white/30 hover:text-red-400 border border-white/[0.06] hover:border-red-400/20 rounded-lg transition-all"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
+                </aside>
 
-                                        {/* Quick student list */}
-                                        {students.length > 0 && (
-                                            <div className="mt-8">
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <p className="text-xs font-semibold text-white/30 uppercase tracking-wider">Recent Students</p>
-                                                    <button onClick={() => setActiveTab("students")} className="text-xs text-yellow-400/60 hover:text-yellow-400 transition-colors">View All →</button>
-                                                </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    {students.slice(0, 4).map(s => (
-                                                        <div key={s._id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-2/20 border border-white/[0.04]">
-                                                            <div className="w-8 h-8 rounded-lg bg-yellow-400/10 flex items-center justify-center text-yellow-400 font-bold text-xs">
-                                                                {(s.display_name || s.email)[0].toUpperCase()}
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-sm text-white font-medium">{s.display_name || s.email.split('@')[0]}</p>
-                                                                <p className="text-[10px] text-white/20">{s.email}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                {/* ── Main Content ── */}
+                <main className="flex-1 overflow-y-auto">
+                    {/* Header */}
+                    <div className="sticky top-0 z-10 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04] px-8 py-5">
+                        <h1 className="text-xl font-bold text-white">
+                            {SIDEBAR_ITEMS.find(i => i.id === activeTab)?.label || "Mentor Dashboard"}
+                        </h1>
+                        <p className="text-xs text-white/30 mt-0.5">
+                            {students.length} students assigned • {stats?.practice_sets || 0} practice sets
+                        </p>
+                    </div>
+
+                    <div className="p-8">
+                        <AnimatePresence mode="wait">
+                            {activeTab === "overview" && (
+                                <motion.div
+                                    key="overview"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    {loading ? (
+                                        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-yellow-400 animate-spin" /></div>
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                                <StatCard label="My Students" value={stats?.total_students || 0} icon={Users} color="#FBBF24" delay={0} />
+                                                <StatCard label="Active Today" value={stats?.active_today || 0} icon={Activity} color="#34D399" delay={0.1} />
+                                                <StatCard label="Avg Aptitude" value={`${stats?.avg_aptitude_score || 0}%`} icon={Award} color="#60A5FA" delay={0.2} />
+                                                <StatCard label="DSA Pass Rate" value={`${stats?.dsa_pass_rate || 0}%`} icon={Target} color="#F472B6" delay={0.3} />
                                             </div>
-                                        )}
-                                    </>
-                                )}
-                            </motion.div>
-                        )}
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                <StatCard label="DSA Submissions" value={stats?.dsa_submissions || 0} icon={FileText} color="#A78BFA" delay={0.4} />
+                                                <StatCard label="Practice Sets" value={stats?.practice_sets || 0} icon={BookOpen} color="#FB923C" delay={0.5} />
+                                                <StatCard label="Feedbacks Given" value={stats?.feedbacks_given || 0} icon={MessageSquare} color="#2DD4BF" delay={0.6} />
+                                            </div>
 
-                        {activeTab === "students" && (
-                            <motion.div key="students" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                                <StudentsTab
-                                    students={students}
-                                    loading={loading}
-                                    onSelectStudent={(id) => { setPreSelectedStudent(id); setActiveTab("analytics"); }}
-                                />
-                            </motion.div>
-                        )}
+                                            {/* Quick student list */}
+                                            {students.length > 0 && (
+                                                <div className="mt-8">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <p className="text-xs font-semibold text-white/30 uppercase tracking-wider">Recent Students</p>
+                                                        <button onClick={() => setActiveTab("students")} className="text-xs text-yellow-400/60 hover:text-yellow-400 transition-colors">View All →</button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        {students.slice(0, 4).map(s => (
+                                                            <div key={s._id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-2/20 border border-white/[0.04]">
+                                                                <div className="w-8 h-8 rounded-lg bg-yellow-400/10 flex items-center justify-center text-yellow-400 font-bold text-xs">
+                                                                    {(s.display_name || s.email)[0].toUpperCase()}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm text-white font-medium">{s.display_name || s.email.split('@')[0]}</p>
+                                                                    <p className="text-[10px] text-white/20">{s.email}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </motion.div>
+                            )}
 
-                        {activeTab === "analytics" && (
-                            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                                <AnalyticsTab students={students} loading={loading} preSelectedStudent={preSelectedStudent} onClearPreSelected={() => setPreSelectedStudent(null)} />
-                            </motion.div>
-                        )}
+                            {activeTab === "students" && (
+                                <motion.div key="students" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                                    <StudentsTab
+                                        students={students}
+                                        loading={loading}
+                                        onSelectStudent={(id) => { setPreSelectedStudent(id); setActiveTab("analytics"); }}
+                                    />
+                                </motion.div>
+                            )}
 
-                        {activeTab === "submissions" && (
-                            <motion.div key="submissions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                                <SubmissionsTab students={students} loading={loading} />
-                            </motion.div>
-                        )}
+                            {activeTab === "analytics" && (
+                                <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                                    <AnalyticsTab students={students} loading={loading} preSelectedStudent={preSelectedStudent} onClearPreSelected={() => setPreSelectedStudent(null)} />
+                                </motion.div>
+                            )}
 
-                        {activeTab === "practice" && (
-                            <motion.div key="practice" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                                <PracticeTab students={students} />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </main>
-        </div>
+                            {activeTab === "submissions" && (
+                                <motion.div key="submissions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                                    <SubmissionsTab students={students} loading={loading} />
+                                </motion.div>
+                            )}
+
+                            {activeTab === "practice" && (
+                                <motion.div key="practice" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                                    <PracticeTab students={students} />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </main>
+            </div>
+        </BootSequence>
     );
 }

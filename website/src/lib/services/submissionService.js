@@ -3,7 +3,7 @@
  * All calls go through Flask backend API → MongoDB
  */
 
-import apiClient from '@/lib/apiClient';
+import apiClient, { getToken } from '@/lib/apiClient';
 
 // In-memory cache to prevent duplicate submissions from React.StrictMode
 const recentSubmissions = new Map();
@@ -20,6 +20,39 @@ function cleanupCache() {
 
 function generateSubmissionKey(userId, submissionData) {
   return `${userId}_${submissionData?.test_type}_${submissionData?.score}_${submissionData?.total_questions}`;
+}
+
+function decodeJwtPayload(token) {
+  if (!token || typeof window === 'undefined') return null;
+
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(window.atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function getAuthContext() {
+  const token = getToken();
+  const payload = decodeJwtPayload(token);
+
+  return {
+    role: payload?.role || null,
+    userId: payload?.user_id || payload?.sub || null,
+  };
+}
+
+function getLocalSubmissionFallback() {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  return JSON.parse(localStorage.getItem('all_submissions') || '[]');
 }
 
 /**
@@ -95,7 +128,26 @@ export const getUserDisplayName = async (userId) => {
  * Get all submissions (admin)
  */
 export const getAllSubmissions = async () => {
+  const { role, userId } = getAuthContext();
+  const isAdmin = role === 'admin' || role === 'super_admin';
+
   try {
+    // Non-admin users are only allowed to view their own submissions.
+    if (!isAdmin && userId) {
+      const userResponse = await apiClient.get(`/api/submissions/${userId}`);
+
+      if (userResponse.data.success) {
+        const submissions = userResponse.data.data || [];
+        return {
+          success: true,
+          data: submissions,
+          count: userResponse.data.count || submissions.length,
+        };
+      }
+
+      return { success: true, data: [], count: 0 };
+    }
+
     const response = await apiClient.get('/api/submissions');
     if (response.data.success) {
       console.log(`✅ Retrieved ${response.data.count} submissions from API`);
@@ -107,9 +159,31 @@ export const getAllSubmissions = async () => {
     }
     return { success: true, data: [], count: 0 };
   } catch (error) {
-    console.error('[SUBMISSION] Error getting all submissions:', error.message);
-    // Fallback
-    const localSubmissions = JSON.parse(localStorage.getItem('all_submissions') || '[]');
+    const status = error?.response?.status;
+    if (status === 403) {
+      console.warn('[SUBMISSION] Access denied for all submissions, using safe fallback');
+
+      if (userId) {
+        try {
+          const userResponse = await apiClient.get(`/api/submissions/${userId}`);
+          if (userResponse.data.success) {
+            const submissions = userResponse.data.data || [];
+            return {
+              success: true,
+              data: submissions,
+              count: userResponse.data.count || submissions.length,
+              fallback: true,
+            };
+          }
+        } catch {
+          // Fall through to local fallback.
+        }
+      }
+    } else {
+      console.error('[SUBMISSION] Error getting all submissions:', error?.message || 'Unknown error');
+    }
+
+    const localSubmissions = getLocalSubmissionFallback();
     return {
       success: true,
       data: localSubmissions,
@@ -138,7 +212,7 @@ export const getUserSubmissions = async (userId) => {
   }
 };
 
-export default {
+const submissionService = {
   submitTest,
   submitTestToSupabase,
   getAllSubmissions,
@@ -146,3 +220,5 @@ export default {
   getUserSubmissions,
   getUserDisplayName,
 };
+
+export default submissionService;
