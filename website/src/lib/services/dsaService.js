@@ -5,10 +5,32 @@
 import axios from 'axios';
 import { getToken } from '@/lib/apiClient';
 
+function normalizeDsaBaseUrl(rawUrl) {
+    const url = String(rawUrl || '').trim();
+    if (!url) return '';
+    const withoutSlash = url.replace(/\/+$/, '');
+    if (withoutSlash.endsWith('/api')) return withoutSlash;
+    return `${withoutSlash}/api`;
+}
+
+function resolveDsaBaseUrl() {
+    const explicitDsaUrl = normalizeDsaBaseUrl(process.env.NEXT_PUBLIC_DSA_SERVER_URL);
+    if (explicitDsaUrl) return explicitDsaUrl;
+
+    const apiUrl = normalizeDsaBaseUrl(process.env.NEXT_PUBLIC_API_URL);
+    if (apiUrl) return apiUrl;
+
+    if (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'localhost') {
+        return `${window.location.protocol}//${window.location.hostname}:5001/api`;
+    }
+
+    return 'http://localhost:5001/api';
+}
+
 class DSAService {
     constructor() {
-        // Server-based execution (Next.js env vars must use NEXT_PUBLIC_ prefix)
-        this.baseURL = process.env.NEXT_PUBLIC_DSA_SERVER_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        // Server-based execution
+        this.baseURL = resolveDsaBaseUrl();
         this.timeout = 30000; // 30 seconds timeout for code execution
         this.client = axios.create({
             baseURL: this.baseURL,
@@ -90,21 +112,43 @@ class DSAService {
 
             return normalized;
         } catch (error) {
+            // Timeout error
             if (error.code === 'ECONNABORTED') {
-                throw new Error('Code execution timed out. Please optimize your solution.');
+                const msg = 'Code execution timed out (30s). Please optimize your solution.';
+                console.error('[DSA] Timeout:', msg);
+                throw new Error(msg);
             }
+            
+            // Server response error (HTTP error status)
             if (error.response) {
-                console.error('[DSA] executeCode error response', {
+                console.error('[DSA] Server error response', {
                     status: error.response.status,
                     data: error.response.data,
                 });
                 throw new Error(error.response.data?.error || `Server error: ${error.response.status}`);
             }
-            if (typeof navigator !== 'undefined' && !navigator.onLine) {
-                throw new Error('No internet connection. Please check your network.');
+            
+            // Network error (no response from server)
+            if (!error.response && error.code === 'ECONNREFUSED') {
+                const msg = `Cannot connect to API server at ${this.baseURL}. Is the backend running on the correct port?`;
+                console.error('[DSA] Connection refused:', msg);
+                throw new Error(msg);
             }
-            console.error('[DSA] executeCode transport error', error.message);
-            throw new Error(`Connection failed: ${error.message}`);
+            
+            // Offline check
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                const msg = 'No internet connection. Please check your network.';
+                console.error('[DSA] Offline:', msg);
+                throw new Error(msg);
+            }
+            
+            // Generic network error
+            console.error('[DSA] Network error', {
+                message: error.message,
+                code: error.code,
+                errno: error.errno,
+            });
+            throw new Error(`Connection failed: ${error.message}. Please check that the backend API is running.`);
         }
     }
 

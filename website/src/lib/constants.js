@@ -18,4 +18,15 @@ export const ROLE_PERMISSIONS = {
     [USER_ROLES.COMPANY]: ['view_company_dashboard', 'manage_jobs', 'view_applications', 'manage_company_profile'],
 };
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+function resolveApiUrl() {
+    const configured = String(process.env.NEXT_PUBLIC_API_URL || '').trim();
+    if (configured) return configured;
+
+    if (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'localhost') {
+        return `${window.location.protocol}//${window.location.hostname}:5001`;
+    }
+
+    return 'http://localhost:5001';
+}
+
+export const API_URL = resolveApiUrl();

@@ -4,10 +4,30 @@
  * and keeps cross-tab sync through BroadcastChannel.
  */
 
-import apiClient from '@/lib/apiClient';
+import apiClient, { getToken } from '@/lib/apiClient';
 
 const CACHE_KEY = 'leaderboard_cache';
 const CACHE_TTL = 60_000; // 1 minute local cache
+
+// Helper: decode JWT and check if user is admin
+function isUserAdmin() {
+  try {
+    const token = getToken();
+    if (!token) return false;
+    
+    const payload = token.split('.')[1];
+    if (!payload) return false;
+    
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const decoded = JSON.parse(typeof window !== 'undefined' ? window.atob(padded) : Buffer.from(padded, 'base64').toString());
+    
+    const role = decoded?.role || '';
+    return role === 'admin' || role === 'super_admin';
+  } catch {
+    return false;
+  }
+}
 
 export const leaderboardService = {
   _cache: null,
@@ -24,10 +44,15 @@ export const leaderboardService = {
 
   /**
    * Fetch all submissions from backend and build leaderboard locally.
-   * Falls back to localStorage cache when offline.
+   * Only admin users can fetch all data; others use cache silently.
    */
   async fetchLeaderboardFromAPI() {
     try {
+      // Non-admin users cannot access /api/submissions, skip API call entirely
+      if (!isUserAdmin()) {
+        return this._getFromCache();
+      }
+
       const response = await apiClient.get('/api/submissions');
       const allSubmissions = Array.isArray(response.data)
         ? response.data

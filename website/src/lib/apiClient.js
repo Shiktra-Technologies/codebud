@@ -1,6 +1,18 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+function resolveApiUrl() {
+    const configured = String(process.env.NEXT_PUBLIC_API_URL || '').trim();
+    if (configured) return configured;
+
+    // If deployed and env is missing, use the current host on the backend port.
+    if (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'localhost') {
+        return `${window.location.protocol}//${window.location.hostname}:5001`;
+    }
+
+    return 'http://localhost:5001';
+}
+
+const API_URL = resolveApiUrl();
 
 const apiClient = axios.create({
     baseURL: API_URL,
@@ -47,7 +59,7 @@ apiClient.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// ──────── Response Interceptor (handle 401) ────────
+// ──────── Response Interceptor (handle 401 and network errors) ────────
 
 apiClient.interceptors.response.use(
     (response) => response,
@@ -59,6 +71,17 @@ apiClient.interceptors.response.use(
                 window.location.href = '/auth';
             }
         }
+        
+        // Log network errors for debugging
+        if (!error.response) {
+            console.error('[API] Network Error:', {
+                message: error.message,
+                code: error.code,
+                url: error.config?.url,
+                method: error.config?.method,
+            });
+        }
+        
         return Promise.reject(error);
     }
 );
