@@ -1,0 +1,13 @@
+{
+  "auth_test_user@codebud.dev": {
+    "_id": "usr_66be8de319be461a9b8b1c153dd4d836",
+    "email": "auth_test_user@codebud.dev",
+    "display_name": "Auth Test",
+    "role": "student",
+    "created_at": "2026-03-29T15:57:19.280256+00:00",
+    "last_active": "2026-03-29T15:57:19.346338+00:00",
+    "onboarding_completed": true,
+    "salt": "8622d0f8f66d4faea97293c769d49d43",
+    "password_hash": "HpVQXreP68cTKAgVoRnusaGaheRkISpHzewavosK-nc="
+  }
+}

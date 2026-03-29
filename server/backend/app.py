@@ -5,8 +5,13 @@ CodeBud DSA Analyzer - Main Flask Server with AI-Powered Validation
 import logging
 import copy
 import hashlib
+import hmac
+import base64
+import json
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
+from threading import Lock
 from typing import Any, Dict, Tuple
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -81,6 +86,107 @@ reference_solution_store = ReferenceSolutionStore()
 template_matcher = TemplateMatcher()
 job_store = MemoryJobStore()
 async_execution_manager = None
+AUTH_SECRET = os.getenv('JWT_SECRET', 'codebud-backend-auth-secret-2026')
+AUTH_TTL_HOURS = int(os.getenv('AUTH_TOKEN_TTL_HOURS', 72))
+AUTH_STORE_PATH = os.getenv('AUTH_STORE_PATH', os.path.join(os.path.dirname(__file__), 'auth_users.json'))
+auth_store_lock = Lock()
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _auth_response(success: bool, user: Dict[str, Any] = None, token: str = '', error: str = None):
+    return jsonify({
+        'success': bool(success),
+        'user': user,
+        'token': token if success else '',
+        'error': None if success else (error or 'Authentication failed')
+    })
+
+
+def _safe_user(user: Dict[str, Any]) -> Dict[str, Any]:
+    if not user:
+        return {}
+    return {
+        '_id': user.get('_id'),
+        'email': user.get('email'),
+        'display_name': user.get('display_name', ''),
+        'role': user.get('role', 'student'),
+        'created_at': user.get('created_at'),
+        'last_active': user.get('last_active'),
+        'onboarding_completed': user.get('onboarding_completed', True)
+    }
+
+
+def _load_auth_store() -> Dict[str, Dict[str, Any]]:
+    if not os.path.exists(AUTH_STORE_PATH):
+        return {}
+    try:
+        with open(AUTH_STORE_PATH, 'r', encoding='utf-8') as handle:
+            data = json.load(handle)
+        if isinstance(data, dict):
+            return data
+    except Exception as exc:
+        logger.warning('[AUTH] Failed to read auth store: %s', str(exc))
+    return {}
+
+
+def _save_auth_store(store: Dict[str, Dict[str, Any]]) -> None:
+    os.makedirs(os.path.dirname(AUTH_STORE_PATH), exist_ok=True)
+    with open(AUTH_STORE_PATH, 'w', encoding='utf-8') as handle:
+        json.dump(store, handle, indent=2)
+
+
+def _hash_password(password: str, salt: str) -> str:
+    digest = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 120000)
+    return base64.urlsafe_b64encode(digest).decode('utf-8')
+
+
+def _verify_password(password: str, salt: str, expected_hash: str) -> bool:
+    computed = _hash_password(password, salt)
+    return hmac.compare_digest(computed, expected_hash)
+
+
+def _encode_token(payload: Dict[str, Any]) -> str:
+    payload_bytes = json.dumps(payload, separators=(',', ':')).encode('utf-8')
+    payload_b64 = base64.urlsafe_b64encode(payload_bytes).decode('utf-8').rstrip('=')
+    sig = hmac.new(AUTH_SECRET.encode('utf-8'), payload_b64.encode('utf-8'), hashlib.sha256).digest()
+    sig_b64 = base64.urlsafe_b64encode(sig).decode('utf-8').rstrip('=')
+    return f'cb.{payload_b64}.{sig_b64}'
+
+
+def _decode_token(token: str) -> Dict[str, Any]:
+    parts = str(token or '').split('.')
+    if len(parts) != 3 or parts[0] != 'cb':
+        raise ValueError('Invalid token format')
+
+    payload_b64 = parts[1]
+    sig_b64 = parts[2]
+    expected_sig = hmac.new(AUTH_SECRET.encode('utf-8'), payload_b64.encode('utf-8'), hashlib.sha256).digest()
+    provided_sig = base64.urlsafe_b64decode(sig_b64 + '=' * (-len(sig_b64) % 4))
+    if not hmac.compare_digest(expected_sig, provided_sig):
+        raise ValueError('Invalid token signature')
+
+    payload_raw = base64.urlsafe_b64decode(payload_b64 + '=' * (-len(payload_b64) % 4))
+    payload = json.loads(payload_raw.decode('utf-8'))
+    exp = int(payload.get('exp', 0))
+    if exp and int(time.time()) > exp:
+        raise ValueError('Token expired')
+    return payload
+
+
+def _issue_auth_token(user: Dict[str, Any]) -> str:
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=AUTH_TTL_HOURS)
+    payload = {
+        'sub': user.get('_id'),
+        'email': user.get('email'),
+        'role': user.get('role', 'student'),
+        'onboarding_completed': user.get('onboarding_completed', True),
+        'iat': int(time.time()),
+        'exp': int(expires_at.timestamp())
+    }
+    return _encode_token(payload)
 
 
 def _normalize_language(language: str) -> str:
@@ -330,6 +436,47 @@ class ApiRequestError(Exception):
         self.status_code = status_code
 
 
+def _normalize_stdin_inputs(raw_input: Any, inputs: Any) -> str:
+    """Normalize stdin payload supporting both `input` and `inputs` request shapes."""
+    if isinstance(inputs, list) and inputs:
+        return "\n".join(str(item) for item in inputs)
+    if isinstance(inputs, str):
+        return inputs
+    if raw_input is None:
+        return ''
+    if isinstance(raw_input, list):
+        return "\n".join(str(item) for item in raw_input)
+    return str(raw_input)
+
+
+def _standard_execution_payload(
+    output: Any,
+    error: Any,
+    return_code: int,
+    execution_time: float = None,
+    compilation_error: bool = False,
+    timeout_error: bool = False
+) -> Dict[str, Any]:
+    """Create a consistent execution response contract for /api/execute and /api/run."""
+    safe_error = str(error or '').strip()
+    safe_output = '' if output is None else str(output)
+    success = (int(return_code) == 0) and (not compilation_error) and (not timeout_error) and (not safe_error)
+    runtime_error = bool(safe_error) and (not compilation_error) and (not timeout_error)
+
+    payload = {
+        'success': success,
+        'output': safe_output,
+        'error': None if not safe_error else safe_error,
+        'return_code': int(return_code),
+        'compilation_error': bool(compilation_error),
+        'runtime_error': runtime_error,
+        'timeout_error': bool(timeout_error)
+    }
+    if execution_time is not None:
+        payload['execution_time'] = round(float(execution_time), 3)
+    return payload
+
+
 def _validate_run_request(data: Dict[str, Any]) -> Dict[str, Any]:
     if not data:
         raise ApiRequestError('No JSON data provided', 400)
@@ -531,6 +678,124 @@ def status():
 
 
 # ============================================================================
+# AUTH ENDPOINTS
+# ============================================================================
+
+@app.route('/api/auth/signup', methods=['POST'])
+@app.route('/api/auth/register', methods=['POST'])
+def auth_signup():
+    """Create a user account for frontend auth flows."""
+    try:
+        data = request.get_json() or {}
+        email = str(data.get('email', '')).strip().lower()
+        password = str(data.get('password', ''))
+        role = str(data.get('role', 'student')).strip().lower() or 'student'
+        display_name = str(data.get('displayName') or data.get('display_name') or '').strip()
+
+        if not email or not password:
+            return _auth_response(False, error='Email and password are required'), 400
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            return _auth_response(False, error='Invalid email format'), 400
+        if len(password) < 6:
+            return _auth_response(False, error='Password must be at least 6 characters'), 400
+
+        with auth_store_lock:
+            store = _load_auth_store()
+            if email in store:
+                return _auth_response(False, error='User already exists'), 409
+
+            now_iso = _utc_now_iso()
+            user = {
+                '_id': f"usr_{uuid.uuid4().hex}",
+                'email': email,
+                'display_name': display_name or email.split('@')[0],
+                'role': role,
+                'created_at': now_iso,
+                'last_active': now_iso,
+                'onboarding_completed': True,
+                'salt': uuid.uuid4().hex,
+            }
+            user['password_hash'] = _hash_password(password, user['salt'])
+            store[email] = user
+            _save_auth_store(store)
+
+        safe_user = _safe_user(user)
+        token = _issue_auth_token(safe_user)
+        return _auth_response(True, user=safe_user, token=token), 201
+    except Exception as exc:
+        logger.error('[AUTH] Signup error: %s', str(exc))
+        return _auth_response(False, error='Failed to create account'), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    """Authenticate user and return access token."""
+    try:
+        data = request.get_json() or {}
+        email = str(data.get('email', '')).strip().lower()
+        password = str(data.get('password', ''))
+        expected_role = str(data.get('expectedRole') or data.get('expected_role') or '').strip().lower()
+
+        if not email or not password:
+            return _auth_response(False, error='Email and password are required'), 400
+
+        with auth_store_lock:
+            store = _load_auth_store()
+            user = store.get(email)
+            if not user:
+                return _auth_response(False, error='Invalid email or password'), 401
+
+            if not _verify_password(password, user.get('salt', ''), user.get('password_hash', '')):
+                return _auth_response(False, error='Invalid email or password'), 401
+
+            if expected_role and user.get('role') != expected_role:
+                return _auth_response(
+                    False,
+                    error=f"Access denied. This account is registered as {user.get('role')}, but you're trying to login as {expected_role}."
+                ), 403
+
+            user['last_active'] = _utc_now_iso()
+            store[email] = user
+            _save_auth_store(store)
+
+        safe_user = _safe_user(user)
+        token = _issue_auth_token(safe_user)
+        return _auth_response(True, user=safe_user, token=token), 200
+    except Exception as exc:
+        logger.error('[AUTH] Login error: %s', str(exc))
+        return _auth_response(False, error='Login failed'), 500
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def auth_me():
+    """Return current user profile from bearer token."""
+    try:
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return _auth_response(False, error='Missing token'), 401
+
+        token = auth_header[7:]
+        payload = _decode_token(token)
+        email = str(payload.get('email', '')).strip().lower()
+        if not email:
+            return _auth_response(False, error='Invalid token payload'), 401
+
+        with auth_store_lock:
+            store = _load_auth_store()
+            user = store.get(email)
+
+        if not user:
+            return _auth_response(False, error='User not found'), 404
+
+        return _auth_response(True, user=_safe_user(user), token=''), 200
+    except ValueError as exc:
+        return _auth_response(False, error=str(exc)), 401
+    except Exception as exc:
+        logger.error('[AUTH] Me endpoint error: %s', str(exc))
+        return _auth_response(False, error='Failed to load profile'), 500
+
+
+# ============================================================================
 # PROBLEM ENDPOINTS
 # ============================================================================
 
@@ -647,10 +912,7 @@ def execute_code():
         
         code = data.get('code')
         language = _normalize_language(data.get('language', 'python'))
-        raw_input = data.get('input')
-        test_inputs = data.get('inputs', [])
-        if raw_input is not None and not test_inputs:
-            test_inputs = [raw_input]
+        stdin_data = _normalize_stdin_inputs(data.get('input'), data.get('inputs'))
         
         # Validation
         if not code or not code.strip():
@@ -670,46 +932,57 @@ def execute_code():
             request_id,
             language,
             len(str(code or '')),
-            len(test_inputs) if isinstance(test_inputs, list) else 0
+            len(stdin_data)
         )
         
         # Execute
         if language == 'python':
-            stdin_data = "\n".join(str(x) for x in test_inputs) if isinstance(test_inputs, list) else ''
             result = python_executor.run_terminal_code(code, stdin_data=stdin_data)
         else:
-            result = source_executor.run_terminal_code(code, language, test_inputs)
+            # Source executor accepts list-based test inputs; wrap normalized stdin as a single payload.
+            result = source_executor.run_terminal_code(code, language, [stdin_data] if stdin_data else None)
         
         output = result.get('stdout', '')
         error = result.get('stderr', '')
-        status = 'success' if result.get('return_code', 1) == 0 and not result.get('compilation_error') else 'failed'
+        return_code = int(result.get('return_code', -1))
+        compilation_error = bool(result.get('compilation_error')) or ('syntaxerror' in str(error).lower())
+        timeout_error = result.get('status') == 'timeout' or 'timeout' in str(error).lower()
+        response_payload = _standard_execution_payload(
+            output=output,
+            error=error,
+            return_code=return_code,
+            execution_time=(time.time() - started_at),
+            compilation_error=compilation_error,
+            timeout_error=timeout_error
+        )
 
         logger.info(
             "[RUN] execute complete request_id=%s status=%s duration_ms=%.2f",
             request_id,
-            status,
+            'success' if response_payload.get('success') else 'failed',
             (time.time() - started_at) * 1000
         )
 
         return jsonify({
-            'success': True,
+            **response_payload,
             'request_id': request_id,
             'language': language,
-            'status': status,
-            'output': output,
-            'error': error,
-            'return_code': result.get('return_code', 0),
-            'compilation_error': result.get('compilation_error', False)
+            'status': 'success' if response_payload.get('success') else 'failed'
         }), 200
         
     except Exception as e:
         logger.error(f"Execution error [{request_id}]: {str(e)}")
         return jsonify({
-            'success': False,
+            **_standard_execution_payload(
+                output='',
+                error=str(e),
+                return_code=-1,
+                execution_time=(time.time() - started_at),
+                compilation_error=False,
+                timeout_error=False
+            ),
             'request_id': request_id,
-            'status': 'failed',
-            'output': '',
-            'error': str(e)
+            'status': 'failed'
         }), 500
 
 
@@ -1148,9 +1421,25 @@ def run_code_legacy():
             run_request['language'],
             run_request['judge_mode']
         )
+        std_payload = _standard_execution_payload(
+            output=payload.get('final_output') or payload.get('final_stdout') or '',
+            error=payload.get('error', ''),
+            return_code=0 if payload.get('is_accepted') else 1,
+            execution_time=(time.time() - started_at),
+            compilation_error=payload.get('verdict') == 'COMPILATION_ERROR',
+            timeout_error=payload.get('verdict') == 'TIME_LIMIT_EXCEEDED'
+        )
+        if payload.get('verdict') == 'RUNTIME_ERROR':
+            std_payload['runtime_error'] = True
         payload['request_id'] = request_id
-        payload['output'] = payload.get('final_output') or payload.get('final_stdout') or ''
-        payload['error'] = payload.get('error', '')
+        payload['success'] = std_payload['success']
+        payload['output'] = std_payload['output']
+        payload['error'] = std_payload['error']
+        payload['return_code'] = std_payload['return_code']
+        payload['execution_time'] = std_payload.get('execution_time')
+        payload['compilation_error'] = std_payload['compilation_error']
+        payload['runtime_error'] = std_payload['runtime_error']
+        payload['timeout_error'] = std_payload['timeout_error']
         payload['execution_status'] = 'success' if payload.get('is_accepted') else 'failed'
 
         logger.info(
@@ -1164,10 +1453,10 @@ def run_code_legacy():
         return jsonify(payload), 200
     except ApiRequestError as e:
         logger.warning("[RUN] validation failed request_id=%s status=%s error=%s", request_id, e.status_code, e.message)
-        return jsonify({'success': False, 'error': e.message}), e.status_code
+        return jsonify(_standard_execution_payload(output='', error=e.message, return_code=1)), e.status_code
     except Exception as e:
         logger.error(f"Run endpoint error [{request_id}]: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify(_standard_execution_payload(output='', error=str(e), return_code=1)), 500
 
 
 @app.route('/api/run-async', methods=['POST'])

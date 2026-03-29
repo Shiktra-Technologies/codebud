@@ -19,14 +19,7 @@ export const ROLE_PERMISSIONS = {
 };
 
 function resolveApiUrl() {
-    const configured = String(process.env.NEXT_PUBLIC_API_URL || '').trim();
-    if (configured) return configured;
-
-    if (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'localhost') {
-        return `${window.location.protocol}//${window.location.hostname}:5001`;
-    }
-
-    return 'http://localhost:5001';
+    return '/api/proxy';
 }
 
 export const API_URL = resolveApiUrl();

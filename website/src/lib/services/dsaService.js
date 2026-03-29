@@ -14,17 +14,7 @@ function normalizeDsaBaseUrl(rawUrl) {
 }
 
 function resolveDsaBaseUrl() {
-    const explicitDsaUrl = normalizeDsaBaseUrl(process.env.NEXT_PUBLIC_DSA_SERVER_URL);
-    if (explicitDsaUrl) return explicitDsaUrl;
-
-    const apiUrl = normalizeDsaBaseUrl(process.env.NEXT_PUBLIC_API_URL);
-    if (apiUrl) return apiUrl;
-
-    if (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'localhost') {
-        return `${window.location.protocol}//${window.location.hostname}:5001/api`;
-    }
-
-    return 'http://localhost:5001/api';
+    return normalizeDsaBaseUrl('/api/proxy');
 }
 
 class DSAService {
@@ -64,10 +54,18 @@ class DSAService {
             safe.result ||
             safe.message ||
             '';
-        const error = safe.error || (status === 'Compilation Error' || status === 'Runtime Error' ? safe.message : '');
+        const hasFailureStatus = ['failed', 'runtime error', 'compilation error', 'error'].includes(String(status).toLowerCase());
+        const rawError = safe.error || (hasFailureStatus ? safe.message : '');
+        const error = rawError ? String(rawError) : null;
+        const hasExecutionFailure = Boolean(error) || Boolean(safe.compilation_error) || Number(safe.return_code || 0) !== 0;
+        const success = Boolean(
+            safe.is_accepted ??
+            (typeof safe.success === 'boolean' ? safe.success && !hasExecutionFailure : !hasFailureStatus && !hasExecutionFailure)
+        );
 
         return {
             ...safe,
+            success,
             status,
             output,
             error,
