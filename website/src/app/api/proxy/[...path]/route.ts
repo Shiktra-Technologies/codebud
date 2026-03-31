@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const BACKEND_BASE_URL = (
     process.env.BACKEND_BASE_URL ||
     process.env.NEXT_PUBLIC_BACKEND_BASE_URL ||
-    'http://127.0.0.1:5001'
+    'http://127.0.0.1:5000'
 ).replace(/\/+$/, '');
 
 function buildTargetUrl(request: NextRequest, path: string[]): string {
