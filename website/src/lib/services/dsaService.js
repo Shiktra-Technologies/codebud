@@ -1,18 +1,79 @@
 // Hybrid DSA Code Execution Service
 // Supports both browser-based and server-based execution
-// Uses apiClient for authenticated requests to Flask backend
+// Uses dedicated DSA client so execution calls go to /server/backend analyzer service
 
-import apiClient from '@/lib/apiClient';
+import axios from 'axios';
+import { getToken } from '@/lib/apiClient';
+
+function normalizeDsaBaseUrl(rawUrl) {
+    const url = String(rawUrl || '').trim();
+    if (!url) return '';
+    const withoutSlash = url.replace(/\/+$/, '');
+    if (withoutSlash.endsWith('/api')) return withoutSlash;
+    return `${withoutSlash}/api`;
+}
+
+function resolveDsaBaseUrl() {
+    return normalizeDsaBaseUrl('/api/proxy');
+}
 
 class DSAService {
     constructor() {
         // Server-based execution
-        this.baseURL = process.env.REACT_APP_DSA_SERVER_URL || 'http://localhost:5001/api';
+        this.baseURL = resolveDsaBaseUrl();
         this.timeout = 30000; // 30 seconds timeout for code execution
+        this.client = axios.create({
+            baseURL: this.baseURL,
+            timeout: this.timeout,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
         
         // Browser-based execution options
-        this.useBrowserFirst = process.env.REACT_APP_USE_BROWSER_FIRST !== 'false';
-        this.fallbackToServer = process.env.REACT_APP_FALLBACK_TO_SERVER !== 'false';
+        this.useBrowserFirst = process.env.NEXT_PUBLIC_USE_BROWSER_FIRST !== 'false';
+        this.fallbackToServer = process.env.NEXT_PUBLIC_FALLBACK_TO_SERVER !== 'false';
+
+        // Reuse auth token for protected DSA routes if present.
+        this.client.interceptors.request.use((config) => {
+            const token = getToken();
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        });
+    }
+
+    normalizeExecutionResponse(data) {
+        const safe = data || {};
+        const status = safe.status || (safe.is_accepted ? 'Accepted' : 'failed');
+        const output =
+            safe.output ||
+            safe.final_output ||
+            safe.final_stdout ||
+            safe.result ||
+            safe.message ||
+            '';
+        const hasFailureStatus = ['failed', 'runtime error', 'compilation error', 'error'].includes(String(status).toLowerCase());
+        const rawError = safe.error || (hasFailureStatus ? safe.message : '');
+        const error = rawError ? String(rawError) : null;
+        const hasExecutionFailure = Boolean(error) || Boolean(safe.compilation_error) || Number(safe.return_code || 0) !== 0;
+        const success = Boolean(
+            safe.is_accepted ??
+            (typeof safe.success === 'boolean' ? safe.success && !hasExecutionFailure : !hasFailureStatus && !hasExecutionFailure)
+        );
+
+        return {
+            ...safe,
+            success,
+            status,
+            output,
+            error,
+            // Legacy aliases consumed by older UI components.
+            allPassed: Boolean(safe.is_accepted ?? safe.allPassed ?? safe.all_passed),
+            passed: Number(safe.passed ?? 0),
+            total_tests: Number(safe.total_tests ?? 0),
+        };
     }
 
     /**
@@ -24,24 +85,68 @@ class DSAService {
      */
     async executeCode(problemId, code, language = 'python') {
         try {
-            const response = await apiClient.post('/api/run', {
+            const payload = {
                 problem_id: problemId,
-                code: code,
-                language: language
-            }, { timeout: this.timeout });
+                code,
+                language,
+            };
+            console.log('[DSA] executeCode request', {
+                baseURL: this.baseURL,
+                endpoint: '/run',
+                problemId,
+                language,
+                codeLength: String(code || '').length,
+            });
 
-            return response.data;
+            const response = await this.client.post('/run', payload, { timeout: this.timeout });
+            const normalized = this.normalizeExecutionResponse(response.data);
+
+            console.log('[DSA] executeCode response', {
+                status: normalized.status,
+                accepted: normalized.allPassed,
+                passed: normalized.passed,
+                total_tests: normalized.total_tests,
+            });
+
+            return normalized;
         } catch (error) {
+            // Timeout error
             if (error.code === 'ECONNABORTED') {
-                throw new Error('Code execution timed out. Please optimize your solution.');
+                const msg = 'Code execution timed out (30s). Please optimize your solution.';
+                console.error('[DSA] Timeout:', msg);
+                throw new Error(msg);
             }
+            
+            // Server response error (HTTP error status)
             if (error.response) {
+                console.error('[DSA] Server error response', {
+                    status: error.response.status,
+                    data: error.response.data,
+                });
                 throw new Error(error.response.data?.error || `Server error: ${error.response.status}`);
             }
-            if (typeof navigator !== 'undefined' && !navigator.onLine) {
-                throw new Error('No internet connection. Please check your network.');
+            
+            // Network error (no response from server)
+            if (!error.response && error.code === 'ECONNREFUSED') {
+                const msg = `Cannot connect to API server at ${this.baseURL}. Is the backend running on the correct port?`;
+                console.error('[DSA] Connection refused:', msg);
+                throw new Error(msg);
             }
-            throw new Error(`Connection failed: ${error.message}`);
+            
+            // Offline check
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                const msg = 'No internet connection. Please check your network.';
+                console.error('[DSA] Offline:', msg);
+                throw new Error(msg);
+            }
+            
+            // Generic network error
+            console.error('[DSA] Network error', {
+                message: error.message,
+                code: error.code,
+                errno: error.errno,
+            });
+            throw new Error(`Connection failed: ${error.message}. Please check that the backend API is running.`);
         }
     }
 
@@ -51,7 +156,7 @@ class DSAService {
      */
     async getProblems() {
         try {
-            const response = await apiClient.get('/api/problems');
+            const response = await this.client.get('/problems');
             return response.data.problems || [];
         } catch (error) {
             console.error('Error fetching problems:', error);
@@ -66,7 +171,7 @@ class DSAService {
      */
     async getProblem(problemId) {
         try {
-            const response = await apiClient.get(`/api/problem/${problemId}`);
+            const response = await this.client.get(`/problem/${problemId}`);
             return response.data.problem;
         } catch (error) {
             if (error.response?.status === 404) {
@@ -83,7 +188,7 @@ class DSAService {
      */
     async checkHealth() {
         try {
-            const response = await apiClient.get('/api/health', { timeout: 5000 });
+            const response = await this.client.get('/health', { timeout: 5000 });
             return response.status === 200;
         } catch (error) {
             console.warn('DSA server health check failed:', error.message);

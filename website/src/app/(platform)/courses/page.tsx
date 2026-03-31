@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useAuth } from "@/lib/hooks/useAuth";
 import { listCourses, getMyEnrollments } from "@/lib/services/courseService";
 import type { Course } from "@/lib/services/courseService";
 import {
@@ -12,11 +11,8 @@ import {
     Users,
     Star,
     Search,
-    Filter,
-    GraduationCap,
     ArrowLeft,
     Loader2,
-    ChevronRight,
 } from "lucide-react";
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -28,22 +24,32 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 };
 
 export default function CoursesPage() {
-    const { user } = useAuth();
     const [courses, setCourses] = useState<Course[]>([]);
     const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [difficulty, setDifficulty] = useState<string>("all");
-
+    
     useEffect(() => {
         Promise.all([
             listCourses(),
             getMyEnrollments().catch(() => ({ success: false, enrollments: [] })),
         ]).then(([coursesRes, enrollRes]) => {
-            if (coursesRes.success) setCourses(coursesRes.courses || []);
+            if (coursesRes.success) {
+                setCourses(coursesRes.courses || []);
+                setError(null);
+            } else {
+                setCourses([]);
+                setError(coursesRes.error || 'Failed to load courses');
+            }
             if (enrollRes.success) {
                 setEnrolledIds(new Set((enrollRes.enrollments || []).map((e: any) => e.course_id)));
             }
+        }).catch((err) => {
+            console.error('Error in courses page:', err);
+            setError('Network error. Please check your connection and try again.');
+            setCourses([]);
         }).finally(() => setLoading(false));
     }, []);
 
@@ -59,6 +65,25 @@ export default function CoursesPage() {
         return (
             <div className="min-h-screen bg-surface-0 flex items-center justify-center">
                 <Loader2 size={28} className="animate-spin text-white/20" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-surface-0 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 inline-block">
+                        <p className="text-red-400 text-sm">⚠️ {error}</p>
+                    </div>
+                    <p className="text-white/40 text-sm mb-6">Unable to load courses at this time</p>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 rounded-lg bg-yellow-400 text-surface-0 text-sm font-medium hover:bg-yellow-500 transition-colors"
+                    >
+                        Try Again
+                    </button>
+                </div>
             </div>
         );
     }

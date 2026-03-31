@@ -23,4 +23,4 @@ fi
 # Activate virtual environment and start server
 echo "⚡ Activating virtual environment and starting server..."
 source venv/bin/activate
-python server.py
+python app.py

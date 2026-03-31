@@ -20,7 +20,7 @@ export default function SettingsTab() {
             title: "Platform",
             icon: Globe,
             items: [
-                { label: "Backend API URL", value: "http://localhost:5001", type: "text" as const },
+                { label: "Backend API URL", value: "http://3.110.147.93:5001", type: "text" as const },
                 { label: "Max submissions per student", value: "10", type: "text" as const },
                 { label: "Enable proctoring", value: true, type: "toggle" as const },
             ],

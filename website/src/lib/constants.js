@@ -18,4 +18,8 @@ export const ROLE_PERMISSIONS = {
     [USER_ROLES.COMPANY]: ['view_company_dashboard', 'manage_jobs', 'view_applications', 'manage_company_profile'],
 };
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+function resolveApiUrl() {
+    return '/api/proxy';
+}
+
+export const API_URL = resolveApiUrl();

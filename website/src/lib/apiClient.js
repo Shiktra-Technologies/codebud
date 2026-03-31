@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+function resolveApiUrl() {
+    return '/api/proxy';
+}
+
+const API_URL = resolveApiUrl();
 
 const apiClient = axios.create({
     baseURL: API_URL,
@@ -47,7 +51,7 @@ apiClient.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// ──────── Response Interceptor (handle 401) ────────
+// ──────── Response Interceptor (handle 401 and network errors) ────────
 
 apiClient.interceptors.response.use(
     (response) => response,
@@ -59,6 +63,17 @@ apiClient.interceptors.response.use(
                 window.location.href = '/auth';
             }
         }
+        
+        // Log network errors for debugging
+        if (!error.response) {
+            console.error('[API] Network Error:', {
+                message: error.message,
+                code: error.code,
+                url: error.config?.url,
+                method: error.config?.method,
+            });
+        }
+        
         return Promise.reject(error);
     }
 );

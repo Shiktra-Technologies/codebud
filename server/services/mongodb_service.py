@@ -217,10 +217,13 @@ class MongoDBService:
         if self.get_user_by_email(email):
             raise ValueError('An account with this email already exists')
 
+        normalized_name = (display_name or email.split('@')[0]).strip()[:80]
+
         user_data = {
             'email': email,
             'password_hash': self.hash_password(password),
-            'display_name': display_name or email.split('@')[0],
+            'name': normalized_name,
+            'display_name': normalized_name,
             'role': role,
             'onboarding_completed': False if role == 'student' else True,
             'created_at': datetime.utcnow(),
