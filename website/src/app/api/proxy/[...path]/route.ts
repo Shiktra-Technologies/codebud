@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_BASE_URL = 'http://3.110.147.93:5001';
+const BACKEND_BASE_URL = (
+    process.env.BACKEND_BASE_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_BASE_URL ||
+    'http://127.0.0.1:5001'
+).replace(/\/+$/, '');
 
 function buildTargetUrl(request: NextRequest, path: string[]): string {
     const normalizedPath = Array.isArray(path) ? path.join('/') : '';
