@@ -3,13 +3,20 @@ import { NextRequest, NextResponse } from 'next/server';
 const BACKEND_BASE_URL = (
     process.env.BACKEND_BASE_URL ||
     process.env.NEXT_PUBLIC_BACKEND_BASE_URL ||
-    'http://127.0.0.1:5000'
+    'https://auth.mycodebud.in'
 ).replace(/\/+$/, '');
 
 function buildTargetUrl(request: NextRequest, path: string[]): string {
-    const normalizedPath = Array.isArray(path) ? path.join('/') : '';
-    const target = new URL(`${BACKEND_BASE_URL}/${normalizedPath}`.replace(/([^:]\/)\/+/g, '$1'));
+    const incomingSegments = Array.isArray(path) ? path.filter(Boolean) : [];
+    const withoutApiPrefix = incomingSegments[0] === 'api' ? incomingSegments.slice(1) : incomingSegments;
+    const normalizedPath = ['api', ...withoutApiPrefix].join('/');
+    const target = new URL(`${BACKEND_BASE_URL}/${normalizedPath}`.replace(/([^:]\/)\/+/, '$1'));
     target.search = request.nextUrl.search;
+
+    if (process.env.NODE_ENV !== 'production') {
+        console.info('[API_PROXY] Final API URL:', target.toString());
+    }
+
     return target.toString();
 }
 
