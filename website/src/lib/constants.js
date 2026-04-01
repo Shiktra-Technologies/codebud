@@ -19,7 +19,7 @@ export const ROLE_PERMISSIONS = {
 };
 
 function resolveApiUrl() {
-    return '/api/proxy';
+    return (process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://10.172.29.192:5000').replace(/\/+$/, '');
 }
 
 export const API_URL = resolveApiUrl();

@@ -93,11 +93,10 @@ export default function MentorTab() {
         setCreating(true);
         setCreateError("");
         try {
-            const res = await apiClient.post("/api/auth/signup", {
+            const res = await apiClient.post("/api/admin/users/create-mentor", {
                 email: createForm.email.trim().toLowerCase(),
                 password: createForm.password,
                 display_name: createForm.display_name.trim() || undefined,
-                role: "mentor",
             });
             if (res.data.success) {
                 showStatus("success", `Mentor ${createForm.email} created`);

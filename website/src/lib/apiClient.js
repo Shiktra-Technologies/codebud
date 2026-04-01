@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 function resolveApiUrl() {
-    return '/api/proxy';
+    const raw = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://10.172.29.192:5000';
+    return String(raw).replace(/\/+$/, '');
 }
 
 const API_URL = resolveApiUrl();
