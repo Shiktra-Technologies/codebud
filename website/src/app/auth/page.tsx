@@ -23,7 +23,7 @@ function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
 
 export default function AuthPage() {
     const router = useRouter();
-    const { user, exchangeAuthorizationCode, startKeycloakLogin, loading: authLoading } = useAuth();
+    const { user, startKeycloakLogin, loading: authLoading } = useAuth();
     const [error, setError] = React.useState("");
     const [busy, setBusy] = React.useState(false);
 
@@ -33,34 +33,6 @@ export default function AuthPage() {
         }
     }, [user, router]);
 
-    React.useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        if (!code) return;
-
-        let active = true;
-        setBusy(true);
-        setError("");
-
-        (async () => {
-            const redirectUri = `${window.location.origin}/auth/callback`;
-            const result = await exchangeAuthorizationCode(code, redirectUri);
-            if (!active) return;
-
-            if (!result.success) {
-                setError(result.error || "Auth service unavailable");
-                setBusy(false);
-                return;
-            }
-
-            window.history.replaceState({}, "", "/auth");
-            redirectByRole(router, result.user?.role || "student");
-        })();
-
-        return () => {
-            active = false;
-        };
-    }, [exchangeAuthorizationCode, router]);
 
     const handleLogin = async () => {
         setError("");

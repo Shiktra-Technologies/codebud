@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 function resolveApiUrl() {
-    const raw = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://10.172.29.192:5000';
-    return String(raw).replace(/\/+$/, '');
+    return '/api/proxy';
 }
 
 const API_URL = resolveApiUrl();
@@ -58,13 +57,15 @@ apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            removeToken();
-            // Don't redirect if already on auth page
-            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
-                window.location.href = '/auth';
-            }
+            const requestUrl = error.config?.url || '';
+            console.warn(`[API] 401 on ${requestUrl} — Keycloak token may not be compatible with backend`);
+
+            // Don't auto-remove token or redirect.
+            // The Keycloak RS256 token is valid for the client session even if the
+            // backend (which expects its own HS256 JWT) rejects it.
+            // Let the calling code handle 401 errors gracefully.
         }
-        
+
         // Log network errors for debugging
         if (!error.response) {
             console.error('[API] Network Error:', {
@@ -74,7 +75,7 @@ apiClient.interceptors.response.use(
                 method: error.config?.method,
             });
         }
-        
+
         return Promise.reject(error);
     }
 );

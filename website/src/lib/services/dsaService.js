@@ -14,8 +14,7 @@ function normalizeDsaBaseUrl(rawUrl) {
 }
 
 function resolveDsaBaseUrl() {
-    const backendBase = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://10.172.29.192:5000';
-    return normalizeDsaBaseUrl(backendBase);
+    return normalizeDsaBaseUrl('/api/proxy');
 }
 
 class DSAService {

@@ -71,10 +71,12 @@ export default function CompanyManagementTab() {
         if (!newCompany.email.trim() || !newCompany.password.trim() || !newCompany.company_name.trim()) return;
         setCreating(true);
         try {
-            const signupRes = await apiClient.post("/api/admin/users/create-company", {
+            // Step 1: Create user with company role via signup
+            const signupRes = await apiClient.post("/api/auth/signup", {
                 email: newCompany.email,
                 password: newCompany.password,
                 name: newCompany.company_name,
+                role: "company",
             });
 
             if (signupRes.data?.token) {

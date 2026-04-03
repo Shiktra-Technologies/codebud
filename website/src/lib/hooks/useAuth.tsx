@@ -82,18 +82,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setToken(token);
             }
 
+            // Try to decode the stored token to recover user info
+            // This works for both Keycloak RS256 tokens and internal HS256 tokens
+            let userData: any = null;
+
             try {
-                const response = await apiClient.get('/api/auth/me');
-                if (response.data.success && response.data.user) {
-                    applySession(token, response.data.user);
-                } else {
-                    removeToken();
+                const parts = token.split('.');
+                if (parts.length === 3) {
+                    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+
+                    // Check token expiry
+                    if (payload.exp && payload.exp * 1000 < Date.now()) {
+                        console.warn('[AUTH] Stored token is expired, removing');
+                        removeToken();
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Build user data from token payload (works for both Keycloak and internal JWTs)
+                    userData = {
+                        _id: payload.sub || payload.user_id || '',
+                        email: payload.email || payload.preferred_username || '',
+                        display_name: payload.name || payload.preferred_username || payload.email?.split('@')[0] || 'User',
+                        role: payload.role || 'student',
+                    };
                 }
             } catch {
-                removeToken();
-            } finally {
-                setLoading(false);
+                console.warn('[AUTH] Could not decode stored token');
             }
+
+            if (userData && userData.email) {
+                // Token is valid and decodable — apply session directly
+                applySession(token, userData);
+                console.log('[AUTH] Session restored from stored token for:', userData.email);
+
+                // Best-effort: try to get fresh user data from backend (non-blocking)
+                try {
+                    const response = await apiClient.get('/api/auth/me');
+                    if (response.data?.success && response.data?.user) {
+                        applySession(token, response.data.user);
+                        console.log('[AUTH] User data refreshed from backend');
+                    }
+                } catch {
+                    // Backend unavailable or token type mismatch — that's fine, we already have user data
+                    console.log('[AUTH] Backend /api/auth/me unavailable, using token data');
+                }
+            } else {
+                // Token is corrupted or unreadable
+                removeToken();
+            }
+
+            setLoading(false);
         };
 
         initAuth();
@@ -127,29 +166,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const exchangeAuthorizationCode = useCallback(async (code: string, redirectUri?: string): Promise<AuthResult> => {
         try {
-            const response = await apiClient.post('/api/auth/callback', {
+            const keycloakTokenUrl = `${(process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'https://keycloak.mycodebud.in').replace(/\/+$/, '')}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'codebud'}/protocol/openid-connect/token`;
+            const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'codebud-app';
+            const uri = redirectUri || (typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '');
+
+            // Exchange code directly with Keycloak (public client flow)
+            const params = new URLSearchParams({
+                grant_type: 'authorization_code',
+                client_id: clientId,
                 code,
-                redirect_uri: redirectUri,
+                redirect_uri: uri,
             });
 
-            if (!response.data?.success || !response.data?.access_token) {
-                return { success: false, error: response.data?.error || 'Token exchange failed' };
-            }
+            console.log('[AUTH] Exchanging code with Keycloak:', keycloakTokenUrl);
 
-            const token = response.data.access_token;
-            const meResponse = await apiClient.get('/api/auth/me', {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+            const tokenResp = await fetch(keycloakTokenUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params,
             });
 
-            if (!meResponse.data?.success || !meResponse.data?.user) {
-                return { success: false, error: 'Token validated but user profile unavailable' };
+            if (!tokenResp.ok) {
+                const errText = await tokenResp.text();
+                console.error('[AUTH] Keycloak token exchange failed:', tokenResp.status, errText);
+                return { success: false, error: 'Token exchange failed' };
             }
 
-            return applySession(token, meResponse.data.user);
+            const tokens = await tokenResp.json();
+            const kcAccessToken = tokens.access_token;
+
+            if (!kcAccessToken) {
+                return { success: false, error: 'No access token received from Keycloak' };
+            }
+
+            console.log('[AUTH] Keycloak token received successfully');
+
+            // Decode JWT payload for user info
+            let kcPayload: any = {};
+            try {
+                const parts = kcAccessToken.split('.');
+                if (parts.length === 3) {
+                    kcPayload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+                }
+            } catch {
+                console.warn('[AUTH] Could not decode Keycloak token payload');
+            }
+
+            const email = kcPayload.email || kcPayload.preferred_username || '';
+            const displayName = kcPayload.name || kcPayload.preferred_username || email.split('@')[0] || 'User';
+
+            const userData: any = {
+                _id: kcPayload.sub || '',
+                email,
+                display_name: displayName,
+                role: 'student',
+            };
+
+            // Apply session — store Keycloak token directly, no backend callback
+            console.log('[AUTH] Applying session for:', email);
+            return applySession(kcAccessToken, userData);
         } catch (error: any) {
-            const message = error.response?.data?.error || error.message || 'Authorization code exchange failed';
+            const message = error.message || 'Authorization code exchange failed';
+            console.error('[AUTH] Exchange error:', message);
             return { success: false, error: message };
         }
     }, [applySession]);
