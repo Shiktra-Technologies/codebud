@@ -32,7 +32,7 @@ export default function MentorTab() {
 
     // Create mentor form
     const [showCreateMentor, setShowCreateMentor] = useState(false);
-    const [createForm, setCreateForm] = useState({ email: "", password: "", display_name: "" });
+    const [createForm, setCreateForm] = useState({ email: "", role: "mentor", display_name: "" });
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState("");
 
@@ -82,27 +82,22 @@ export default function MentorTab() {
 
     // ── Create Mentor Account ──
     const handleCreateMentor = async () => {
-        if (!createForm.email || !createForm.password) {
-            setCreateError("Email and password required");
-            return;
-        }
-        if (createForm.password.length < 6) {
-            setCreateError("Password must be at least 6 characters");
+        if (!createForm.email) {
+            setCreateError("Email is required");
             return;
         }
         setCreating(true);
         setCreateError("");
         try {
-            const res = await apiClient.post("/api/auth/signup", {
+            const res = await apiClient.post("/api/admin/create-user", {
                 email: createForm.email.trim().toLowerCase(),
-                password: createForm.password,
                 display_name: createForm.display_name.trim() || undefined,
-                role: "mentor",
+                role: createForm.role,
             });
             if (res.data.success) {
-                showStatus("success", `Mentor ${createForm.email} created`);
+                showStatus("success", `User ${createForm.email} created as ${createForm.role}`);
                 setShowCreateMentor(false);
-                setCreateForm({ email: "", password: "", display_name: "" });
+                setCreateForm({ email: "", role: "mentor", display_name: "" });
                 await loadData();
             } else {
                 setCreateError(res.data.error || "Failed to create");
@@ -179,11 +174,10 @@ export default function MentorTab() {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className={`fixed top-20 right-6 z-50 px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 shadow-2xl ${
-                            statusMsg.type === "success"
+                        className={`fixed top-20 right-6 z-50 px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 shadow-2xl ${statusMsg.type === "success"
                                 ? "bg-green-500/10 border-green-500/20 text-green-400"
                                 : "bg-red-500/10 border-red-500/20 text-red-400"
-                        }`}
+                            }`}
                     >
                         {statusMsg.type === "success" ? <Check size={14} /> : <AlertCircle size={14} />}
                         {statusMsg.text}
@@ -204,7 +198,7 @@ export default function MentorTab() {
                     className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-black text-xs font-semibold rounded-lg hover:bg-yellow-300 transition-colors"
                 >
                     <UserPlus size={14} />
-                    {showCreateMentor ? "Cancel" : "Create Mentor"}
+                    {showCreateMentor ? "Cancel" : "Create User"}
                 </button>
             </div>
 
@@ -219,7 +213,7 @@ export default function MentorTab() {
                     >
                         <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                             <GraduationCap size={16} className="text-yellow-400" />
-                            Create New Mentor Account
+                            Create New User Account
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <input
@@ -229,13 +223,15 @@ export default function MentorTab() {
                                 type="email"
                                 className="bg-surface-3/50 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-yellow-400/30"
                             />
-                            <input
-                                value={createForm.password}
-                                onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
-                                placeholder="Password * (min 6 chars)"
-                                type="password"
-                                className="bg-surface-3/50 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-yellow-400/30"
-                            />
+                            <select
+                                value={createForm.role}
+                                onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
+                                className="bg-surface-3/50 border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-yellow-400/30"
+                            >
+                                <option value="student">Student</option>
+                                <option value="mentor">Mentor</option>
+                                <option value="admin">Admin</option>
+                            </select>
                             <input
                                 value={createForm.display_name}
                                 onChange={(e) => setCreateForm((f) => ({ ...f, display_name: e.target.value }))}
@@ -256,7 +252,7 @@ export default function MentorTab() {
                             {creating ? (
                                 <><Loader2 size={14} className="animate-spin" /> Creating...</>
                             ) : (
-                                <><UserPlus size={14} /> Create Mentor Account</>
+                                <><UserPlus size={14} /> Create User Account</>
                             )}
                         </button>
                     </motion.div>

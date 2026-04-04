@@ -6,7 +6,7 @@ export const USER_ROLES = {
     STUDENT: 'student',
     MENTOR: 'mentor',
     ADMIN: 'admin',
-    SUPER_ADMIN: 'super_admin',
+    SUPER_ADMIN: 'codebud_super_admin',
     COMPANY: 'company',
 };
 

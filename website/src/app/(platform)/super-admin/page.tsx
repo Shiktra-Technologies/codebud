@@ -80,7 +80,7 @@ export default function SuperAdminPage() {
     // ─── Access check ─────────────────────────────────────────────────────
 
     useEffect(() => {
-        if (!loading && userRole !== "super_admin") {
+        if (!loading && userRole !== "codebud_super_admin") {
             router.push("/dashboard");
         }
     }, [loading, userRole, router]);
@@ -237,7 +237,7 @@ export default function SuperAdminPage() {
         );
     }
 
-    if (userRole !== "super_admin") return null;
+    if (userRole !== "codebud_super_admin") return null;
 
     // ─── Render ───────────────────────────────────────────────────────────
 
@@ -351,8 +351,8 @@ export default function SuperAdminPage() {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${isActive
-                                                ? "bg-yellow-400 text-surface-0 shadow-[0_0_20px_rgba(255,193,7,0.15)]"
-                                                : "text-white/30 hover:text-white/50 hover:bg-white/[0.03]"
+                                            ? "bg-yellow-400 text-surface-0 shadow-[0_0_20px_rgba(255,193,7,0.15)]"
+                                            : "text-white/30 hover:text-white/50 hover:bg-white/[0.03]"
                                             }`}
                                     >
                                         <Icon size={14} />
@@ -686,8 +686,8 @@ export default function SuperAdminPage() {
                                                         disabled={isCurrent || isSelf}
                                                         onClick={() => handleRoleChange(selectedUser._id || selectedUser.id || "", role)}
                                                         className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all border ${isCurrent
-                                                                ? "bg-yellow-400/10 text-yellow-400 border-yellow-400/20"
-                                                                : "bg-surface-3/30 text-white/30 border-white/[0.04] hover:text-white/50 hover:border-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            ? "bg-yellow-400/10 text-yellow-400 border-yellow-400/20"
+                                                            : "bg-surface-3/30 text-white/30 border-white/[0.04] hover:text-white/50 hover:border-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed"
                                                             }`}
                                                     >
                                                         {roleLabel(role)}
@@ -714,8 +714,8 @@ export default function SuperAdminPage() {
                                                     onClick={() => handleToggleActive(selectedUser)}
                                                     disabled={deactivating}
                                                     className={`w-full py-2.5 rounded-lg text-xs font-semibold transition-all border flex items-center justify-center gap-2 ${isInactive
-                                                            ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/15"
-                                                            : "bg-red-400/10 text-red-400 border-red-400/20 hover:bg-red-400/15"
+                                                        ? "bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/15"
+                                                        : "bg-red-400/10 text-red-400 border-red-400/20 hover:bg-red-400/15"
                                                         } disabled:opacity-50`}
                                                 >
                                                     {deactivating ? (

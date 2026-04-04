@@ -74,7 +74,7 @@ export default function CompanyDashboard() {
 
     // ── Access check ──
     useEffect(() => {
-        if (!loading && userRole !== "company" && userRole !== "super_admin") {
+        if (!loading && userRole !== "company" && userRole !== "codebud_super_admin") {
             router.push("/dashboard");
         }
     }, [loading, userRole, router]);
@@ -111,7 +111,7 @@ export default function CompanyDashboard() {
         );
     }
 
-    if (userRole !== "company" && userRole !== "super_admin") return null;
+    if (userRole !== "company" && userRole !== "codebud_super_admin") return null;
 
     const activeJobs = jobs.filter((j) => j.is_active);
 

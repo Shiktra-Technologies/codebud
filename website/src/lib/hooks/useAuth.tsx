@@ -9,7 +9,7 @@ export interface AuthUser {
     _id: string;
     email: string;
     display_name: string;
-    role: 'student' | 'mentor' | 'admin' | 'super_admin';
+    role: 'student' | 'mentor' | 'admin' | 'codebud_super_admin';
     [key: string]: any;
 }
 
@@ -278,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             student: ['view_dashboard', 'submit_test', 'view_results'],
             mentor: ['view_dashboard', 'view_results', 'view_assigned_students', 'view_submissions', 'add_feedback', 'manage_practice_sets', 'view_violations'],
             admin: ['view_dashboard', 'submit_test', 'view_results', 'manage_students', 'view_submissions', 'export_data'],
-            super_admin: ['view_dashboard', 'submit_test', 'view_results', 'manage_students', 'view_submissions', 'export_data', 'manage_admins', 'system_settings'],
+            codebud_super_admin: ['view_dashboard', 'submit_test', 'view_results', 'manage_students', 'view_submissions', 'export_data', 'manage_admins', 'system_settings'],
         };
         return (rolePermissions[userRole] || []).includes(permission);
     }, [userRole]);

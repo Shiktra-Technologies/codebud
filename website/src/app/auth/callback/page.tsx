@@ -5,24 +5,21 @@ import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
-function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
-    if (role === 'unauthorized') {
-        router.push('/auth');
+function redirectByRole(router: ReturnType<typeof useRouter>, roles: string[]) {
+    if (!roles || roles.length === 0) {
+        console.error("[AUTH ERROR] No roles found");
+        router.replace('/auth');
         return;
     }
 
-    switch (role) {
-        case "codebud_super_admin":
-            router.push("/super-admin");
-            break;
-        case "admin":
-            router.push("/admin");
-            break;
-        case "mentor":
-            router.push("/mentor");
-            break;
-        default:
-            router.push("/dashboard");
+    if (roles.includes("codebud_super_admin")) {
+        router.replace('/admin');
+    } else if (roles.includes("mentor")) {
+        router.replace('/mentor');
+    } else if (roles.includes("student")) {
+        router.replace('/dashboard');
+    } else {
+        router.replace('/auth');
     }
 }
 
@@ -35,7 +32,7 @@ export default function AuthCallbackPage() {
     // If already authenticated, redirect immediately
     React.useEffect(() => {
         if (user) {
-            redirectByRole(router, (user as any)?.role || "student");
+            redirectByRole(router, (user as any)?.roles || []);
         }
     }, [user, router]);
 
@@ -67,7 +64,7 @@ export default function AuthCallbackPage() {
 
             // Clean the URL and redirect
             window.history.replaceState({}, "", "/auth/callback");
-            redirectByRole(router, result.user?.role || "student");
+            redirectByRole(router, result.user?.roles || []);
         })();
 
         return () => {

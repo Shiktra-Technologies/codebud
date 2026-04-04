@@ -121,7 +121,7 @@ export default function AdminDashboardPage() {
 
     // Auth check
     useEffect(() => {
-        if (userRole && userRole !== "admin" && userRole !== "super_admin") {
+        if (userRole && userRole !== "admin" && userRole !== "codebud_super_admin") {
             router.push("/dashboard");
         }
     }, [userRole, router]);
@@ -240,7 +240,7 @@ export default function AdminDashboardPage() {
                                     className={`absolute bottom-20 ${sidebarCollapsed ? "left-[72px]" : "left-3 right-3"} bg-surface-2/95 backdrop-blur-2xl rounded-xl border border-white/[0.08] shadow-2xl shadow-black/40 overflow-hidden`}
                                 >
                                     <div className="p-2">
-                                        {userRole === "super_admin" && (
+                                        {userRole === "codebud_super_admin" && (
                                             <Link
                                                 href="/super-admin"
                                                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400/60 hover:text-red-400 hover:bg-red-400/[0.05] transition-colors"
@@ -295,12 +295,12 @@ export default function AdminDashboardPage() {
                             {/* Live Status Indicator */}
                             <div
                                 className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${status === "connected"
-                                        ? "bg-emerald-400/10 border-emerald-400/20 text-emerald-400"
-                                        : status === "connecting"
-                                            ? "bg-blue-400/10 border-blue-400/20 text-blue-400"
-                                            : status === "refreshing"
-                                                ? "bg-yellow-400/10 border-yellow-400/20 text-yellow-400"
-                                                : "bg-red-400/10 border-red-400/20 text-red-400"
+                                    ? "bg-emerald-400/10 border-emerald-400/20 text-emerald-400"
+                                    : status === "connecting"
+                                        ? "bg-blue-400/10 border-blue-400/20 text-blue-400"
+                                        : status === "refreshing"
+                                            ? "bg-yellow-400/10 border-yellow-400/20 text-yellow-400"
+                                            : "bg-red-400/10 border-red-400/20 text-red-400"
                                     }`}
                             >
                                 <Circle

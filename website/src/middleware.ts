@@ -74,7 +74,7 @@ export function middleware(request: NextRequest) {
     // ── Decode ──
     const payload = token ? decodeJWTPayload(token) : null;
     const isValid = payload !== null && !isTokenExpired(payload);
-    const role = isValid ? (payload?.role || "student") : null;
+    const roles: string[] = isValid ? (payload?.realm_access?.roles || []) : [];
 
     // ── Route matching ──
 
@@ -88,7 +88,7 @@ export function middleware(request: NextRequest) {
         if (!isValid) {
             return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
         }
-        if (role !== "admin" && role !== "super_admin") {
+        if (!roles.includes("admin") && !roles.includes("codebud_super_admin")) {
             return NextResponse.redirect(new URL("/dashboard", request.url));
         }
         return NextResponse.next();
@@ -99,7 +99,7 @@ export function middleware(request: NextRequest) {
         if (!isValid) {
             return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
         }
-        if (role !== "mentor" && role !== "admin" && role !== "super_admin") {
+        if (!roles.includes("mentor") && !roles.includes("admin") && !roles.includes("codebud_super_admin")) {
             return NextResponse.redirect(new URL("/dashboard", request.url));
         }
         return NextResponse.next();
@@ -110,7 +110,7 @@ export function middleware(request: NextRequest) {
         if (!isValid) {
             return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
         }
-        if (role !== "super_admin") {
+        if (!roles.includes("codebud_super_admin")) {
             return NextResponse.redirect(new URL("/dashboard", request.url));
         }
         return NextResponse.next();
@@ -121,7 +121,7 @@ export function middleware(request: NextRequest) {
         if (!isValid) {
             return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
         }
-        if (role !== "company" && role !== "super_admin") {
+        if (!roles.includes("company") && !roles.includes("codebud_super_admin")) {
             return NextResponse.redirect(new URL("/dashboard", request.url));
         }
         return NextResponse.next();
@@ -149,7 +149,7 @@ export function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
         }
         // Students who haven't completed onboarding → force onboarding
-        if (role === "student" && payload?.onboarding_completed === false) {
+        if (roles.includes("student") && payload?.onboarding_completed === false) {
             return NextResponse.redirect(new URL("/onboarding", request.url));
         }
         return NextResponse.next();
