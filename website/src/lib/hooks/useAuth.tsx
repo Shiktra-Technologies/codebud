@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import apiClient, { getToken, setToken, removeToken } from '@/lib/apiClient';
+import apiClient, { getToken, setToken, removeToken, setMemoryRefreshToken } from '@/lib/apiClient';
 import { USER_ROLES } from '@/lib/constants';
 
 
@@ -152,51 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         initAuth();
     }, [applySession, isTokenExpired]);
 
-    // Auto-refresh token
-    useEffect(() => {
-        if (!isAuthenticated) return;
-
-        const refreshAccessToken = async () => {
-            try {
-                if (typeof window === 'undefined') return;
-                const refreshToken = localStorage.getItem("refresh_token");
-                if (!refreshToken) return;
-
-                const keycloakTokenUrl = `${(process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'https://keycloak.mycodebud.in').replace(/\/+$/, '')}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'codebud'}/protocol/openid-connect/token`;
-                const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'codebud-app';
-
-                const params = new URLSearchParams({
-                    grant_type: "refresh_token",
-                    client_id: clientId,
-                    refresh_token: refreshToken,
-                });
-
-                const response = await fetch(keycloakTokenUrl, {
-                    method: "POST",
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params,
-                });
-
-                if (!response.ok) {
-                    throw new Error('Refresh failed');
-                }
-
-                const data = await response.json();
-                setToken(data.access_token);
-                if (data.refresh_token) {
-                    localStorage.setItem("refresh_token", data.refresh_token);
-                }
-            } catch (error) {
-                console.error('[AUTH] Token refresh error:', error);
-            }
-        };
-
-        const interval = setInterval(() => {
-            refreshAccessToken();
-        }, 60 * 1000 * 5); // every 5 minutes
-
-        return () => clearInterval(interval);
-    }, [isAuthenticated]);
+    // Auto-refresh token is globally handled inside apiClient interceptors based on strict expiry thresholds
 
     const startKeycloakLogin = useCallback(async (redirectUri?: string): Promise<AuthResult> => {
         try {
@@ -256,8 +212,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const kcAccessToken = tokens.access_token;
             const kcRefreshToken = tokens.refresh_token;
 
-            if (kcRefreshToken && typeof window !== 'undefined') {
-                localStorage.setItem("refresh_token", kcRefreshToken);
+            if (kcRefreshToken) {
+                setMemoryRefreshToken(kcRefreshToken);
             }
 
             if (!kcAccessToken) {
@@ -285,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Extract Keycloak realm roles
             const kcRoles: string[] = kcPayload.realm_access?.roles || [];
-            console.log('[AUTH] KEYCLOAK ROLES:', kcRoles);
+            console.log("[AUTH DEBUG] roles:", kcRoles);
             console.log('[AUTH DEBUG] Token payload:', kcPayload);
 
             const email = kcPayload.email || kcPayload.preferred_username || '';
@@ -310,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const logout = useCallback(async () => {
         removeToken();
-        if (typeof window !== 'undefined') localStorage.removeItem("refresh_token");
+        setMemoryRefreshToken(null);
         setUser(null);
         setUserRole(null);
         setIsAuthenticated(false);

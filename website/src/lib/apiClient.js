@@ -38,11 +38,86 @@ export function removeToken() {
     document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }
 
-// ──────── Request Interceptor (attach JWT) ────────
+export let memoryRefreshToken = null;
+
+export function setMemoryRefreshToken(token) {
+    memoryRefreshToken = token;
+}
+
+function shouldRefresh(token) {
+    if (!token) return true;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (!payload?.exp) return true;
+        const now = Date.now() / 1000;
+        return payload.exp - now < 60; // refresh if < 60 seconds left
+    } catch {
+        return true;
+    }
+}
+
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function subscribeTokenRefresh(cb) {
+    refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token) {
+    refreshSubscribers.forEach(cb => cb(token));
+    refreshSubscribers = [];
+}
 
 apiClient.interceptors.request.use(
-    (config) => {
-        const token = getToken();
+    async (config) => {
+        let token = getToken();
+
+        if (token && shouldRefresh(token) && memoryRefreshToken) {
+            if (!isRefreshing) {
+                isRefreshing = true;
+                try {
+                    const keycloakTokenUrl = `${(process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'https://keycloak.mycodebud.in').replace(/\/+$/, '')}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'codebud'}/protocol/openid-connect/token`;
+                    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'codebud-app';
+                    const params = new URLSearchParams({
+                        grant_type: "refresh_token",
+                        client_id: clientId,
+                        refresh_token: memoryRefreshToken,
+                    });
+
+                    const res = await fetch(keycloakTokenUrl, {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params,
+                    });
+
+                    if (!res.ok) throw new Error("Refresh failed");
+
+                    const data = await res.json();
+                    setToken(data.access_token);
+                    if (data.refresh_token) {
+                        memoryRefreshToken = data.refresh_token;
+                    }
+
+                    isRefreshing = false;
+                    onRefreshed(data.access_token);
+                    token = data.access_token;
+                } catch (e) {
+                    console.error("Refresh failed", e);
+                    isRefreshing = false;
+                    memoryRefreshToken = null;
+                    removeToken();
+                    if (typeof window !== 'undefined') window.location.href = '/auth';
+                }
+            } else {
+                return new Promise(resolve => {
+                    subscribeTokenRefresh(newToken => {
+                        config.headers.Authorization = `Bearer ${newToken}`;
+                        resolve(config);
+                    });
+                });
+            }
+        }
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
