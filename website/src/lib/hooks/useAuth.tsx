@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import apiClient, { getToken, setToken, removeToken } from '@/lib/apiClient';
 import { USER_ROLES } from '@/lib/constants';
 
+
 export interface AuthUser {
     _id: string;
     email: string;
@@ -55,14 +56,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const mapRoleFromUser = useCallback((userData: any): string => {
         const roles = userData?.roles || [];
-        if (roles.includes('super_admin')) return 'super_admin';
+        if (!roles || roles.length === 0) {
+            console.error('[AUTH] No roles found in token');
+            return 'unauthorized';
+        }
+        if (roles.includes('codebud_super_admin')) return 'super_admin';
         if (roles.includes('admin')) return 'admin';
         if (roles.includes('mentor')) return 'mentor';
-        return userData?.role || 'student';
+        return 'student';
     }, []);
 
     const applySession = useCallback((token: string, userData: any): AuthResult => {
         const role = mapRoleFromUser(userData);
+        console.log('[AUTH DEBUG] Applying session — role:', role, 'roles:', userData?.roles);
         setToken(token);
         setUser({ ...userData, role });
         setUserRole(role);
@@ -99,12 +105,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         return;
                     }
 
-                    // Build user data from token payload (works for both Keycloak and internal JWTs)
+                    // Build user data from token payload
+                    const storedRoles: string[] = payload?.realm_access?.roles || [];
+                    console.log('[AUTH DEBUG] Stored token roles:', storedRoles);
+
                     userData = {
                         _id: payload.sub || payload.user_id || '',
                         email: payload.email || payload.preferred_username || '',
                         display_name: payload.name || payload.preferred_username || payload.email?.split('@')[0] || 'User',
-                        role: payload.role || 'student',
+                        roles: storedRoles,
                     };
                 }
             } catch {
@@ -212,6 +221,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.warn('[AUTH] Could not decode Keycloak token payload');
             }
 
+            // Validate token structure
+            if (!kcPayload || !kcPayload.realm_access) {
+                console.error('[AUTH] Invalid Keycloak token structure — missing realm_access');
+                return { success: false, error: 'Invalid Keycloak token structure' };
+            }
+
+            // Extract Keycloak realm roles
+            const kcRoles: string[] = kcPayload.realm_access?.roles || [];
+            console.log('[AUTH] KEYCLOAK ROLES:', kcRoles);
+            console.log('[AUTH DEBUG] Token payload:', kcPayload);
+
             const email = kcPayload.email || kcPayload.preferred_username || '';
             const displayName = kcPayload.name || kcPayload.preferred_username || email.split('@')[0] || 'User';
 
@@ -219,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 _id: kcPayload.sub || '',
                 email,
                 display_name: displayName,
-                role: 'student',
+                roles: kcRoles,  // full Keycloak role array — no hardcoded role
             };
 
             // Apply session — store Keycloak token directly, no backend callback

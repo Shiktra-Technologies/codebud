@@ -6,8 +6,14 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
+    if (role === 'unauthorized') {
+        router.push('/auth');
+        return;
+    }
+
     switch (role) {
-        case "super_admin":
+        case "super_admin": // App-level mapped role (from useAuth)
+        case "codebud_super_admin": // Keycloak direct role
             router.push("/super-admin");
             break;
         case "admin":

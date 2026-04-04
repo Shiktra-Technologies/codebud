@@ -62,8 +62,7 @@ apiClient.interceptors.response.use(
 
             // Don't auto-remove token or redirect.
             // The Keycloak RS256 token is valid for the client session even if the
-            // backend (which expects its own HS256 JWT) rejects it.
-            // Let the calling code handle 401 errors gracefully.
+            // backend rejects it (e.g. token expired but client hasn't caught it yet).
         }
 
         // Log network errors for debugging
