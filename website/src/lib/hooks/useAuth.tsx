@@ -54,13 +54,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+    const isTokenExpired = useCallback((payload: any) => {
+        if (!payload?.exp) return true;
+        return payload.exp * 1000 < Date.now();
+    }, []);
+
     const mapRoleFromUser = useCallback((userData: any): string => {
         const roles = userData?.roles || [];
         if (!roles || roles.length === 0) {
             console.error('[AUTH] No roles found in token');
             return 'unauthorized';
         }
-        if (roles.includes('codebud_super_admin')) return 'super_admin';
+        if (roles.includes('codebud_super_admin')) return 'codebud_super_admin';
         if (roles.includes('admin')) return 'admin';
         if (roles.includes('mentor')) return 'mentor';
         return 'student';
@@ -98,8 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
 
                     // Check token expiry
-                    if (payload.exp && payload.exp * 1000 < Date.now()) {
-                        console.warn('[AUTH] Stored token is expired, removing');
+                    if (isTokenExpired(payload)) {
+                        console.warn('[AUTH] Token expired');
                         removeToken();
                         setLoading(false);
                         return;
@@ -145,7 +150,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         initAuth();
-    }, [applySession]);
+    }, [applySession, isTokenExpired]);
+
+    // Auto-refresh token
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const refreshAccessToken = async () => {
+            try {
+                if (typeof window === 'undefined') return;
+                const refreshToken = localStorage.getItem("refresh_token");
+                if (!refreshToken) return;
+
+                const keycloakTokenUrl = `${(process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'https://keycloak.mycodebud.in').replace(/\/+$/, '')}/realms/${process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'codebud'}/protocol/openid-connect/token`;
+                const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'codebud-app';
+
+                const params = new URLSearchParams({
+                    grant_type: "refresh_token",
+                    client_id: clientId,
+                    refresh_token: refreshToken,
+                });
+
+                const response = await fetch(keycloakTokenUrl, {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Refresh failed');
+                }
+
+                const data = await response.json();
+                setToken(data.access_token);
+                if (data.refresh_token) {
+                    localStorage.setItem("refresh_token", data.refresh_token);
+                }
+            } catch (error) {
+                console.error('[AUTH] Token refresh error:', error);
+            }
+        };
+
+        const interval = setInterval(() => {
+            refreshAccessToken();
+        }, 60 * 1000 * 5); // every 5 minutes
+
+        return () => clearInterval(interval);
+    }, [isAuthenticated]);
 
     const startKeycloakLogin = useCallback(async (redirectUri?: string): Promise<AuthResult> => {
         try {
@@ -203,6 +254,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const tokens = await tokenResp.json();
             const kcAccessToken = tokens.access_token;
+            const kcRefreshToken = tokens.refresh_token;
+
+            if (kcRefreshToken && typeof window !== 'undefined') {
+                localStorage.setItem("refresh_token", kcRefreshToken);
+            }
 
             if (!kcAccessToken) {
                 return { success: false, error: 'No access token received from Keycloak' };
@@ -254,6 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const logout = useCallback(async () => {
         removeToken();
+        if (typeof window !== 'undefined') localStorage.removeItem("refresh_token");
         setUser(null);
         setUserRole(null);
         setIsAuthenticated(false);

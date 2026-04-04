@@ -12,8 +12,7 @@ function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
     }
 
     switch (role) {
-        case "super_admin": // App-level mapped role (from useAuth)
-        case "codebud_super_admin": // Keycloak direct role
+        case "codebud_super_admin":
             router.push("/super-admin");
             break;
         case "admin":
