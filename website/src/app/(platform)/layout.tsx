@@ -1,11 +1,19 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { ProctorProvider } from "@/lib/context/ProctorContext";
 import ActivityTracker from "@/lib/components/ActivityTracker";
 import { Loader2 } from "lucide-react";
+
+function routeByRole(role?: string): string {
+    if (role === "codebud_super_admin" || role === "admin") return "/admin";
+    if (role === "mentor") return "/mentor";
+    if (role === "company") return "/company";
+    if (role === "student") return "/dashboard";
+    return "/auth";
+}
 
 export default function PlatformLayout({
     children,
@@ -14,12 +22,28 @@ export default function PlatformLayout({
 }) {
     const { user, loading } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
 
     useEffect(() => {
         if (!loading && !user) {
-            router.push("/auth");
+            router.replace("/auth");
+            return;
         }
-    }, [loading, user, router]);
+
+        if (!loading && user) {
+            const onboarded = Boolean((user as any)?.is_onboarded ?? false);
+            const isNewUser = Boolean((user as any)?.is_new_user ?? false);
+
+            if ((!onboarded || isNewUser) && pathname !== "/onboarding") {
+                router.replace("/onboarding");
+                return;
+            }
+
+            if (onboarded && !isNewUser && pathname === "/onboarding") {
+                router.replace(routeByRole((user as any)?.role));
+            }
+        }
+    }, [loading, user, pathname, router]);
 
     if (loading) {
         return (

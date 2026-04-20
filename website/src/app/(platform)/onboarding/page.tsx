@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { setToken } from "@/lib/apiClient";
 import {
     getOnboardingConfig,
     completeOnboarding,
@@ -39,8 +38,6 @@ import {
 
 // ─── Motion presets ────────────────────────────────────────────────────────────
 
-const ease = [0.16, 1, 0.3, 1] as const;
-
 const slideVariants = {
     enter: (dir: number) => ({ x: dir > 0 ? 80 : -80, opacity: 0 }),
     center: { x: 0, opacity: 1 },
@@ -59,7 +56,7 @@ const STEPS = [
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
-    const { user } = useAuth();
+    const { user, refreshMe } = useAuth();
     const router = useRouter();
 
     const [step, setStep] = useState(1);
@@ -182,17 +179,33 @@ export default function OnboardingPage() {
 
     const allValid = isStepValid(1) && isStepValid(2) && isStepValid(3) && isStepValid(4);
 
+    const getPostOnboardingRoute = useCallback((roleOverride?: string) => {
+        const role = roleOverride || (user as any)?.role;
+        if (!role) return "/auth";
+        if (role === "codebud_super_admin" || role === "admin") return "/admin";
+        if (role === "mentor") return "/mentor";
+        if (role === "company") return "/company";
+        if (role === "student") return "/dashboard";
+        return "/auth";
+    }, [user]);
+
     // ── Submit ──
     const handleSubmit = async () => {
         if (!allValid) return;
         setSubmitting(true);
         try {
             const res = await completeOnboarding({ profile, education, skills, career });
-            if (res.success && res.token) {
-                setToken(res.token);
+            if (res.success) {
+                const refreshed = await refreshMe();
+                if (!refreshed.success || !refreshed.user) {
+                    throw new Error(refreshed.error || "Failed to refresh profile after onboarding");
+                }
                 // Small delay for the animation to settle
-                setTimeout(() => router.push("/dashboard"), 500);
+                setTimeout(() => router.replace(getPostOnboardingRoute((refreshed.user as any)?.role)), 500);
+                return;
             }
+
+            throw new Error(res?.error || "Failed to complete onboarding");
         } catch (err: any) {
             alert(err?.response?.data?.error || "Failed to complete onboarding");
             setSubmitting(false);

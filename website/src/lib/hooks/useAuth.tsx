@@ -9,7 +9,11 @@ export interface AuthUser {
     _id: string;
     email: string;
     display_name: string;
-    role: 'student' | 'mentor' | 'admin' | 'codebud_super_admin';
+    role: 'student' | 'mentor' | 'admin' | 'codebud_super_admin' | 'company';
+    roles?: string[];
+    is_new_user?: boolean;
+    is_onboarded?: boolean;
+    onboarding_completed?: boolean;
     [key: string]: any;
 }
 
@@ -33,6 +37,7 @@ export interface AuthContextType {
     isAuthenticated: boolean;
     startKeycloakLogin: (redirectUri?: string) => Promise<AuthResult>;
     exchangeAuthorizationCode: (code: string, redirectUri?: string) => Promise<AuthResult>;
+    refreshMe: (tokenOverride?: string) => Promise<AuthResult>;
     logout: () => Promise<void>;
     hasPermission: (permission: string) => boolean;
     USER_ROLES: UserRoles;
@@ -54,32 +59,104 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    const isTokenExpired = useCallback((payload: any) => {
-        if (!payload?.exp) return true;
-        return payload.exp * 1000 < Date.now();
+    const mapRoleFromUser = useCallback((userData: any): AuthUser['role'] | null => {
+        if (userData?.role === 'codebud_super_admin') return 'codebud_super_admin';
+        if (userData?.role === 'admin') return 'admin';
+        if (userData?.role === 'mentor') return 'mentor';
+        if (userData?.role === 'company') return 'company';
+        if (userData?.role === 'student') return 'student';
+        return null;
     }, []);
 
-    const mapRoleFromUser = useCallback((userData: any): string => {
-        const roles = userData?.roles || [];
-        if (!roles || roles.length === 0) {
-            console.error('[AUTH] No roles found in token');
-            return 'unauthorized';
+    const normalizeMeResponse = useCallback((meData: any): AuthUser | null => {
+        if (!meData?.success || !meData?.user) {
+            return null;
         }
-        if (roles.includes('codebud_super_admin')) return 'codebud_super_admin';
-        if (roles.includes('admin')) return 'admin';
-        if (roles.includes('mentor')) return 'mentor';
-        return 'student';
-    }, []);
+
+        const role = mapRoleFromUser({ role: meData.role });
+        if (!role) {
+            console.error('[AUTH] /api/me returned invalid role:', meData.role);
+            return null;
+        }
+
+        const isOnboarded = Boolean(meData.is_onboarded);
+        const normalized: AuthUser = {
+            ...meData.user,
+            email: meData.email || meData.user?.email || '',
+            role,
+            roles: Array.isArray(meData.roles) ? meData.roles : [],
+            is_new_user: Boolean(meData.is_new_user),
+            is_onboarded: isOnboarded,
+            onboarding_completed: isOnboarded,
+        };
+
+        return normalized;
+    }, [mapRoleFromUser]);
 
     const applySession = useCallback((token: string, userData: any): AuthResult => {
         const role = mapRoleFromUser(userData);
-        console.log('[AUTH DEBUG] Applying session — role:', role, 'roles:', userData?.roles);
+        if (!role) {
+            console.error('[AUTH] Invalid role from backend session payload:', userData?.role);
+            removeToken();
+            setUser(null);
+            setUserRole(null);
+            setIsAuthenticated(false);
+            return { success: false, error: 'Invalid role from backend' };
+        }
+
+        const isOnboarded = Boolean(userData?.is_onboarded);
+        const normalizedUser = {
+            ...userData,
+            role,
+            is_onboarded: isOnboarded,
+            onboarding_completed: isOnboarded,
+            is_new_user: Boolean(userData?.is_new_user),
+        };
+
+        console.log('[AUTH DEBUG] user:', normalizedUser);
+        console.log('[ROUTING DEBUG]', normalizedUser.is_onboarded);
         setToken(token);
-        setUser({ ...userData, role });
+        setUser(normalizedUser);
         setUserRole(role);
         setIsAuthenticated(true);
-        return { success: true, user: { ...userData, role } };
+        return { success: true, user: normalizedUser };
     }, [mapRoleFromUser]);
+
+    const refreshMe = useCallback(async (tokenOverride?: string): Promise<AuthResult> => {
+        const token = tokenOverride || getToken();
+        if (!token) {
+            return { success: false, error: 'No active token' };
+        }
+
+        try {
+            if (!document.cookie.includes('codebud_token=')) {
+                setToken(token);
+            }
+
+            const config = tokenOverride
+                ? { headers: { Authorization: `Bearer ${token}` } }
+                : undefined;
+            const response = await apiClient.get('/api/me', config);
+            const normalizedUser = normalizeMeResponse(response.data);
+
+            if (!normalizedUser) {
+                removeToken();
+                setUser(null);
+                setUserRole(null);
+                setIsAuthenticated(false);
+                return { success: false, error: 'Invalid /api/me response' };
+            }
+
+            return applySession(token, normalizedUser);
+        } catch (error: any) {
+            console.error('[AUTH] Failed to refresh /api/me:', error?.message || error);
+            removeToken();
+            setUser(null);
+            setUserRole(null);
+            setIsAuthenticated(false);
+            return { success: false, error: 'Failed to fetch /api/me' };
+        }
+    }, [applySession, normalizeMeResponse]);
 
     useEffect(() => {
         const initAuth = async () => {
@@ -93,64 +170,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setToken(token);
             }
 
-            // Try to decode the stored token to recover user info
-            // This works for both Keycloak RS256 tokens and internal HS256 tokens
-            let userData: any = null;
-
-            try {
-                const parts = token.split('.');
-                if (parts.length === 3) {
-                    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-
-                    // Check token expiry
-                    if (isTokenExpired(payload)) {
-                        console.warn('[AUTH] Token expired');
-                        removeToken();
-                        setLoading(false);
-                        return;
-                    }
-
-                    // Build user data from token payload
-                    const storedRoles: string[] = payload?.realm_access?.roles || [];
-                    console.log('[AUTH DEBUG] Stored token roles:', storedRoles);
-
-                    userData = {
-                        _id: payload.sub || payload.user_id || '',
-                        email: payload.email || payload.preferred_username || '',
-                        display_name: payload.name || payload.preferred_username || payload.email?.split('@')[0] || 'User',
-                        roles: storedRoles,
-                    };
-                }
-            } catch {
-                console.warn('[AUTH] Could not decode stored token');
-            }
-
-            if (userData && userData.email) {
-                // Token is valid and decodable — apply session directly
-                applySession(token, userData);
-                console.log('[AUTH] Session restored from stored token for:', userData.email);
-
-                // Best-effort: try to get fresh user data from backend (non-blocking)
-                try {
-                    const response = await apiClient.get('/api/auth/me');
-                    if (response.data?.success && response.data?.user) {
-                        applySession(token, response.data.user);
-                        console.log('[AUTH] User data refreshed from backend');
-                    }
-                } catch {
-                    // Backend unavailable or token type mismatch — that's fine, we already have user data
-                    console.log('[AUTH] Backend /api/auth/me unavailable, using token data');
-                }
-            } else {
-                // Token is corrupted or unreadable
-                removeToken();
-            }
+            await refreshMe(token);
 
             setLoading(false);
         };
 
         initAuth();
-    }, [applySession, isTokenExpired]);
+    }, [refreshMe]);
 
     // Auto-refresh token is globally handled inside apiClient interceptors based on strict expiry thresholds
 
@@ -220,49 +246,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return { success: false, error: 'No access token received from Keycloak' };
             }
 
-            console.log('[AUTH] Keycloak token received successfully');
-
-            // Decode JWT payload for user info
-            let kcPayload: any = {};
-            try {
-                const parts = kcAccessToken.split('.');
-                if (parts.length === 3) {
-                    kcPayload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-                }
-            } catch {
-                console.warn('[AUTH] Could not decode Keycloak token payload');
-            }
-
-            // Validate token structure
-            if (!kcPayload || !kcPayload.realm_access) {
-                console.error('[AUTH] Invalid Keycloak token structure — missing realm_access');
-                return { success: false, error: 'Invalid Keycloak token structure' };
-            }
-
-            // Extract Keycloak realm roles
-            const kcRoles: string[] = kcPayload.realm_access?.roles || [];
-            console.log("[AUTH DEBUG] roles:", kcRoles);
-            console.log('[AUTH DEBUG] Token payload:', kcPayload);
-
-            const email = kcPayload.email || kcPayload.preferred_username || '';
-            const displayName = kcPayload.name || kcPayload.preferred_username || email.split('@')[0] || 'User';
-
-            const userData: any = {
-                _id: kcPayload.sub || '',
-                email,
-                display_name: displayName,
-                roles: kcRoles,  // full Keycloak role array — no hardcoded role
-            };
-
-            // Apply session — store Keycloak token directly, no backend callback
-            console.log('[AUTH] Applying session for:', email);
-            return applySession(kcAccessToken, userData);
+            console.log('[AUTH] Keycloak token received successfully, fetching /api/me...');
+            return await refreshMe(kcAccessToken);
         } catch (error: any) {
             const message = error.message || 'Authorization code exchange failed';
             console.error('[AUTH] Exchange error:', message);
+            removeToken();
             return { success: false, error: message };
         }
-    }, [applySession]);
+    }, [refreshMe]);
 
     const logout = useCallback(async () => {
         removeToken();
@@ -279,6 +271,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             mentor: ['view_dashboard', 'view_results', 'view_assigned_students', 'view_submissions', 'add_feedback', 'manage_practice_sets', 'view_violations'],
             admin: ['view_dashboard', 'submit_test', 'view_results', 'manage_students', 'view_submissions', 'export_data'],
             codebud_super_admin: ['view_dashboard', 'submit_test', 'view_results', 'manage_students', 'view_submissions', 'export_data', 'manage_admins', 'system_settings'],
+            company: ['view_dashboard'],
         };
         return (rolePermissions[userRole] || []).includes(permission);
     }, [userRole]);
@@ -290,6 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         startKeycloakLogin,
         exchangeAuthorizationCode,
+        refreshMe,
         logout,
         hasPermission,
         USER_ROLES: USER_ROLES as UserRoles,

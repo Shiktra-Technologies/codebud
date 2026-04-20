@@ -3,20 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Next.js Middleware — Server-side route guards
  *
- * Checks for the `codebud_token` JWT cookie (or Authorization header)
- * before allowing access to protected routes. This runs at the edge
- * BEFORE any page code or React renders.
+ * Uses the Keycloak access token to call backend `/api/me` on protected
+ * routes and enforces onboarding + role access before page code renders.
  *
  * Protected route groups:
- *   /mentor/*       → requires valid JWT with role mentor, admin, or super_admin
- *   /admin/*        → requires valid JWT with role admin or super_admin
- *   /super-admin/*  → requires valid JWT with role super_admin
- *   /dashboard/*    → requires valid JWT (any role)
- *   /profile/*      → requires valid JWT (any role)
- *   /aptitude-test  → requires valid JWT (any role)
- *   /dsa-test       → requires valid JWT (any role)
- *   /permissions    → requires valid JWT (any role)
- *   /problems/*     → requires valid JWT (any role)
+ *   /mentor/*, /admin/*, /super-admin/*, /company/*
+ *   /dashboard/*, /profile/*, /aptitude-test, /dsa-test,
+ *   /permissions, /problems/*, /submitted/*, /onboarding
  *
  * Public routes (no auth):
  *   /auth, /auth/*, /, /api/*, /_next/*, /favicon.ico, static files
@@ -55,7 +48,67 @@ function isTokenExpired(payload: Record<string, any>): boolean {
     return Math.floor(Date.now() / 1000) > payload.exp;
 }
 
-export function middleware(request: NextRequest) {
+function getDefaultRouteByRole(role: string): string {
+    if (role === "codebud_super_admin" || role === "admin") return "/admin";
+    if (role === "mentor") return "/mentor";
+    if (role === "company") return "/company";
+    if (role === "student") return "/dashboard";
+    return AUTH_PAGE;
+}
+
+function isProtectedPath(pathname: string): boolean {
+    return (
+        pathname.startsWith("/admin") ||
+        pathname.startsWith("/mentor") ||
+        pathname.startsWith("/super-admin") ||
+        pathname.startsWith("/company") ||
+        pathname.startsWith("/onboarding") ||
+        pathname.startsWith("/dashboard") ||
+        pathname.startsWith("/profile") ||
+        pathname.startsWith("/aptitude-test") ||
+        pathname.startsWith("/dsa-test") ||
+        pathname.startsWith("/permissions") ||
+        pathname.startsWith("/problems") ||
+        pathname.startsWith("/submitted")
+    );
+}
+
+async function fetchBackendMe(request: NextRequest, token: string) {
+    try {
+        const meUrl = new URL("/api/proxy/me", request.url);
+        const response = await fetch(meUrl.toString(), {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json",
+            },
+            cache: "no-store",
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        if (!data?.success) {
+            return null;
+        }
+
+        if (typeof data.role !== "string") {
+            return null;
+        }
+
+        return {
+            role: data.role,
+            is_new_user: Boolean(data.is_new_user),
+            is_onboarded: Boolean(data.is_onboarded),
+        };
+    } catch {
+        return null;
+    }
+}
+
+export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // ── Try to read the token ──
@@ -71,91 +124,70 @@ export function middleware(request: NextRequest) {
         }
     }
 
-    // ── Decode ──
-    const payload = token ? decodeJWTPayload(token) : null;
-    const isValid = payload !== null && !isTokenExpired(payload);
-    const roles: string[] = isValid ? (payload?.realm_access?.roles || []) : [];
-
-    // ── Route matching ──
-
     // Safety: never redirect auth page (prevents infinite loops)
     if (pathname.startsWith("/auth")) {
         return NextResponse.next();
     }
 
-    // Admin routes
-    if (pathname.startsWith("/admin")) {
-        if (!isValid) {
-            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
-        }
-        if (!roles.includes("admin") && !roles.includes("codebud_super_admin")) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
+    if (!isProtectedPath(pathname)) {
         return NextResponse.next();
     }
 
-    // Mentor routes
-    if (pathname.startsWith("/mentor")) {
-        if (!isValid) {
-            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
-        }
-        if (!roles.includes("mentor") && !roles.includes("admin") && !roles.includes("codebud_super_admin")) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-        return NextResponse.next();
+    // Decode only for quick expiry screening before backend /api/me verification.
+    const payload = token ? decodeJWTPayload(token) : null;
+    const isValid = payload !== null && !isTokenExpired(payload);
+    if (!token || !isValid) {
+        return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
     }
 
-    // Super admin routes
-    if (pathname.startsWith("/super-admin")) {
-        if (!isValid) {
-            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
-        }
-        if (!roles.includes("codebud_super_admin")) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-        return NextResponse.next();
+    const me = await fetchBackendMe(request, token);
+    if (!me) {
+        return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
     }
 
-    // Company dashboard routes
-    if (pathname.startsWith("/company")) {
-        if (!isValid) {
-            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
-        }
-        if (!roles.includes("company") && !roles.includes("codebud_super_admin")) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-        return NextResponse.next();
-    }
+    const needsOnboarding = !me.is_onboarded || me.is_new_user;
 
-    // Onboarding route — requires auth; accessible by students (both new and returning to edit)
+    // Onboarding route — requires auth; block already-onboarded users.
     if (pathname.startsWith("/onboarding")) {
-        if (!isValid) {
-            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
+        if (!needsOnboarding) {
+            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
         }
         return NextResponse.next();
     }
 
-    // Authenticated-only routes (any role)
-    if (
-        pathname.startsWith("/dashboard") ||
-        pathname.startsWith("/profile") ||
-        pathname.startsWith("/aptitude-test") ||
-        pathname.startsWith("/dsa-test") ||
-        pathname.startsWith("/permissions") ||
-        pathname.startsWith("/problems") ||
-        pathname.startsWith("/submitted")
-    ) {
-        if (!isValid) {
-            return NextResponse.redirect(new URL(AUTH_PAGE, request.url));
-        }
-        // Students who haven't completed onboarding → force onboarding
-        if (roles.includes("student") && payload?.onboarding_completed === false) {
-            return NextResponse.redirect(new URL("/onboarding", request.url));
+    if (needsOnboarding) {
+        return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+
+    if (pathname.startsWith("/admin")) {
+        if (me.role !== "admin" && me.role !== "codebud_super_admin") {
+            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
         }
         return NextResponse.next();
     }
 
-    // Everything else → allow
+    if (pathname.startsWith("/mentor")) {
+        if (me.role !== "mentor" && me.role !== "admin" && me.role !== "codebud_super_admin") {
+            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
+        }
+        return NextResponse.next();
+    }
+
+    if (pathname.startsWith("/super-admin")) {
+        if (me.role !== "codebud_super_admin") {
+            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
+        }
+        return NextResponse.next();
+    }
+
+    if (pathname.startsWith("/company")) {
+        if (me.role !== "company" && me.role !== "codebud_super_admin") {
+            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
+        }
+        return NextResponse.next();
+    }
+
+    // Authenticated + onboarded routes
     return NextResponse.next();
 }
 

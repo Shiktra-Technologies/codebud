@@ -20,8 +20,8 @@ import {
 
 function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
     switch (role) {
-        case "super_admin":
-            router.push("/super-admin");
+        case "codebud_super_admin":
+            router.push("/admin");
             break;
         case "admin":
             router.push("/admin");
@@ -29,8 +29,14 @@ function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
         case "mentor":
             router.push("/mentor");
             break;
-        default:
+        case "company":
+            router.push("/company");
+            break;
+        case "student":
             router.push("/dashboard");
+            break;
+        default:
+            router.push("/auth");
     }
 }
 
@@ -53,7 +59,21 @@ export default function AuthPage() {
     /* Redirect already-authed users */
     React.useEffect(() => {
         if (user) {
-            redirectByRole(router, (user as any)?.role || "student");
+            const onboarded = Boolean((user as any)?.is_onboarded ?? (user as any)?.onboarding_completed ?? false);
+            const isNewUser = Boolean((user as any)?.is_new_user ?? false);
+
+            if (!onboarded || isNewUser) {
+                router.replace("/onboarding");
+                return;
+            }
+
+            const role = (user as any)?.role;
+            if (!role) {
+                router.replace("/auth");
+                return;
+            }
+
+            redirectByRole(router, role);
         }
     }, [user, router]);
 

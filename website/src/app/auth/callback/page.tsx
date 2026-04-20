@@ -5,34 +5,56 @@ import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 
-function redirectByRole(router: ReturnType<typeof useRouter>, roles: string[]) {
-    if (!roles || roles.length === 0) {
-        console.error("[AUTH ERROR] No roles found");
+function redirectAfterAuth(router: ReturnType<typeof useRouter>, user: any) {
+    if (!user) {
         router.replace('/auth');
         return;
     }
 
-    if (roles.includes("codebud_super_admin")) {
-        router.replace('/admin');
-    } else if (roles.includes("mentor")) {
-        router.replace('/mentor');
-    } else if (roles.includes("student")) {
-        router.replace('/dashboard');
-    } else {
-        router.replace('/auth');
+    const role = user?.role || '';
+    const isNewUser = Boolean(user?.is_new_user ?? false);
+    const isOnboarded = Boolean(user?.is_onboarded ?? user?.onboarding_completed ?? false);
+
+    console.log('[AUTH DEBUG] user:', user);
+    console.log('[ROUTING DEBUG]', user?.is_onboarded);
+
+    if (!isOnboarded || isNewUser) {
+        router.replace('/onboarding');
+        return;
     }
+
+    if (role === "codebud_super_admin" || role === "admin") {
+        router.replace('/admin');
+        return;
+    }
+
+    if (role === "mentor") {
+        router.replace('/mentor');
+        return;
+    }
+
+    if (role === "company") {
+        router.replace('/company');
+        return;
+    }
+
+    if (role === "student") {
+        router.replace('/dashboard');
+        return;
+    }
+
+    router.replace('/auth');
 }
 
 export default function AuthCallbackPage() {
     const router = useRouter();
     const { user, exchangeAuthorizationCode } = useAuth();
     const [error, setError] = React.useState("");
-    const [busy, setBusy] = React.useState(true);
 
     // If already authenticated, redirect immediately
     React.useEffect(() => {
         if (user) {
-            redirectByRole(router, (user as any)?.roles || []);
+            redirectAfterAuth(router, user);
         }
     }, [user, router]);
 
@@ -43,7 +65,6 @@ export default function AuthCallbackPage() {
 
         if (!code) {
             setError("No authorization code received from Keycloak.");
-            setBusy(false);
             return;
         }
 
@@ -58,13 +79,12 @@ export default function AuthCallbackPage() {
 
             if (!result.success) {
                 setError(result.error || "Authentication failed");
-                setBusy(false);
                 return;
             }
 
             // Clean the URL and redirect
             window.history.replaceState({}, "", "/auth/callback");
-            redirectByRole(router, result.user?.roles || []);
+            redirectAfterAuth(router, result.user);
         })();
 
         return () => {
