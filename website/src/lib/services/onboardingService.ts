@@ -42,6 +42,10 @@ export interface OnboardingSkills {
     languages: { name: string; level: string }[];
     frameworks: string[];
     interests: string[];
+    // Self-rated overall coding experience: "1" beginner, "2" intermediate, "3" advanced.
+    // Drives the recommendation engine's skill_score; per-language `level` above is
+    // stored for richer profile views but not consumed by the engine directly.
+    skill_level: string;
 }
 
 export interface OnboardingCareer {

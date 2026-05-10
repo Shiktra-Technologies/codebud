@@ -28,11 +28,14 @@ import {
     Star,
     ArrowUpRight,
     Clock,
+    Sparkles,
+    Compass,
 } from "lucide-react";
 import leaderboardService from "@/lib/services/leaderboardService";
 import { getUserSubmissions } from "@/lib/services/submissionService";
 
 import BootSequence from "@/app/components/BootSequence";
+import RecommendedCourseList from "./_components/RecommendedCourseList";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,6 +43,7 @@ const ease = [0.16, 1, 0.3, 1] as const;
 
 const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { id: "learning-path", label: "Learning Path", icon: Compass, href: "/learning-path" },
     { id: "aptitude", label: "Aptitude Test", icon: BookOpen, href: "/aptitude-test" },
     { id: "dsa", label: "DSA Test", icon: Code2, href: "/dsa-test" },
     { id: "problems", label: "Problems", icon: Zap, href: "/problems" },
@@ -479,6 +483,34 @@ export default function DashboardPage() {
                                 />
                                 {refreshing ? "Refreshing…" : "Refresh"}
                             </button>
+                        </motion.div>
+
+                        {/* Personalized Path — primary surface; full reveal at /learning-path */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.1, ease }}
+                            className="mb-8"
+                        >
+                            <div className="mb-3 flex items-end justify-between gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles size={14} className="text-amber-400" />
+                                    <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+                                        Your learning path
+                                    </h2>
+                                </div>
+                                <Link
+                                    href="/learning-path"
+                                    className="group inline-flex items-center gap-1 text-[12px] font-semibold text-amber-400/70 transition-colors hover:text-amber-300"
+                                >
+                                    View full path
+                                    <ArrowRight
+                                        size={12}
+                                        className="transition-transform group-hover:translate-x-0.5"
+                                    />
+                                </Link>
+                            </div>
+                            <RecommendedCourseList />
                         </motion.div>
 
                         {/* Stats Grid */}

@@ -91,6 +91,7 @@ export default function OnboardingPage() {
         languages: [],
         frameworks: [],
         interests: [],
+        skill_level: "",
     });
     const [career, setCareer] = useState<OnboardingCareer>({
         goals: [],
@@ -169,7 +170,11 @@ export default function OnboardingPage() {
             case 2:
                 return !!education.status && !!education.college.trim();
             case 3:
-                return skills.languages.length > 0 && skills.interests.length > 0;
+                return (
+                    skills.languages.length > 0 &&
+                    skills.interests.length > 0 &&
+                    !!skills.skill_level
+                );
             case 4:
                 return career.goals.length > 0;
             default:
@@ -185,9 +190,15 @@ export default function OnboardingPage() {
         if (role === "codebud_super_admin" || role === "admin") return "/admin";
         if (role === "mentor") return "/mentor";
         if (role === "company") return "/company";
-        if (role === "student") return "/dashboard";
+        // Students: first-time completion gets the cinematic reveal experience.
+        // Edit-mode (already onboarded) goes straight back to the dashboard.
+        if (role === "student") {
+            return editMode
+                ? "/dashboard"
+                : "/generating-path?next=/learning-path";
+        }
         return "/auth";
-    }, [user]);
+    }, [user, editMode]);
 
     // ── Submit ──
     const handleSubmit = async () => {
@@ -758,12 +769,39 @@ function Step3Skills({
         }));
     };
 
+    const SKILL_LEVELS: { value: string; label: string; hint: string }[] = [
+        { value: "1", label: "Beginner", hint: "Just starting out" },
+        { value: "2", label: "Intermediate", hint: "Comfortable building things" },
+        { value: "3", label: "Advanced", hint: "Strong fundamentals + projects" },
+    ];
+
     return (
         <div>
             <SectionLabel>Skills & Interests</SectionLabel>
-            <SectionDesc>Pick your languages, tools, and topics you&apos;re interested in. At least 1 language and 1 interest required.</SectionDesc>
+            <SectionDesc>Pick your languages, tools, and topics you&apos;re interested in. At least 1 language, 1 interest, and your overall level required.</SectionDesc>
 
             <div className="space-y-6">
+                {/* Overall skill level — feeds the recommendation engine */}
+                <div>
+                    <FieldLabel required>Overall coding experience</FieldLabel>
+                    <div className="grid grid-cols-3 gap-2">
+                        {SKILL_LEVELS.map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setSkills((prev) => ({ ...prev, skill_level: opt.value }))}
+                                className={`px-3 py-2.5 rounded-lg text-left border transition-all ${
+                                    skills.skill_level === opt.value
+                                        ? "bg-yellow-400/10 border-yellow-400/30 text-yellow-400"
+                                        : "bg-surface-2/50 border-white/[0.06] text-white/40 hover:border-white/[0.12] hover:text-white/60"
+                                }`}
+                            >
+                                <div className="text-xs font-bold">{opt.label}</div>
+                                <div className="text-[10px] mt-0.5 opacity-70">{opt.hint}</div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Languages */}
                 <div>
                     <ChipSelector
