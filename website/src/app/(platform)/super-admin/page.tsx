@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { BookOpen, Building2, Settings } from "lucide-react";
-import CourseBuilderTab from "./CourseBuilderTab";
+import LearningStudioEntry from "./LearningStudioEntry";
 import CompanyManagementTab from "./CompanyManagementTab";
 import PlatformConfigTab from "./PlatformConfigTab";
 import BootSequence from "@/app/components/BootSequence";
@@ -340,7 +340,7 @@ export default function SuperAdminPage() {
                             {([
                                 { id: "overview" as const, label: "System Overview", icon: BarChart3 },
                                 { id: "users" as const, label: "User Management", icon: Users },
-                                { id: "courses" as const, label: "Course Builder", icon: BookOpen },
+                                { id: "courses" as const, label: "Learning Studio", icon: BookOpen },
                                 { id: "companies" as const, label: "Companies", icon: Building2 },
                                 { id: "config" as const, label: "Platform Config", icon: Settings },
                             ]).map((tab) => {
@@ -483,7 +483,7 @@ export default function SuperAdminPage() {
                                     exit={{ opacity: 0, y: -12 }}
                                     transition={{ duration: 0.3, ease }}
                                 >
-                                    <CourseBuilderTab />
+                                    <LearningStudioEntry />
                                 </motion.div>
                             )}
 
