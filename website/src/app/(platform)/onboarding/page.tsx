@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { defaultRouteForRole } from "@/lib/auth/roleRouting";
 import {
     getOnboardingConfig,
     completeOnboarding,
@@ -186,18 +187,12 @@ export default function OnboardingPage() {
 
     const getPostOnboardingRoute = useCallback((roleOverride?: string) => {
         const role = roleOverride || (user as any)?.role;
-        if (!role) return "/auth";
-        if (role === "codebud_super_admin" || role === "admin") return "/admin";
-        if (role === "mentor") return "/mentor";
-        if (role === "company") return "/company";
         // Students: first-time completion gets the cinematic reveal experience.
         // Edit-mode (already onboarded) goes straight back to the dashboard.
-        if (role === "student") {
-            return editMode
-                ? "/dashboard"
-                : "/generating-path?next=/learning-path";
+        if (role === "student" && !editMode) {
+            return "/generating-path?next=/learning-path";
         }
-        return "/auth";
+        return defaultRouteForRole(role);
     }, [user, editMode]);
 
     // ── Submit ──

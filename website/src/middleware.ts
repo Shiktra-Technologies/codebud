@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { AUTH_PAGE, defaultRouteForRole } from "@/lib/auth/roleRouting";
 
 /**
  * Next.js Middleware — Server-side route guards
@@ -14,8 +15,6 @@ import { NextRequest, NextResponse } from "next/server";
  * Public routes (no auth):
  *   /auth, /auth/*, /, /api/*, /_next/*, /favicon.ico, static files
  */
-
-const AUTH_PAGE = "/auth";
 
 // Simple base64url decode (Edge Runtime compatible — no Node Buffer)
 function base64UrlDecode(str: string): string {
@@ -46,14 +45,6 @@ function decodeJWTPayload(token: string): Record<string, any> | null {
 function isTokenExpired(payload: Record<string, any>): boolean {
     if (!payload.exp) return false; // no expiry → treat as valid
     return Math.floor(Date.now() / 1000) > payload.exp;
-}
-
-function getDefaultRouteByRole(role: string): string {
-    if (role === "codebud_super_admin" || role === "admin") return "/admin";
-    if (role === "mentor") return "/mentor";
-    if (role === "company") return "/company";
-    if (role === "student") return "/dashboard";
-    return AUTH_PAGE;
 }
 
 function isProtectedPath(pathname: string): boolean {
@@ -150,7 +141,7 @@ export async function middleware(request: NextRequest) {
     // Onboarding route — requires auth; block already-onboarded users.
     if (pathname.startsWith("/onboarding")) {
         if (!needsOnboarding) {
-            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
+            return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
         return NextResponse.next();
     }
@@ -159,30 +150,40 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/onboarding", request.url));
     }
 
+    // Super-admin route is isolated: ONLY codebud_super_admin may enter.
+    // It is checked BEFORE /admin because /super-admin also starts with the
+    // string "/admin" is false — but ordering keeps the precedence explicit
+    // and matches the deterministic role hierarchy.
+    if (pathname.startsWith("/super-admin")) {
+        if (me.role !== "codebud_super_admin") {
+            return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
+        }
+        return NextResponse.next();
+    }
+
     if (pathname.startsWith("/admin")) {
-        if (me.role !== "admin" && me.role !== "codebud_super_admin") {
-            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
+        // codebud_super_admin has its OWN dashboard at /super-admin — bounce
+        // them there rather than letting them silently land on the college
+        // admin dashboard.
+        if (me.role === "codebud_super_admin") {
+            return NextResponse.redirect(new URL("/super-admin", request.url));
+        }
+        if (me.role !== "admin") {
+            return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
         return NextResponse.next();
     }
 
     if (pathname.startsWith("/mentor")) {
         if (me.role !== "mentor" && me.role !== "admin" && me.role !== "codebud_super_admin") {
-            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
-        }
-        return NextResponse.next();
-    }
-
-    if (pathname.startsWith("/super-admin")) {
-        if (me.role !== "codebud_super_admin") {
-            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
+            return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
         return NextResponse.next();
     }
 
     if (pathname.startsWith("/company")) {
         if (me.role !== "company" && me.role !== "codebud_super_admin") {
-            return NextResponse.redirect(new URL(getDefaultRouteByRole(me.role), request.url));
+            return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
         return NextResponse.next();
     }

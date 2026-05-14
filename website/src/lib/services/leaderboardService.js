@@ -23,7 +23,7 @@ function isUserAdmin() {
     const decoded = JSON.parse(typeof window !== 'undefined' ? window.atob(padded) : Buffer.from(padded, 'base64').toString());
     
     const role = decoded?.role || '';
-    return role === 'admin' || role === 'super_admin';
+    return role === 'admin' || role === 'codebud_super_admin';
   } catch {
     return false;
   }

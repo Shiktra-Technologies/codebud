@@ -55,7 +55,7 @@ export default function SubmittedPage() {
                 const userId = (user as any)?._id || (user as any)?.id || "";
                 const role = (user as any)?.role || "student";
                 let subs: any;
-                if (role === "admin" || role === "superadmin") {
+                if (role === "admin" || role === "codebud_super_admin") {
                     subs = await getAllSubmissions();
                 } else if (userId) {
                     subs = await getUserSubmissions(userId);

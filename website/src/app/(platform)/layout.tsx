@@ -6,14 +6,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { ProctorProvider } from "@/lib/context/ProctorContext";
 import ActivityTracker from "@/lib/components/ActivityTracker";
 import { Loader2 } from "lucide-react";
-
-function routeByRole(role?: string): string {
-    if (role === "codebud_super_admin" || role === "admin") return "/admin";
-    if (role === "mentor") return "/mentor";
-    if (role === "company") return "/company";
-    if (role === "student") return "/dashboard";
-    return "/auth";
-}
+import { defaultRouteForRole } from "@/lib/auth/roleRouting";
 
 export default function PlatformLayout({
     children,
@@ -40,7 +33,7 @@ export default function PlatformLayout({
             }
 
             if (onboarded && !isNewUser && pathname === "/onboarding") {
-                router.replace(routeByRole((user as any)?.role));
+                router.replace(defaultRouteForRole((user as any)?.role));
             }
         }
     }, [loading, user, pathname, router]);

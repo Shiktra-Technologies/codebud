@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { defaultRouteForRole } from "@/lib/auth/roleRouting";
 import {
     Loader2,
     AlertCircle,
@@ -13,32 +14,6 @@ import {
     UserPlus,
     ChevronRight,
 } from "lucide-react";
-
-/* ─────────────────────────────────────────────
-   Helpers
-───────────────────────────────────────────── */
-
-function redirectByRole(router: ReturnType<typeof useRouter>, role: string) {
-    switch (role) {
-        case "codebud_super_admin":
-            router.push("/admin");
-            break;
-        case "admin":
-            router.push("/admin");
-            break;
-        case "mentor":
-            router.push("/mentor");
-            break;
-        case "company":
-            router.push("/company");
-            break;
-        case "student":
-            router.push("/dashboard");
-            break;
-        default:
-            router.push("/auth");
-    }
-}
 
 const KC_BASE =
     process.env.NEXT_PUBLIC_KEYCLOAK_URL || "https://keycloak.mycodebud.in";
@@ -73,7 +48,7 @@ export default function AuthPage() {
                 return;
             }
 
-            redirectByRole(router, role);
+            router.replace(defaultRouteForRole(role));
         }
     }, [user, router]);
 

@@ -129,7 +129,7 @@ export const getUserDisplayName = async (userId) => {
  */
 export const getAllSubmissions = async () => {
   const { role, userId } = getAuthContext();
-  const isAdmin = role === 'admin' || role === 'super_admin';
+  const isAdmin = role === 'admin' || role === 'codebud_super_admin';
 
   try {
     // Non-admin users are only allowed to view their own submissions.

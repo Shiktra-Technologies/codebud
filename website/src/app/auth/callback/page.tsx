@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { defaultRouteForRole } from "@/lib/auth/roleRouting";
 
 function redirectAfterAuth(router: ReturnType<typeof useRouter>, user: any) {
     if (!user) {
@@ -11,39 +12,19 @@ function redirectAfterAuth(router: ReturnType<typeof useRouter>, user: any) {
         return;
     }
 
-    const role = user?.role || '';
+    const role: string = user?.role || '';
     const isNewUser = Boolean(user?.is_new_user ?? false);
     const isOnboarded = Boolean(user?.is_onboarded ?? user?.onboarding_completed ?? false);
 
-    console.log('[AUTH DEBUG] user:', user);
-    console.log('[ROUTING DEBUG]', user?.is_onboarded);
+    // Single line, role-and-flags only; no PII.
+    console.log('[KC ROLES]', { role, isOnboarded, isNewUser });
 
     if (!isOnboarded || isNewUser) {
         router.replace('/onboarding');
         return;
     }
 
-    if (role === "codebud_super_admin" || role === "admin") {
-        router.replace('/admin');
-        return;
-    }
-
-    if (role === "mentor") {
-        router.replace('/mentor');
-        return;
-    }
-
-    if (role === "company") {
-        router.replace('/company');
-        return;
-    }
-
-    if (role === "student") {
-        router.replace('/dashboard');
-        return;
-    }
-
-    router.replace('/auth');
+    router.replace(defaultRouteForRole(role));
 }
 
 export default function AuthCallbackPage() {

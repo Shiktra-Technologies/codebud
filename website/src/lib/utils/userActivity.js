@@ -36,7 +36,7 @@ export const getUserStats = (users) => {
   const activeUsers = getActiveUsers(users);
   const students = users.filter(user => user.role === 'student');
   const admins = users.filter(user => user.role === 'admin');
-  const superAdmins = users.filter(user => user.role === 'super_admin');
+  const superAdmins = users.filter(user => user.role === 'codebud_super_admin');
   
   return {
     total: totalUsers,

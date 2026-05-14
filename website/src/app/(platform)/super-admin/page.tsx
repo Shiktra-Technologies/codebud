@@ -175,7 +175,7 @@ export default function SuperAdminPage() {
         totalUsers: allUsers.length,
         students: allUsers.filter((u) => u.role === "student").length,
         admins: allUsers.filter((u) => u.role === "admin").length,
-        superAdmins: allUsers.filter((u) => u.role === "super_admin").length,
+        superAdmins: allUsers.filter((u) => u.role === "codebud_super_admin").length,
         totalSubmissions: submissions.length,
         violations: submissions.filter((s: any) => s.violations?.submittedDueToViolation).length,
         passed: submissions.filter((s: any) => s.passed).length,
@@ -206,7 +206,7 @@ export default function SuperAdminPage() {
         switch (role) {
             case "student": return "Student";
             case "admin": return "Admin";
-            case "super_admin": return "Super Admin";
+            case "codebud_super_admin": return "Super Admin";
             default: return role || "Unknown";
         }
     };
@@ -215,7 +215,7 @@ export default function SuperAdminPage() {
         switch (role) {
             case "student": return "bg-emerald-400/10 text-emerald-400 border-emerald-400/15";
             case "admin": return "bg-yellow-400/10 text-yellow-400 border-yellow-400/15";
-            case "super_admin": return "bg-red-400/10 text-red-400 border-red-400/15";
+            case "codebud_super_admin": return "bg-red-400/10 text-red-400 border-red-400/15";
             default: return "bg-white/5 text-white/30 border-white/[0.06]";
         }
     };
@@ -677,7 +677,7 @@ export default function SuperAdminPage() {
                                     <div>
                                         <p className="text-xs font-semibold text-white/40 mb-3">Change Role</p>
                                         <div className="flex gap-2">
-                                            {(["student", "admin", "super_admin"] as const).map((role) => {
+                                            {(["student", "admin", "codebud_super_admin"] as const).map((role) => {
                                                 const isCurrent = selectedUser.role === role;
                                                 const isSelf = (selectedUser._id || selectedUser.id) === ((user as any)?._id || (user as any)?.id);
                                                 return (
