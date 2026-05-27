@@ -44,23 +44,54 @@ export interface LessonBlock {
     id: string;
     type:
         | "text"
+        | "heading"
+        | "markdown"
         | "video"
         | "code"
         | "quiz"
+        | "exercise"
         | "assignment"
         | "resource"
         | "image"
         | "callout"
+        | "diagram"
+        | "project"
         | "interactive_lab"
-        | "ai_hint";
+        | "ai_hint"
+        | "ai_prompt"
+        | "checkpoint";
     data: Record<string, unknown>;
 }
+
+/**
+ * The 11 lesson kinds surfaced in the Curriculum Builder. Each kind drives
+ * UX (icon, default duration, default difficulty) but the underlying lesson
+ * shape is unified — they all carry blocks, skills, concepts.
+ */
+export type LessonKind =
+    | "lesson"
+    | "video"
+    | "reading"
+    | "exercise"
+    | "quiz"
+    | "assessment"
+    | "coding_lab"
+    | "project"
+    | "checkpoint"
+    | "career_task"
+    | "ai_session";
 
 export interface Lesson {
     id: string;
     title: string;
+    kind: LessonKind;
+    description?: string;
     blocks: LessonBlock[];
-    estimated_duration_minutes?: number;
+    estimated_duration_minutes: number;
+    difficulty: number;                       // 0..1
+    skill_slugs: string[];                    // taxonomy_skills refs
+    concept_ids: string[];                    // future: knowledge_concepts refs
+    prerequisite_lesson_ids: string[];        // within-course only for now
 }
 
 export interface Module {

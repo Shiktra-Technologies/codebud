@@ -23,6 +23,7 @@ import {
     LIFECYCLE_TONE,
 } from "@/lib/services/learningStudioService";
 import StudioActionBar, { type AutosaveStatus } from "./StudioActionBar";
+import CurriculumBuilder from "./curriculum/CurriculumBuilder";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -371,7 +372,7 @@ export default function CourseCanvas({ course, loading, onPatched }: Props) {
             {/* ── Tab content ─────────────────────────────────────── */}
             <div className="flex-1 px-8 py-6 pb-24">
                 {tab === "overview" && <OverviewTab course={course} onChange={autosave.queue} />}
-                {tab === "curriculum" && <ComingSoonTab title="Curriculum builder" subtitle="Drag-drop modules and lesson blocks land in the next phase. Schema is already in place — your changes will deserialize cleanly." />}
+                {tab === "curriculum" && <CurriculumBuilder course={course} onChange={autosave.queue} />}
                 {tab === "match" && <ComingSoonTab title="Learner Match" subtitle="Configure targeting via the Intelligence panel on the right; this tab will visualize match impact across the onboarding cohort." />}
                 {tab === "assessments" && <ComingSoonTab title="Assessments" subtitle="Quiz and assignment authoring. Backed by the same block system as lessons." />}
                 {tab === "analytics" && <ComingSoonTab title="Analytics" subtitle="Lesson views, drop-off, completion rate, recommendation conversion. Awaits the event pipeline." />}
