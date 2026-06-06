@@ -51,7 +51,7 @@ function isProtectedPath(pathname: string): boolean {
     return (
         pathname.startsWith("/admin") ||
         pathname.startsWith("/mentor") ||
-        pathname.startsWith("/super-admin") ||
+        pathname.startsWith("/exec") ||
         pathname.startsWith("/company") ||
         pathname.startsWith("/onboarding") ||
         pathname.startsWith("/dashboard") ||
@@ -150,11 +150,8 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/onboarding", request.url));
     }
 
-    // Super-admin route is isolated: ONLY codebud_super_admin may enter.
-    // It is checked BEFORE /admin because /super-admin also starts with the
-    // string "/admin" is false — but ordering keeps the precedence explicit
-    // and matches the deterministic role hierarchy.
-    if (pathname.startsWith("/super-admin")) {
+    // Route Isolation Matrix implementation (strict, no inheritance)
+    if (pathname.startsWith("/exec")) {
         if (me.role !== "codebud_super_admin") {
             return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
@@ -162,12 +159,6 @@ export async function middleware(request: NextRequest) {
     }
 
     if (pathname.startsWith("/admin")) {
-        // codebud_super_admin has its OWN dashboard at /super-admin — bounce
-        // them there rather than letting them silently land on the college
-        // admin dashboard.
-        if (me.role === "codebud_super_admin") {
-            return NextResponse.redirect(new URL("/super-admin", request.url));
-        }
         if (me.role !== "admin") {
             return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
@@ -175,14 +166,22 @@ export async function middleware(request: NextRequest) {
     }
 
     if (pathname.startsWith("/mentor")) {
-        if (me.role !== "mentor" && me.role !== "admin" && me.role !== "codebud_super_admin") {
+        if (me.role !== "mentor") {
             return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
         return NextResponse.next();
     }
 
     if (pathname.startsWith("/company")) {
-        if (me.role !== "company" && me.role !== "codebud_super_admin") {
+        if (me.role !== "company") {
+            return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
+        }
+        return NextResponse.next();
+    }
+
+    // Dashboard routes are for students only
+    if (pathname.startsWith("/dashboard")) {
+        if (me.role !== "student") {
             return NextResponse.redirect(new URL(defaultRouteForRole(me.role), request.url));
         }
         return NextResponse.next();

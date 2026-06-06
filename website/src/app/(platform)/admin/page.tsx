@@ -247,7 +247,7 @@ export default function AdminDashboardPage() {
                                                 onClick={() => setShowProfileMenu(false)}
                                             >
                                                 <Shield size={15} />
-                                                Super Admin
+                                                Executive
                                             </Link>
                                         )}
                                         <Link

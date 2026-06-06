@@ -52,33 +52,13 @@ export default function AuthPage() {
         }
     }, [user, router]);
 
-    /* Sign-in via Keycloak (all role buttons + "Sign In") */
-    const handleLogin = async (key: string) => {
+    const handleLogin = (key: string) => {
         setError("");
         setBusy(key);
-        const redirectUri = `${window.location.origin}/auth/callback`;
-        const result = await startKeycloakLogin(redirectUri);
-        if (!result.success) {
-            setError(result.error || "Auth service unavailable. Please try again.");
-            setBusy(null);
-        }
-        // On success the browser navigates away — no need to setBusy(null)
+        router.push(`/auth/${key}`);
     };
 
-    /* Register via Keycloak */
-    const handleRegister = (key: string) => {
-        setError("");
-        setBusy(key);
-        const redirectUri = `${window.location.origin}/auth/callback`;
-        const url = `${KC_BASE}/realms/${KC_REALM}/protocol/openid-connect/registrations`;
-        const params = new URLSearchParams({
-            client_id: KC_CLIENT,
-            response_type: "code",
-            scope: "openid",
-            redirect_uri: redirectUri,
-        });
-        window.location.href = `${url}?${params}`;
-    };
+
 
     /* ── Loading skeleton ── */
     if (authLoading) {
@@ -216,7 +196,8 @@ export default function AuthPage() {
                     {[
                         { key: "student", label: "Continue as Student", Icon: GraduationCap },
                         { key: "mentor", label: "Continue as Mentor", Icon: BookOpen },
-                        { key: "admin", label: "Continue as Admin", Icon: Shield },
+                        { key: "admin", label: "Continue as College Admin", Icon: Shield },
+                        { key: "company", label: "Continue as Company", Icon: LogIn },
                     ].map(({ key, label, Icon }) => (
                         <RoleButton
                             key={key}
@@ -228,41 +209,6 @@ export default function AuthPage() {
                         />
                     ))}
                 </div>
-
-                {/* ── Divider ── */}
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.75rem",
-                        marginBottom: "1.25rem",
-                    }}
-                >
-                    <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
-                    <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.1em" }}>
-                        OR
-                    </span>
-                    <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
-                </div>
-
-                {/* ── Primary: Sign In ── */}
-                <PrimaryButton
-                    label="Sign In"
-                    Icon={LogIn}
-                    loading={busy === "signin"}
-                    disabled={busy !== null}
-                    onClick={() => handleLogin("signin")}
-                />
-
-                {/* ── Secondary: Create Account ── */}
-                <GhostButton
-                    label="Create Account"
-                    Icon={UserPlus}
-                    loading={busy === "register"}
-                    disabled={busy !== null}
-                    onClick={() => handleRegister("register")}
-                    style={{ marginTop: "0.6rem" }}
-                />
 
                 {/* ── Footer note ── */}
                 <p
