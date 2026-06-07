@@ -98,7 +98,7 @@ export const Footer = () => {
                                     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                                 </svg>
                             </div>
-                            <span className="text-lg font-bold text-yellow-400 tracking-tight">CODE BUD</span>
+                            <span className="text-lg font-bold text-yellow-400 tracking-tight">MYCODEBUD</span>
                         </a>
                         <p className="text-sm text-white/30 leading-relaxed mb-6">
                             The modern platform for learning to code. Interactive lessons, real projects, AI feedback, and a thriving community.
@@ -186,7 +186,7 @@ export const Footer = () => {
                 {/* Bottom bar */}
                 <div className="border-t border-white/[0.04] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-xs text-white/20 flex items-center gap-1.5">
-                        © {new Date().getFullYear()} CODE BUD. Made with
+                        © {new Date().getFullYear()} MYCODEBUD. Made with
                         <Heart size={11} className="text-red-400/60 fill-red-400/60" />
                         for developers.
                     </p>

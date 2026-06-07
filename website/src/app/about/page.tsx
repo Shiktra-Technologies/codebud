@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { AboutPage } from "./AboutPage";
 
 export const metadata: Metadata = {
-    title: "About — CODE BUD",
+    title: "About — MYCODEBUD",
     description:
-        "Learn about CODE BUD's mission to make coding education accessible, our story, our values, and the team behind the platform.",
+        "Learn about MYCODEBUD's mission to make coding education accessible, our story, our values, and the team behind the platform.",
     openGraph: {
-        title: "About — CODE BUD",
+        title: "About — MYCODEBUD",
         description:
-            "Learn about CODE BUD's mission to make coding education accessible, our story, our values, and the team behind the platform.",
+            "Learn about MYCODEBUD's mission to make coding education accessible, our story, our values, and the team behind the platform.",
     },
 };
 

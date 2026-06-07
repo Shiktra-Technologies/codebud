@@ -121,7 +121,7 @@ export const CTA = () => {
                         className="text-white/40 text-base md:text-lg mb-10 leading-relaxed max-w-md mx-auto"
                     >
                         Join thousands of students already building real-world projects and
-                        leveling up their skills with CODE BUD.
+                        leveling up their skills with MYCODEBUD.
                     </motion.p>
 
                     {/* CTA buttons */}
@@ -134,7 +134,7 @@ export const CTA = () => {
                     >
                         <Link href="/auth">
                             <Button variant="brand" size="xl" className="px-10 group shadow-[0_0_30px_rgba(255,193,7,0.15)]">
-                                Join CODE BUD Today
+                                Join MYCODEBUD Today
                                 <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
                             </Button>
                         </Link>

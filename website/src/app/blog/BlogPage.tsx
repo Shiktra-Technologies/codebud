@@ -15,7 +15,7 @@ const categories = ["All", "Tutorials", "News", "Community", "Engineering"];
 const featuredPost = {
     title: "How We Built a Real-Time Collaborative Code Editor",
     excerpt:
-        "A deep dive into the architecture behind CODE BUD's pair-programming feature — from CRDTs to WebSocket orchestration and conflict resolution at scale.",
+        "A deep dive into the architecture behind MYCODEBUD's pair-programming feature — from CRDTs to WebSocket orchestration and conflict resolution at scale.",
     category: "Engineering",
     date: "Feb 10, 2026",
     readTime: "12 min read",
@@ -31,7 +31,7 @@ const posts = [
         readTime: "8 min read",
     },
     {
-        title: "CODE BUD 2.0: What's New in Our Biggest Update",
+        title: "MYCODEBUD 2.0: What's New in Our Biggest Update",
         excerpt: "AI-powered code reviews, learning streaks, and a redesigned dashboard — here's everything in our 2.0 release.",
         category: "News",
         date: "Jan 28, 2026",
@@ -39,7 +39,7 @@ const posts = [
     },
     {
         title: "From Zero to Full-Stack: A Student Success Story",
-        excerpt: "How Maya went from knowing nothing about code to landing her dream job in just 6 months with CODE BUD.",
+        excerpt: "How Maya went from knowing nothing about code to landing her dream job in just 6 months with MYCODEBUD.",
         category: "Community",
         date: "Jan 20, 2026",
         readTime: "6 min read",
@@ -60,7 +60,7 @@ const posts = [
     },
     {
         title: "Our Community Hits 10,000 Members",
-        excerpt: "A celebration of milestones, the power of learning together, and what's next for the CODE BUD community.",
+        excerpt: "A celebration of milestones, the power of learning together, and what's next for the MYCODEBUD community.",
         category: "Community",
         date: "Jan 2, 2026",
         readTime: "4 min read",
@@ -93,7 +93,7 @@ export function BlogPage() {
                     <span className="text-shimmer">tutorials</span>
                 </>
             }
-            subtitle="Deep dives, tutorials, product updates, and stories from the CODE BUD community."
+            subtitle="Deep dives, tutorials, product updates, and stories from the MYCODEBUD community."
         >
             {/* ── Featured Post ── */}
             <section className="pb-12 relative overflow-hidden bg-surface-0">

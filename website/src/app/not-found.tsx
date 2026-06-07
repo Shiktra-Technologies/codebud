@@ -170,7 +170,7 @@ export default function NotFound() {
                             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                         </svg>
                     </div>
-                    <span className="text-lg font-bold text-yellow-400 tracking-tight">CODE BUD</span>
+                    <span className="text-lg font-bold text-yellow-400 tracking-tight">MYCODEBUD</span>
                 </Link>
             </div>
         </div>

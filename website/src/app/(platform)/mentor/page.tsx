@@ -784,7 +784,7 @@ export default function MentorDashboardPage() {
                                 <GraduationCap size={18} className="text-black" />
                             </div>
                             <div>
-                                <p className="text-sm font-bold text-white">CodeBud</p>
+                                <p className="text-sm font-bold text-white">MyCodeBud</p>
                                 <p className="text-[10px] text-yellow-400/60 uppercase tracking-wider font-semibold">Mentor Panel</p>
                             </div>
                         </div>

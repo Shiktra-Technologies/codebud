@@ -133,7 +133,7 @@ export default function AuthPage() {
                                 lineHeight: 1,
                             }}
                         >
-                            CB
+                            MCB
                         </span>
                     </div>
                     <h1
@@ -146,7 +146,7 @@ export default function AuthPage() {
                             margin: 0,
                         }}
                     >
-                        CODEBUD
+                        MYCODEBUD
                     </h1>
                     <p
                         style={{
@@ -222,7 +222,7 @@ export default function AuthPage() {
                 >
                     All authentication is handled securely via Keycloak SSO.
                     <br />
-                    No passwords are stored by CODEBUD.
+                    No passwords are stored by MYCODEBUD.
                 </p>
             </div>
         </div>

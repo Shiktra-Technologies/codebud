@@ -241,7 +241,7 @@ export default function OnboardingPage() {
                         </div>
                         <div>
                             <h1 className="text-sm font-bold text-white">
-                                {editMode ? "Edit Your Profile" : "Welcome to CodeBud"}
+                                {editMode ? "Edit Your Profile" : "Welcome to MyCodeBud"}
                             </h1>
                             <p className="text-[10px] text-white/25">
                                 {editMode ? "Update your information" : "Let\u2019s set up your profile in 2 minutes"}
