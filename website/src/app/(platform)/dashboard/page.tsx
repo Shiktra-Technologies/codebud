@@ -31,11 +31,21 @@ import {
     Sparkles,
     Compass,
 } from "lucide-react";
+import { Activity, PlayCircle, Loader2, Calendar, Search } from "lucide-react";
+import AlertsDropdown from "@/lib/components/AlertsDropdown";
+import ActivityTimelineWidget from "@/lib/components/ActivityTimelineWidget";
+import MentorshipQuickStats from "./_components/MentorshipQuickStats";
+import AssignedTasksWidget from "./_components/AssignedTasksWidget";
+import UpcomingMeetingWidget from "./_components/UpcomingMeetingWidget";
+import RecentFeedbackWidget from "./_components/RecentFeedbackWidget";
+import DashboardAlertsWidget from "./_components/DashboardAlertsWidget";
+import { getStudentTasks, getStudentProjects, MentorshipTask, MentorshipProject } from "@/lib/services/mentorshipService";
 import leaderboardService from "@/lib/services/leaderboardService";
 import { getUserSubmissions } from "@/lib/services/submissionService";
 
 import BootSequence from "@/app/components/BootSequence";
 import RecommendedCourseList from "./_components/RecommendedCourseList";
+import MyMentorWidget from "./_components/MyMentorWidget";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -51,6 +61,7 @@ const navItems = [
 
 const tabItems = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "mentorship", label: "Mentorship", icon: Compass },
     { id: "courses", label: "Courses", icon: BookOpen },
     { id: "assessments", label: "Assessments", icon: Target },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy },
@@ -100,8 +111,13 @@ export default function DashboardPage() {
     const { user, userRole, logout } = useAuth();
     const router = useRouter();
 
-    // UI state
     const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    
+    // Mentorship Data
+    const [tasks, setTasks] = useState<MentorshipTask[]>([]);
+    const [projects, setProjects] = useState<MentorshipProject[]>([]);
+    
     const [activePage, setActivePage] = useState("dashboard");
     const [activeTab, setActiveTab] = useState("overview");
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -174,6 +190,18 @@ export default function DashboardPage() {
                     setLeaderboard([]);
                 }
 
+                // Fetch Mentorship Data
+                try {
+                    const [t, p] = await Promise.all([
+                        getStudentTasks(),
+                        getStudentProjects()
+                    ]);
+                    setTasks(t);
+                    setProjects(p);
+                } catch {
+                    setTasks([]);
+                    setProjects([]);
+                }
 
             } finally {
                 setLoading(false);
@@ -315,6 +343,8 @@ export default function DashboardPage() {
 
                         {/* Right Side */}
                         <div className="flex items-center gap-3">
+                            <AlertsDropdown />
+                            
                             {/* Role Badge */}
                             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-3/50 border border-white/[0.06]">
                                 <GraduationCap
@@ -451,14 +481,18 @@ export default function DashboardPage() {
 
                 {/* ── Content ────────────────────────────────────────────────── */}
                 <main className="pt-16">
-                    <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-                        {/* Welcome + Refresh */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, ease }}
-                            className="flex items-start justify-between mb-8 gap-4"
-                        >
+                    {/* Cleaned Top Nav: Replaced by Tab Switcher inside the main view */}
+
+                    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
+                        <div className="flex-1 min-w-0">
+                            {/* Welcome + Refresh */}
+                            <motion.div
+                                id="welcome"
+                                className="scroll-mt-24 flex items-start justify-between mb-8 gap-4"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, ease }}
+                            >
                             <div>
                                 <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                                     Welcome back,{" "}
@@ -483,133 +517,67 @@ export default function DashboardPage() {
                                 />
                                 {refreshing ? "Refreshing…" : "Refresh"}
                             </button>
-                        </motion.div>
+                            </motion.div>
 
-                        {/* Personalized Path — primary surface; full reveal at /learning-path */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.1, ease }}
-                            className="mb-8"
-                        >
-                            <div className="mb-3 flex items-end justify-between gap-4">
-                                <div className="flex items-center gap-2">
-                                    <Sparkles size={14} className="text-amber-400" />
-                                    <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
-                                        Your learning path
-                                    </h2>
-                                </div>
-                                <Link
-                                    href="/learning-path"
-                                    className="group inline-flex items-center gap-1 text-[12px] font-semibold text-amber-400/70 transition-colors hover:text-amber-300"
-                                >
-                                    View full path
-                                    <ArrowRight
-                                        size={12}
-                                        className="transition-transform group-hover:translate-x-0.5"
-                                    />
-                                </Link>
-                            </div>
-                            <RecommendedCourseList />
-                        </motion.div>
-
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                            {stats.map((stat, i) => {
-                                const Icon = stat.icon;
-                                return (
-                                    <motion.div
-                                        key={stat.label}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{
-                                            duration: 0.5,
-                                            delay: i * 0.08,
-                                            ease,
-                                        }}
-                                        className="relative group"
-                                    >
-                                        <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                                        <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-colors">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
-                                                    {stat.label}
+                            {/* Section Tabs Switcher */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, delay: 0.1, ease }}
+                                className="mb-6"
+                            >
+                                <div className="flex items-center gap-1 p-1 bg-surface-2/30 rounded-xl border border-white/[0.04] w-fit">
+                                    {tabItems.map((tab) => {
+                                        const Icon = tab.icon;
+                                        const isActive = activeTab === tab.id;
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                onClick={() => setActiveTab(tab.id)}
+                                                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
+                                                    ? "text-yellow-400"
+                                                    : "text-white/35 hover:text-white/55"
+                                                    }`}
+                                            >
+                                                <Icon size={14} />
+                                                <span className="hidden sm:inline">
+                                                    {tab.label}
                                                 </span>
-                                                <div
-                                                    className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}
-                                                >
-                                                    <Icon
-                                                        size={14}
-                                                        className="text-white"
+                                                {isActive && (
+                                                    <motion.div
+                                                        layoutId="activeTab"
+                                                        className="absolute inset-0 rounded-lg bg-surface-3/80 border border-white/[0.08]"
+                                                        transition={{
+                                                            type: "spring",
+                                                            duration: 0.4,
+                                                            bounce: 0.15,
+                                                        }}
+                                                        style={{ zIndex: -1 }}
                                                     />
-                                                </div>
-                                            </div>
-                                            <p className="text-2xl font-bold text-white">
-                                                {stat.value}
-                                            </p>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </motion.div>
 
-                        {/* Section Tabs */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.35, ease }}
-                            className="mb-6"
-                        >
-                            <div className="flex items-center gap-1 p-1 bg-surface-2/30 rounded-xl border border-white/[0.04] w-fit">
-                                {tabItems.map((tab) => {
-                                    const Icon = tab.icon;
-                                    const isActive = activeTab === tab.id;
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() =>
-                                                setActiveTab(tab.id)
-                                            }
-                                            className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${isActive
-                                                ? "text-yellow-400"
-                                                : "text-white/35 hover:text-white/55"
-                                                }`}
-                                        >
-                                            <Icon size={14} />
-                                            <span className="hidden sm:inline">
-                                                {tab.label}
-                                            </span>
-                                            {isActive && (
-                                                <motion.div
-                                                    layoutId="activeTab"
-                                                    className="absolute inset-0 rounded-lg bg-surface-3/80 border border-white/[0.08]"
-                                                    transition={{
-                                                        type: "spring",
-                                                        duration: 0.4,
-                                                        bounce: 0.15,
-                                                    }}
-                                                    style={{ zIndex: -1 }}
-                                                />
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </motion.div>
+                            {/* Tab Content Wrapper */}
+                            <AnimatePresence mode="wait">
+                                {/* ── Overview Tab ───────────────────────────────── */}
+                                {activeTab === "overview" && (
+                                    <OverviewTab
+                                        submissions={submissions}
+                                        leaderboard={leaderboard}
+                                        userEmail={email}
+                                        onViewLeaderboard={() => setActiveTab("leaderboard")}
+                                        stats={stats}
+                                    />
+                                )}
 
-                        {/* Tab Content */}
-                        <AnimatePresence mode="wait">
-                            {/* ── Overview Tab ───────────────────────────────── */}
-                            {activeTab === "overview" && (
-                                <OverviewTab
-                                    submissions={submissions}
-                                    leaderboard={leaderboard}
-                                    userEmail={email}
-                                    onViewLeaderboard={() =>
-                                        setActiveTab("leaderboard")
-                                    }
-                                />
-                            )}
+                                {/* ── Mentorship Tab ─────────────────────────────── */}
+                                {activeTab === "mentorship" && (
+                                    <MentorshipTab tasks={tasks} projects={projects} loading={loading} />
+                                )}
 
                             {/* ── Courses Tab ─────────────────────────────────── */}
                             {activeTab === "courses" && <CoursesTab />}
@@ -631,10 +599,54 @@ export default function DashboardPage() {
                                 <JobsTab />
                             )}
                         </AnimatePresence>
+                        </div>
                     </div>
                 </main>
             </div>
         </BootSequence>
+    );
+}
+
+function MentorshipTab({ tasks, projects, loading }: { tasks: any[], projects: any[], loading: boolean }) {
+    return (
+        <motion.div
+            key="mentorship"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.3, ease }}
+            className="space-y-6"
+        >
+            <MentorshipQuickStats 
+                activeTasksCount={tasks.filter(t => t.status !== 'Approved' && t.status !== 'Completed').length}
+                pendingProjectsCount={projects.filter(p => p.status !== 'Submitted').length}
+                upcomingMeetingsCount={0}
+                feedbackCount={0}
+            />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <MyMentorWidget />
+                <DashboardAlertsWidget />
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                    <AssignedTasksWidget tasks={tasks} loading={loading} />
+                </div>
+                <div className="lg:col-span-1">
+                    <UpcomingMeetingWidget />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                    <ActivityTimelineWidget />
+                </div>
+                <div className="lg:col-span-1">
+                    <RecentFeedbackWidget />
+                </div>
+            </div>
+        </motion.div>
     );
 }
 
@@ -645,11 +657,13 @@ function OverviewTab({
     leaderboard,
     userEmail,
     onViewLeaderboard,
+    stats
 }: {
     submissions: Submission[];
     leaderboard: LeaderboardEntry[];
     userEmail: string;
     onViewLeaderboard: () => void;
+    stats: StatCard[];
 }) {
     return (
         <motion.div
@@ -659,6 +673,52 @@ function OverviewTab({
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.3, ease }}
         >
+            {/* Personalized Path */}
+            <div className="mb-8">
+                <div className="mb-3 flex items-end justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-amber-400" />
+                        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+                            Your learning path
+                        </h2>
+                    </div>
+                    <Link
+                        href="/learning-path"
+                        className="group inline-flex items-center gap-1 text-[12px] font-semibold text-amber-400/70 transition-colors hover:text-amber-300"
+                    >
+                        View full path
+                        <ArrowRight
+                            size={12}
+                            className="transition-transform group-hover:translate-x-0.5"
+                        />
+                    </Link>
+                </div>
+                <RecommendedCourseList />
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {stats.map((stat, i) => {
+                    const Icon = stat.icon;
+                    return (
+                        <div key={stat.label} className="relative group">
+                            <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                            <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-colors">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
+                                        {stat.label}
+                                    </span>
+                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
+                                        <Icon size={14} className="text-white" />
+                                    </div>
+                                </div>
+                                <p className="text-2xl font-bold text-white">{stat.value}</p>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
             {/* Quick Actions */}
             <h2 className="text-lg font-bold text-white mb-4">
                 Quick Actions
@@ -735,6 +795,8 @@ function OverviewTab({
                 })}
             </div>
 
+            {/* Old generic mentorship section removed to avoid duplication */}
+            
             {/* Recent Activity + Leaderboard Preview */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
                 {/* Recent Submissions */}
