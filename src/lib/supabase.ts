@@ -1,0 +1,16 @@
+/**
+ * supabase.ts — DEPRECATED
+ * Supabase has been replaced with MongoDB Atlas.
+ * This stub exists only for backward compatibility.
+ * Use @/lib/constants for USER_ROLES and @/lib/apiClient for API calls.
+ */
+
+export const USER_ROLES = {
+    STUDENT: 'student',
+    MENTOR: 'mentor',
+    ADMIN: 'admin',
+    SUPER_ADMIN: 'codebud_super_admin',
+};
+
+// Stub — no Supabase client
+export const supabase = null;
