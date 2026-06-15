@@ -16,6 +16,9 @@ import {
     type MentorStudent,
 } from "@/lib/services/mentorService";
 import BootSequence from "@/app/components/BootSequence";
+import MentorTasksWidget from "./_components/MentorTasksWidget";
+import AlertsDropdown from "@/lib/components/AlertsDropdown";
+import ActivityTimelineWidget from "@/lib/components/ActivityTimelineWidget";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -232,6 +235,10 @@ function AnalyticsTab({ students, loading, preSelectedStudent, onClearPreSelecte
             ) : (
                 <p className="text-white/30 text-sm text-center py-10">No analytics data available yet.</p>
             )}
+
+            <div className="mt-8">
+                {student && <ActivityTimelineWidget studentId={student._id} isMentor={true} />}
+            </div>
         </div>
     );
 }
@@ -784,7 +791,7 @@ export default function MentorDashboardPage() {
                                 <GraduationCap size={18} className="text-black" />
                             </div>
                             <div>
-                                <p className="text-sm font-bold text-white">CodeBud</p>
+                                <p className="text-sm font-bold text-white">MyCodeBud</p>
                                 <p className="text-[10px] text-yellow-400/60 uppercase tracking-wider font-semibold">Mentor Panel</p>
                             </div>
                         </div>
@@ -841,13 +848,18 @@ export default function MentorDashboardPage() {
                 {/* ── Main Content ── */}
                 <main className="flex-1 overflow-y-auto">
                     {/* Header */}
-                    <div className="sticky top-0 z-10 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04] px-8 py-5">
-                        <h1 className="text-xl font-bold text-white">
-                            {SIDEBAR_ITEMS.find(i => i.id === activeTab)?.label || "Mentor Dashboard"}
-                        </h1>
-                        <p className="text-xs text-white/30 mt-0.5">
-                            {students.length} students assigned • {stats?.practice_sets || 0} practice sets
-                        </p>
+                    <div className="sticky top-0 z-10 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04] px-8 py-5 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-xl font-bold text-white">
+                                {SIDEBAR_ITEMS.find(i => i.id === activeTab)?.label || "Mentor Dashboard"}
+                            </h1>
+                            <p className="text-xs text-white/30 mt-0.5">
+                                {students.length} students assigned • {stats?.practice_sets || 0} practice sets
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <AlertsDropdown />
+                        </div>
                     </div>
 
                     <div className="p-8">
@@ -876,9 +888,11 @@ export default function MentorDashboardPage() {
                                                 <StatCard label="Feedbacks Given" value={stats?.feedbacks_given || 0} icon={MessageSquare} color="#2DD4BF" delay={0.6} />
                                             </div>
 
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+                                                <MentorTasksWidget />
                                             {/* Quick student list */}
                                             {students.length > 0 && (
-                                                <div className="mt-8">
+                                                <div>
                                                     <div className="flex items-center justify-between mb-3">
                                                         <p className="text-xs font-semibold text-white/30 uppercase tracking-wider">Recent Students</p>
                                                         <button onClick={() => setActiveTab("students")} className="text-xs text-yellow-400/60 hover:text-yellow-400 transition-colors">View All →</button>
@@ -898,6 +912,7 @@ export default function MentorDashboardPage() {
                                                     </div>
                                                 </div>
                                             )}
+                                            </div>
                                         </>
                                     )}
                                 </motion.div>

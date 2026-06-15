@@ -82,7 +82,7 @@ export function TermsPage() {
                     <span className="text-shimmer">Service</span>
                 </>
             }
-            subtitle="Please read these terms carefully before using CODE BUD."
+            subtitle="Please read these terms carefully before using MYCODEBUD."
         >
             <section className="py-16 relative overflow-hidden bg-surface-0">
                 <div className="absolute inset-0 honeycomb-bg opacity-8 pointer-events-none" />
@@ -126,7 +126,7 @@ export function TermsPage() {
                         <div className="flex-1 max-w-3xl">
                             <div className="rounded-2xl border border-white/[0.06] bg-surface-2/20 backdrop-blur-sm p-8 md:p-10 space-y-12">
                                 <TermsSection id="acceptance" title="Acceptance of Terms" index={0}>
-                                    <p>By accessing or using CODE BUD (&quot;the Platform&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree, you must not use the Platform.</p>
+                                    <p>By accessing or using MYCODEBUD (&quot;the Platform&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree, you must not use the Platform.</p>
                                     <p>These Terms constitute a legally binding agreement between you and Shiktra Technologies LLP (&quot;Company&quot;, &quot;we&quot;, &quot;us&quot;). We may update these Terms from time to time; continued use of the Platform after such updates constitutes acceptance.</p>
                                 </TermsSection>
 

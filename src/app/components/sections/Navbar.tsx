@@ -69,7 +69,7 @@ export const Navbar = () => {
                                 </svg>
                             </div>
                         </div>
-                        <span className="text-lg font-bold text-yellow-400 tracking-tight">CODE BUD</span>
+                        <span className="text-lg font-bold text-yellow-400 tracking-tight">MYCODEBUD</span>
                     </Link>
 
                     {/* Desktop nav */}

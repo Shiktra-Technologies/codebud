@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { CareersPage } from "./CareersPage";
 
 export const metadata: Metadata = {
-    title: "Careers — CODE BUD",
+    title: "Careers — MYCODEBUD",
     description:
-        "Join the CODE BUD team. We're building the future of coding education and looking for passionate engineers, designers, and educators.",
+        "Join the MYCODEBUD team. We're building the future of coding education and looking for passionate engineers, designers, and educators.",
     openGraph: {
-        title: "Careers — CODE BUD",
-        description: "Join the CODE BUD team. Build the future of coding education.",
+        title: "Careers — MYCODEBUD",
+        description: "Join the MYCODEBUD team. Build the future of coding education.",
     },
 };
 
