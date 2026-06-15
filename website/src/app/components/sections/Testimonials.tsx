@@ -14,7 +14,7 @@ const testimonials = [
         color: "from-violet-500 to-purple-600",
         rating: 5,
         quote:
-            "CODE BUD took me from writing my first HTML tag to deploying production apps in 8 months. The structured paths and real projects made all the difference.",
+            "MYCODEBUD took me from writing my first HTML tag to deploying production apps in 8 months. The structured paths and real projects made all the difference.",
     },
     {
         name: "Arjun Mehta",
@@ -32,7 +32,7 @@ const testimonials = [
         color: "from-emerald-400 to-teal-500",
         rating: 5,
         quote:
-            "I was a marketing manager. CODE BUD's career launchpad helped me land my first dev role. The mock interviews were surprisingly realistic.",
+            "I was a marketing manager. MYCODEBUD's career launchpad helped me land my first dev role. The mock interviews were surprisingly realistic.",
     },
     {
         name: "Rahul Patel",
@@ -41,7 +41,7 @@ const testimonials = [
         color: "from-amber-500 to-orange-500",
         rating: 5,
         quote:
-            "The peer community is what sets CODE BUD apart. Working on team projects with other learners taught me more than any solo course ever could.",
+            "The peer community is what sets MYCODEBUD apart. Working on team projects with other learners taught me more than any solo course ever could.",
     },
     {
         name: "Ananya Gupta",
@@ -50,7 +50,7 @@ const testimonials = [
         color: "from-rose-500 to-pink-500",
         rating: 5,
         quote:
-            "I tried 5 other platforms before CODE BUD. None of them had this level of hands-on practice. The coding labs are genuinely addictive.",
+            "I tried 5 other platforms before MYCODEBUD. None of them had this level of hands-on practice. The coding labs are genuinely addictive.",
     },
     {
         name: "Dev Krishnan",
@@ -59,7 +59,7 @@ const testimonials = [
         color: "from-yellow-400 to-amber-500",
         rating: 5,
         quote:
-            "The certifications actually carry weight. I've had recruiters specifically mention my CODE BUD badges during interviews. Worth every minute.",
+            "The certifications actually carry weight. I've had recruiters specifically mention my MYCODEBUD badges during interviews. Worth every minute.",
     },
     {
         name: "Meera Joshi",
@@ -77,7 +77,7 @@ const testimonials = [
         color: "from-teal-400 to-cyan-500",
         rating: 5,
         quote:
-            "I love how CODE BUD combines theory with practice. Every concept has a hands-on project. It's the closest thing to learning on the job.",
+            "I love how MYCODEBUD combines theory with practice. Every concept has a hands-on project. It's the closest thing to learning on the job.",
     },
 ];
 
@@ -218,7 +218,7 @@ export const Testimonials = () => {
                     transition={{ delay: 0.1, duration: 0.5, ease }}
                     className="text-white/40 text-base md:text-lg max-w-lg mx-auto leading-relaxed"
                 >
-                    Don't just take our word for it — hear from students who transformed their careers with CODE BUD.
+                    Don't just take our word for it — hear from students who transformed their careers with MYCODEBUD.
                 </motion.p>
             </div>
 

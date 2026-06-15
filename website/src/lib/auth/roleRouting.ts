@@ -28,7 +28,7 @@ export type CanonicalRole =
 export function defaultRouteForRole(role: string | null | undefined): string {
     switch (role) {
         case "codebud_super_admin":
-            return "/super-admin";
+            return "/exec";
         case "admin":
             return "/admin";
         case "mentor":
@@ -40,4 +40,17 @@ export function defaultRouteForRole(role: string | null | undefined): string {
         default:
             return AUTH_PAGE;
     }
+}
+
+export function resolvePrimaryRole(kcRoles: string[] | null | undefined): CanonicalRole | null {
+    if (!kcRoles || !Array.isArray(kcRoles)) return null;
+    
+    // Strict multi-role precedence
+    if (kcRoles.includes("codebud_super_admin")) return "codebud_super_admin";
+    if (kcRoles.includes("admin")) return "admin";
+    if (kcRoles.includes("company")) return "company";
+    if (kcRoles.includes("mentor")) return "mentor";
+    if (kcRoles.includes("student") || kcRoles.includes("default-roles-codebud")) return "student";
+    
+    return null;
 }

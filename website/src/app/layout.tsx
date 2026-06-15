@@ -3,9 +3,9 @@ import "@/styles/index.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-    title: "CODE BUD — Learn to Code. Build the Future.",
+    title: "MYCODEBUD — Learn to Code. Build the Future.",
     description:
-        "From zero to hero — CODE BUD is your companion on the journey from coding basics to advanced development. Interactive lessons, real projects, and a thriving community.",
+        "From zero to hero — MYCODEBUD is your companion on the journey from coding basics to advanced development. Interactive lessons, real projects, and a thriving community.",
     keywords: [
         "learn to code",
         "coding courses",
@@ -13,20 +13,20 @@ export const metadata: Metadata = {
         "full-stack development",
         "coding bootcamp",
         "programming for beginners",
-        "CODE BUD",
+        "MYCODEBUD",
     ],
     authors: [{ name: "Shiktra Technologies LLP" }],
     openGraph: {
-        title: "CODE BUD — Learn to Code. Build the Future.",
+        title: "MYCODEBUD — Learn to Code. Build the Future.",
         description:
             "Interactive coding courses, real-world projects, and AI-powered feedback. Join 10,000+ developers building the future.",
-        siteName: "CODE BUD",
+        siteName: "MYCODEBUD",
         type: "website",
         locale: "en_US",
     },
     twitter: {
         card: "summary_large_image",
-        title: "CODE BUD — Learn to Code. Build the Future.",
+        title: "MYCODEBUD — Learn to Code. Build the Future.",
         description:
             "Interactive coding courses, real-world projects, and AI-powered feedback. Join 10,000+ developers.",
     },

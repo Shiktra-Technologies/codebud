@@ -55,7 +55,7 @@ interface UserRecord {
     [key: string]: unknown;
 }
 
-// ─── Super Admin Page ─────────────────────────────────────────────────────────
+// ─── Executive Console ─────────────────────────────────────────────────────────
 
 export default function SuperAdminPage() {
     const { user, userRole, logout } = useAuth();
@@ -75,7 +75,11 @@ export default function SuperAdminPage() {
         (user as any)?.display_name ||
         (user as any)?.displayName ||
         user?.email?.split("@")[0] ||
-        "Super Admin";
+        "Executive Console";
+    const displayRole =
+        user?.role === "codebud_super_admin" ?
+        "Executive" :
+        "Unknown Role";
 
     // ─── Access check ─────────────────────────────────────────────────────
 
@@ -206,7 +210,7 @@ export default function SuperAdminPage() {
         switch (role) {
             case "student": return "Student";
             case "admin": return "Admin";
-            case "codebud_super_admin": return "Super Admin";
+            case "codebud_super_admin": return "Executive";
             default: return role || "Unknown";
         }
     };
@@ -262,7 +266,7 @@ export default function SuperAdminPage() {
                                     <Shield size={16} className="text-red-400" />
                                 </div>
                                 <span className="text-sm font-bold text-white">
-                                    Super Admin
+                                    Executive Console
                                 </span>
                             </div>
                         </div>
@@ -379,7 +383,7 @@ export default function SuperAdminPage() {
                                             { label: "Total Users", value: stats.totalUsers, icon: Users, gradient: "from-blue-500 to-blue-600" },
                                             { label: "Students", value: stats.students, icon: GraduationCap, gradient: "from-emerald-500 to-green-600" },
                                             { label: "Admins", value: stats.admins, icon: ShieldCheck, gradient: "from-yellow-500 to-amber-600" },
-                                            { label: "Super Admins", value: stats.superAdmins, icon: Crown, gradient: "from-red-500 to-rose-600" },
+                                            { label: "Executives", value: stats.superAdmins, icon: Crown, gradient: "from-red-500 to-rose-600" },
                                             { label: "Total Submissions", value: stats.totalSubmissions, icon: FileText, gradient: "from-purple-500 to-violet-600" },
                                             { label: "Violation Submissions", value: stats.violations, icon: AlertTriangle, gradient: "from-orange-500 to-amber-600" },
                                             { label: "Passed Tests", value: stats.passed, icon: CheckCircle2, gradient: "from-emerald-500 to-green-600" },
@@ -452,7 +456,7 @@ export default function SuperAdminPage() {
                                                 {([
                                                     { label: "Students", count: stats.students, color: "bg-emerald-400", pct: stats.totalUsers > 0 ? (stats.students / stats.totalUsers) * 100 : 0 },
                                                     { label: "Admins", count: stats.admins, color: "bg-yellow-400", pct: stats.totalUsers > 0 ? (stats.admins / stats.totalUsers) * 100 : 0 },
-                                                    { label: "Super Admins", count: stats.superAdmins, color: "bg-red-400", pct: stats.totalUsers > 0 ? (stats.superAdmins / stats.totalUsers) * 100 : 0 },
+                                                    { label: "Executives", count: stats.superAdmins, color: "bg-red-400", pct: stats.totalUsers > 0 ? (stats.superAdmins / stats.totalUsers) * 100 : 0 },
                                                 ]).map((bar) => (
                                                     <div key={bar.label} className="space-y-1.5">
                                                         <div className="flex items-center justify-between">

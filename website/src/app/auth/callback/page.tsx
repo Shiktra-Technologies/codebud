@@ -16,7 +16,6 @@ function redirectAfterAuth(router: ReturnType<typeof useRouter>, user: any) {
     const isNewUser = Boolean(user?.is_new_user ?? false);
     const isOnboarded = Boolean(user?.is_onboarded ?? user?.onboarding_completed ?? false);
 
-    // Single line, role-and-flags only; no PII.
     console.log('[KC ROLES]', { role, isOnboarded, isNewUser });
 
     if (!isOnboarded || isNewUser) {
@@ -29,20 +28,19 @@ function redirectAfterAuth(router: ReturnType<typeof useRouter>, user: any) {
 
 export default function AuthCallbackPage() {
     const router = useRouter();
-    const { user, exchangeAuthorizationCode } = useAuth();
+    const { user, exchangeAuthorizationCode, logout } = useAuth();
     const [error, setError] = React.useState("");
 
-    // If already authenticated, redirect immediately
     React.useEffect(() => {
-        if (user) {
+        if (user && !error) {
             redirectAfterAuth(router, user);
         }
-    }, [user, router]);
+    }, [user, router, error]);
 
-    // Exchange the authorization code on mount
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const code = params.get("code");
+        const state = params.get("state");
 
         if (!code) {
             setError("No authorization code received from Keycloak.");
@@ -53,8 +51,6 @@ export default function AuthCallbackPage() {
 
         (async () => {
             const redirectUri = `${window.location.origin}/auth/callback`;
-            console.log("[AUTH CALLBACK] Exchanging code, redirect_uri:", redirectUri);
-
             const result = await exchangeAuthorizationCode(code, redirectUri);
             if (!active) return;
 
@@ -63,7 +59,23 @@ export default function AuthCallbackPage() {
                 return;
             }
 
-            // Clean the URL and redirect
+            const actualRole = result.user?.role;
+            
+            // STRICT INTENT VALIDATION (Fail-Closed)
+            if (!state) {
+                console.error(`[AUTH] Security Violation: OAuth state is missing in callback.`);
+                await logout();
+                setError(`Access Denied: Authentication context is missing. Please initiate login from a valid portal.`);
+                return;
+            }
+
+            if (actualRole !== state) {
+                console.error(`[AUTH] Intent Mismatch. Requested: ${state}, Actual: ${actualRole}`);
+                await logout();
+                setError(`Access Denied: Your role (${actualRole}) does not match the requested portal (${state}).`);
+                return;
+            }
+
             window.history.replaceState({}, "", "/auth/callback");
             redirectAfterAuth(router, result.user);
         })();
@@ -71,14 +83,14 @@ export default function AuthCallbackPage() {
         return () => {
             active = false;
         };
-    }, [exchangeAuthorizationCode, router]);
+    }, [exchangeAuthorizationCode, logout, router]);
 
     return (
         <div className="min-h-screen bg-surface-0 flex items-center justify-center px-6">
             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-surface-1/80 backdrop-blur-xl p-8 text-center">
                 {error ? (
                     <>
-                        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2">
+                        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2 text-left">
                             <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
                             <span className="text-sm text-red-400">{error}</span>
                         </div>

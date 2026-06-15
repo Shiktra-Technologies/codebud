@@ -194,7 +194,7 @@ export const Features = () => {
                         transition={{ duration: 0.5, ease }}
                         className="mb-5"
                     >
-                        <SectionBadge>Why CODE BUD</SectionBadge>
+                        <SectionBadge>Why MYCODEBUD</SectionBadge>
                     </motion.div>
 
                     <motion.h2

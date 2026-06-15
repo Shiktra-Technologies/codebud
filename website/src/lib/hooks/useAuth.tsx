@@ -35,7 +35,7 @@ export interface AuthContextType {
     userRole: string | null;
     loading: boolean;
     isAuthenticated: boolean;
-    startKeycloakLogin: (redirectUri?: string) => Promise<AuthResult>;
+    startKeycloakLogin: (redirectUri?: string, state?: string) => Promise<AuthResult>;
     exchangeAuthorizationCode: (code: string, redirectUri?: string) => Promise<AuthResult>;
     refreshMe: (tokenOverride?: string) => Promise<AuthResult>;
     logout: () => Promise<void>;
@@ -180,12 +180,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Auto-refresh token is globally handled inside apiClient interceptors based on strict expiry thresholds
 
-    const startKeycloakLogin = useCallback(async (redirectUri?: string): Promise<AuthResult> => {
+    const startKeycloakLogin = useCallback(async (redirectUri?: string, state?: string): Promise<AuthResult> => {
         try {
             const uri = redirectUri || (typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '');
-            const backendBase = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://10.172.29.192:5000';
-            const endpoint = `${backendBase}/api/auth/login-url?redirect_uri=${encodeURIComponent(uri)}`;
-            const response = await fetch(endpoint, { method: 'GET', headers: { Accept: 'application/json' } });
+            const backendBase = process.env.NEXT_PUBLIC_BACKEND_BASE_URL || 'http://localhost:5000';
+            let endpoint = `${backendBase}/api/auth/login-url?redirect_uri=${encodeURIComponent(uri)}`;
+            if (state) {
+                endpoint += `&state=${encodeURIComponent(state)}`;
+            }
+            const response = await fetch(endpoint, { method: 'GET', headers: { Accept: 'application/json' }, credentials: 'include' });
 
             if (response.status === 404) {
                 return { success: false, error: 'Auth service unavailable' };

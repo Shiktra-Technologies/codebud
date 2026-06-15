@@ -197,7 +197,7 @@ const CenterHexagon = () => {
 
 const LoadingText = () => {
     const texts = [
-        "Initializing CodeBud...",
+        "Initializing MyCodeBud...",
         "Booting Neural Engine...",
         "Establishing Sync...",
         "Loading Modules...",

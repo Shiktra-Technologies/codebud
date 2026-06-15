@@ -107,7 +107,7 @@ export function CareersPage() {
             }
             subtitle="We're looking for passionate engineers, designers, and educators who want to shape the next generation of coding education."
         >
-            {/* ── Why CODE BUD ── */}
+            {/* ── Why MYCODEBUD ── */}
             <section className="py-24 relative overflow-hidden bg-surface-0">
                 <div className="absolute inset-0 honeycomb-bg opacity-10 pointer-events-none" />
                 <FloatingHex size={38} x="6%" y="25%" delay={0} opacity={0.04} rotation={10} />
@@ -122,7 +122,7 @@ export function CareersPage() {
                         className="text-center mb-14"
                     >
                         <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight mb-4">
-                            Why join CODE BUD?
+                            Why join MYCODEBUD?
                         </h2>
                         <p className="text-white/35 max-w-lg mx-auto">
                             We believe great work happens when you&apos;re empowered, supported, and inspired.
@@ -249,7 +249,7 @@ export function CareersPage() {
                             Ready to make an <span className="text-shimmer">impact?</span>
                         </h2>
                         <p className="text-white/35 mb-8 max-w-md mx-auto">
-                            At CODE BUD, every line of code you write helps someone learn something new. Join a team that&apos;s changing education, one commit at a time.
+                            At MYCODEBUD, every line of code you write helps someone learn something new. Join a team that&apos;s changing education, one commit at a time.
                         </p>
                         <Button
                             variant="brand"

@@ -188,7 +188,7 @@ export function PrivacyPage() {
                                 </PolicySection>
 
                                 <PolicySection id="changes" title="Policy Changes" index={6}>
-                                    <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy on this page and, where appropriate, via email. Your continued use of CODE BUD after changes take effect constitutes acceptance of the updated policy.</p>
+                                    <p>We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy on this page and, where appropriate, via email. Your continued use of MYCODEBUD after changes take effect constitutes acceptance of the updated policy.</p>
                                 </PolicySection>
 
                                 <PolicySection id="contact" title="Contact Us" index={7}>

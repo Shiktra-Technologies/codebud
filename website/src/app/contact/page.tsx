@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { ContactPage } from "./ContactPage";
 
 export const metadata: Metadata = {
-    title: "Contact — CODE BUD",
+    title: "Contact — MYCODEBUD",
     description:
-        "Get in touch with the CODE BUD team. We'd love to hear from you — whether it's feedback, partnerships, or just saying hello.",
+        "Get in touch with the MYCODEBUD team. We'd love to hear from you — whether it's feedback, partnerships, or just saying hello.",
     openGraph: {
-        title: "Contact — CODE BUD",
+        title: "Contact — MYCODEBUD",
         description:
-            "Get in touch with the CODE BUD team. We'd love to hear from you.",
+            "Get in touch with the MYCODEBUD team. We'd love to hear from you.",
     },
 };
 

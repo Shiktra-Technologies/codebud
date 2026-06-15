@@ -45,7 +45,7 @@ const values = [
         icon: Sparkles,
         title: "Accessible to All",
         description:
-            "From absolute beginners to seasoned pros, CODE BUD meets you where you are with adaptive learning paths and flexible pricing.",
+            "From absolute beginners to seasoned pros, MYCODEBUD meets you where you are with adaptive learning paths and flexible pricing.",
         gradient: "from-violet-500/20 to-purple-500/10",
     },
 ];
@@ -153,7 +153,7 @@ export function AboutPage() {
                     <span className="text-shimmer">coding education</span>
                 </>
             }
-            subtitle="We believe everyone deserves access to world-class coding education. CODE BUD is on a mission to empower the next generation of developers."
+            subtitle="We believe everyone deserves access to world-class coding education. MYCODEBUD is on a mission to empower the next generation of developers."
         >
             {/* ── Our Story ── */}
             <section className="py-24 relative overflow-hidden bg-surface-0">
@@ -173,13 +173,13 @@ export function AboutPage() {
                             </h2>
                             <div className="space-y-4 text-white/40 leading-relaxed text-[15px]">
                                 <p>
-                                    CODE BUD started in 2023 when our founder, frustrated with fragmented
+                                    MYCODEBUD started in 2023 when our founder, frustrated with fragmented
                                     learning resources, envisioned a single platform that combines
                                     interactive lessons, real-world projects, and AI-powered feedback.
                                 </p>
                                 <p>
                                     What began as a weekend project quickly grew into a movement.
-                                    Thousands of students from over 120 countries now use CODE BUD
+                                    Thousands of students from over 120 countries now use MYCODEBUD
                                     to learn full-stack development, data science, and more — with a
                                     94% course completion rate that&apos;s unheard of in online education.
                                 </p>
@@ -222,7 +222,7 @@ export function AboutPage() {
                                         can go from zero to shipping real products.&quot;
                                     </p>
                                     <p className="text-sm text-white/30">
-                                        — The CODE BUD Founding Team
+                                        — The MYCODEBUD Founding Team
                                     </p>
                                 </div>
                             </div>
