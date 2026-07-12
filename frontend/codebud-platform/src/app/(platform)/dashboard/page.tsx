@@ -55,6 +55,7 @@ const ease = [0.16, 1, 0.3, 1] as const;
 const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { id: "learning-path", label: "Learning Path", icon: Compass, href: "/learning-path" },
+    { id: "roadmap", label: "Roadmap", icon: MapPin, href: "/roadmap" },
     { id: "aptitude", label: "Aptitude Test", icon: BookOpen, href: "/aptitude-test" },
     { id: "dsa", label: "DSA Test", icon: Code2, href: "/dsa-test" },
     { id: "problems", label: "Problems", icon: Zap, href: "/problems" },
