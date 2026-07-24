@@ -12,7 +12,6 @@ import {
     CTA,
     Footer,
 } from "./components/sections";
-import { CursorGlow } from "./components/ui/cursor-glow";
 
 
 
@@ -37,7 +36,6 @@ export default function HomePage() {
 
     return (
         <>
-            <CursorGlow />
             <Navbar />
             <main>
                 <Hero />

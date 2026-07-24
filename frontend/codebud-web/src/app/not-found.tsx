@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { ArrowLeft, Home, Search } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "./components/ui/button";
+import { Button } from "@/components/ui/button";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -22,22 +22,20 @@ const particles = [
 
 export default function NotFound() {
     return (
-        <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center px-6 relative overflow-hidden">
-            {/* Honeycomb background */}
-            <div className="absolute inset-0 honeycomb-bg opacity-20 pointer-events-none" />
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden">
 
             {/* Spotlights */}
             <div
                 className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[800px] h-[600px] rounded-full pointer-events-none"
                 style={{
-                    background: "radial-gradient(ellipse, rgba(255,193,7,0.05) 0%, transparent 60%)",
+                    background: "radial-gradient(ellipse, transparent 0%, transparent 60%)",
                     animation: "spotlight-pulse 6s ease-in-out infinite",
                 }}
             />
             <div
                 className="absolute top-1/4 left-1/3 w-[400px] h-[400px] rounded-full pointer-events-none"
                 style={{
-                    background: "radial-gradient(circle, rgba(239,68,68,0.03) 0%, transparent 50%)",
+                    background: "radial-gradient(circle, transparent 0%, transparent 50%)",
                 }}
             />
 
@@ -46,7 +44,7 @@ export default function NotFound() {
                 {particles.map((p, i) => (
                     <motion.span
                         key={i}
-                        className="absolute font-mono text-yellow-400/[0.06] font-bold select-none"
+                        className="absolute font-mono text-primary/[0.06] font-bold select-none"
                         style={{ left: p.x, top: p.y, fontSize: p.size }}
                         animate={{
                             y: [0, -15, 5, -10, 0],
@@ -75,8 +73,8 @@ export default function NotFound() {
                     transition={{ duration: 0.8, ease }}
                     className="relative mb-6"
                 >
-                    <span className="text-[140px] sm:text-[180px] md:text-[220px] font-black leading-none tracking-tighter glitch-text select-none"
-                        data-text="404"
+                    <span className="text-[140px] sm:text-[180px] md:text-[220px] font-black leading-none tracking-tighter text-foreground/90 select-none"
+                       
                     >
                         404
                     </span>
@@ -87,9 +85,9 @@ export default function NotFound() {
                     initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     transition={{ duration: 0.6, delay: 0.2, ease }}
-                    className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white mb-4 tracking-tight"
+                    className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground mb-4 tracking-tight"
                 >
-                    Lost in the <span className="text-shimmer">codebase?</span>
+                    Lost in the <span className="text-primary">codebase?</span>
                 </motion.h1>
 
                 {/* Subtitle */}
@@ -97,7 +95,7 @@ export default function NotFound() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.35, ease }}
-                    className="text-white/40 text-base md:text-lg mb-8 leading-relaxed max-w-md mx-auto"
+                    className="text-muted-foreground text-base md:text-lg mb-8 leading-relaxed max-w-md mx-auto"
                 >
                     The page you're looking for was moved, deleted, or maybe never existed. Let's get you back on track.
                 </motion.p>
@@ -107,33 +105,33 @@ export default function NotFound() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.45, ease }}
-                    className="bg-surface-2/40 backdrop-blur-sm border border-white/[0.04] rounded-xl p-4 mb-10 max-w-sm mx-auto text-left font-mono text-sm"
+                    className="bg-card backdrop-blur-sm border border-border rounded-xl p-4 mb-10 max-w-sm mx-auto text-left font-mono text-sm"
                 >
                     <div className="flex items-center gap-1.5 mb-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
-                        <span className="ml-2 text-[10px] text-white/20">terminal</span>
+                        <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary/60" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-muted" />
+                        <span className="ml-2 text-[10px] text-muted-foreground/70">terminal</span>
                     </div>
                     <div>
-                        <span className="text-red-400/70">Error</span>
-                        <span className="text-white/30">: </span>
-                        <span className="text-white/50">Page</span>
-                        <span className="text-white/30">.</span>
-                        <span className="text-yellow-400/70">notFound</span>
-                        <span className="text-white/30">()</span>
+                        <span className="text-destructive/70">Error</span>
+                        <span className="text-muted-foreground">: </span>
+                        <span className="text-muted-foreground">Page</span>
+                        <span className="text-muted-foreground">.</span>
+                        <span className="text-primary/70">notFound</span>
+                        <span className="text-muted-foreground">()</span>
                     </div>
-                    <div className="text-white/20 mt-1">
-                        <span className="text-white/15">  at </span>
-                        <span className="text-blue-400/40">Router</span>
-                        <span className="text-white/15"> (</span>
-                        <span className="text-emerald-400/40">navigation.tsx</span>
-                        <span className="text-white/15">:42)</span>
+                    <div className="text-muted-foreground/70 mt-1">
+                        <span className="text-muted-foreground/60">  at </span>
+                        <span className="text-muted-foreground">Router</span>
+                        <span className="text-muted-foreground/60"> (</span>
+                        <span className="text-foreground">navigation.tsx</span>
+                        <span className="text-muted-foreground/60">:42)</span>
                     </div>
-                    <div className="mt-2 flex items-center gap-1 text-white/20">
-                        <span className="text-yellow-400/50">→</span>
+                    <div className="mt-2 flex items-center gap-1 text-muted-foreground/70">
+                        <span className="text-primary/50">→</span>
                         <span>Try </span>
-                        <span className="text-emerald-400/50">navigating home</span>
+                        <span className="text-foreground">navigating home</span>
                     </div>
                 </motion.div>
 
@@ -145,14 +143,14 @@ export default function NotFound() {
                     className="flex flex-col sm:flex-row items-center justify-center gap-3"
                 >
                     <Link href="/">
-                        <Button variant="brand" size="xl" className="px-8 group shadow-[0_0_24px_rgba(255,193,7,0.15)]">
+                        <Button variant="default" size="lg" className="px-8 group">
                             <Home size={16} className="mr-1.5" />
                             Take Me Home
                         </Button>
                     </Link>
                     <Button
-                        variant="brandOutline"
-                        size="xl"
+                        variant="outline"
+                        size="lg"
                         className="px-8"
                         onClick={() => window.history.back()}
                     >
@@ -165,12 +163,12 @@ export default function NotFound() {
             {/* Navbar shadow at top for consistency */}
             <div className="fixed top-0 left-0 right-0 z-50 p-5">
                 <Link href="/" className="flex items-center gap-2.5 group w-fit">
-                    <div className="relative w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center group-hover:shadow-[0_0_20px_rgba(255,193,7,0.3)] transition-shadow duration-300">
+                    <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover: transition-shadow duration-300">
                         <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" className="w-4.5 h-4.5">
                             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                         </svg>
                     </div>
-                    <span className="text-lg font-bold text-yellow-400 tracking-tight">MYCODEBUD</span>
+                    <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                 </Link>
             </div>
         </div>

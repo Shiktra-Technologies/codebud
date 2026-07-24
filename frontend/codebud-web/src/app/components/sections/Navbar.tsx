@@ -31,7 +31,7 @@ export const Navbar = () => {
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.6, ease }}
-                className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out ${isScrolled
+                className={`fixed top-0 left-0 right-0 z-50 transition-[padding] duration-500 ease-out ${isScrolled
                     ? "py-2.5"
                     : "py-4"
                     }`}
@@ -39,7 +39,7 @@ export const Navbar = () => {
                 {/* Glassmorphic background layer */}
                 <div
                     className={`absolute inset-0 transition-all duration-500 ${isScrolled
-                        ? "bg-surface-0/70 backdrop-blur-2xl backdrop-saturate-150"
+                        ? "bg-background backdrop-blur-2xl backdrop-saturate-150"
                         : "bg-transparent"
                         }`}
                 />
@@ -50,7 +50,7 @@ export const Navbar = () => {
                         }`}
                     style={{
                         background:
-                            "linear-gradient(90deg, transparent, rgba(255,193,7,0.3) 30%, rgba(255,193,7,0.5) 50%, rgba(255,193,7,0.3) 70%, transparent)",
+                            "linear-gradient(90deg, transparent, transparent 30%, transparent 50%, transparent 70%, transparent)",
                     }}
                 />
 
@@ -62,16 +62,16 @@ export const Navbar = () => {
                             <div
                                 className="absolute -inset-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                                 style={{
-                                    background: "radial-gradient(circle, rgba(255,193,7,0.15) 0%, transparent 70%)",
+                                    background: "radial-gradient(circle, transparent 0%, transparent 70%)",
                                 }}
                             />
-                            <div className="relative w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center group-hover:shadow-[0_0_20px_rgba(255,193,7,0.3)] transition-shadow duration-300">
+                            <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:overflow-hidden transition-shadow duration-300">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" className="w-4.5 h-4.5">
                                     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                                 </svg>
                             </div>
                         </div>
-                        <span className="text-lg font-bold text-yellow-400 tracking-tight">MYCODEBUD</span>
+                        <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                     </Link>
 
                     {/* Desktop nav */}
@@ -80,18 +80,18 @@ export const Navbar = () => {
                             <Link
                                 key={link.label}
                                 href={link.href}
-                                className="relative text-[13px] font-medium text-white/50 hover:text-white transition-colors duration-200 uppercase tracking-[0.15em] group/link"
+                                className="relative text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 uppercase tracking-[0.15em] group/link"
                             >
                                 {link.label}
                                 {/* Hover underline */}
-                                <span className="absolute -bottom-1 left-0 right-0 h-px bg-yellow-400/50 scale-x-0 group-hover/link:scale-x-100 transition-transform duration-300 origin-left" />
+                                <span className="absolute -bottom-1 left-0 right-0 h-px bg-primary/50 scale-x-0 group-hover/link:scale-x-100 transition-transform duration-300 origin-left" />
                             </Link>
                         ))}
 
                         {/* CTA with animated border */}
                         <Link
                             href={authUrl}
-                            className="relative text-[13px] font-semibold text-surface-0 bg-yellow-400 px-5 py-2 rounded-lg hover:bg-yellow-300 transition-all duration-200 hover:shadow-[0_0_24px_rgba(255,193,7,0.25)] hover:scale-[1.03] active:scale-[0.98]"
+                            className="relative text-[13px] font-semibold text-primary-foreground bg-primary px-5 py-2 rounded-lg hover:bg-primary/90 transition-all duration-200 hover:overflow-hidden hover:scale-[1.03] active:scale-[0.98]"
                         >
                             Get Started
                         </Link>
@@ -100,7 +100,7 @@ export const Navbar = () => {
                     {/* Mobile hamburger */}
                     <button
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        className="md:hidden text-white/70 hover:text-white p-2 transition-colors"
+                        className="md:hidden text-foreground/90 hover:text-foreground p-2 transition-colors"
                         aria-label="Toggle menu"
                     >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -122,12 +122,12 @@ export const Navbar = () => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="fixed inset-0 z-40 bg-surface-0/95 backdrop-blur-3xl flex flex-col items-center justify-center"
+                        className="fixed inset-0 z-40 bg-background backdrop-blur-3xl flex flex-col items-center justify-center"
                     >
                         {/* Close button */}
                         <button
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="absolute top-5 right-6 text-white/50 hover:text-white p-2"
+                            className="absolute top-5 right-6 text-muted-foreground hover:text-foreground p-2"
                             aria-label="Close menu"
                         >
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -139,7 +139,7 @@ export const Navbar = () => {
                         <div
                             className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full pointer-events-none"
                             style={{
-                                background: "radial-gradient(circle, rgba(255,193,7,0.06) 0%, transparent 60%)",
+                                background: "radial-gradient(circle, transparent 0%, transparent 60%)",
                             }}
                         />
 
@@ -154,7 +154,7 @@ export const Navbar = () => {
                                 >
                                     <Link
                                         href={link.href}
-                                        className="text-2xl font-semibold text-white/60 hover:text-yellow-400 transition-colors duration-200 uppercase tracking-[0.15em]"
+                                        className="text-2xl font-semibold text-muted-foreground hover:text-primary transition-colors duration-200 uppercase tracking-[0.15em]"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
                                         {link.label}
@@ -169,7 +169,7 @@ export const Navbar = () => {
                             >
                                 <Link
                                     href={authUrl}
-                                    className="mt-4 inline-block text-lg font-semibold text-surface-0 bg-yellow-400 px-8 py-3 rounded-xl hover:bg-yellow-300 transition-all duration-200"
+                                    className="mt-4 inline-block text-lg font-semibold text-primary-foreground bg-primary px-8 py-3 rounded-xl hover:bg-primary/90 transition-all duration-200"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
                                     Get Started

@@ -41,13 +41,13 @@ function TermsSection({
             transition={{ delay: index * 0.03, duration: 0.5, ease }}
             className="scroll-mt-28"
         >
-            <h2 className="text-lg md:text-xl font-bold text-white mb-4 flex items-center gap-3">
-                <span className="w-7 h-7 rounded-lg bg-yellow-400/10 flex items-center justify-center text-xs font-bold text-yellow-400/70">
+            <h2 className="text-lg md:text-xl font-bold text-foreground mb-4 flex items-center gap-3">
+                <span className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary/70">
                     {index + 1}
                 </span>
                 {title}
             </h2>
-            <div className="text-sm text-white/35 leading-relaxed space-y-3 pl-10">
+            <div className="text-sm text-muted-foreground leading-relaxed space-y-3 pl-10">
                 {children}
             </div>
         </motion.div>
@@ -79,19 +79,18 @@ export function TermsPage() {
             title={
                 <>
                     Terms of{" "}
-                    <span className="text-shimmer">Service</span>
+                    <span className="text-primary">Service</span>
                 </>
             }
             subtitle="Please read these terms carefully before using MYCODEBUD."
         >
-            <section className="py-16 relative overflow-hidden bg-surface-0">
-                <div className="absolute inset-0 honeycomb-bg opacity-8 pointer-events-none" />
+            <section className="py-16 relative overflow-hidden bg-background">
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     {/* Last updated */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="flex items-center gap-2 text-xs text-white/25 mb-10 justify-center"
+                        className="flex items-center gap-2 text-xs text-muted-foreground/70 mb-10 justify-center"
                     >
                         <Calendar size={12} />
                         Last updated: February 1, 2026
@@ -101,7 +100,7 @@ export function TermsPage() {
                         {/* Sticky TOC */}
                         <aside className="hidden lg:block w-56 flex-shrink-0">
                             <nav className="sticky top-28">
-                                <p className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.2em] mb-4">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-4">
                                     On this page
                                 </p>
                                 <ul className="space-y-1.5">
@@ -110,8 +109,8 @@ export function TermsPage() {
                                             <a
                                                 href={`#${s.id}`}
                                                 className={`block text-xs py-1 px-3 rounded-md transition-all duration-200 ${activeSection === s.id
-                                                        ? "text-yellow-400/80 bg-yellow-400/[0.06]"
-                                                        : "text-white/25 hover:text-white/50"
+                                                        ? "text-primary/80 bg-primary/[0.06]"
+                                                        : "text-muted-foreground/70 hover:text-muted-foreground"
                                                     }`}
                                             >
                                                 {s.title}
@@ -124,7 +123,7 @@ export function TermsPage() {
 
                         {/* Content */}
                         <div className="flex-1 max-w-3xl">
-                            <div className="rounded-2xl border border-white/[0.06] bg-surface-2/20 backdrop-blur-sm p-8 md:p-10 space-y-12">
+                            <div className="rounded-xl border border-border bg-card backdrop-blur-sm p-8 md:p-10 space-y-12">
                                 <TermsSection id="acceptance" title="Acceptance of Terms" index={0}>
                                     <p>By accessing or using MYCODEBUD (&quot;the Platform&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree, you must not use the Platform.</p>
                                     <p>These Terms constitute a legally binding agreement between you and Shiktra Technologies LLP (&quot;Company&quot;, &quot;we&quot;, &quot;us&quot;). We may update these Terms from time to time; continued use of the Platform after such updates constitutes acceptance.</p>
@@ -197,7 +196,7 @@ export function TermsPage() {
                                 <TermsSection id="contact" title="Contact" index={8}>
                                     <p>For questions about these Terms, please contact us:</p>
                                     <ul className="list-disc pl-5 space-y-1.5">
-                                        <li>Email: <a href="mailto:legal@codebud.dev" className="text-yellow-400/60 hover:text-yellow-400 transition-colors">legal@codebud.dev</a></li>
+                                        <li>Email: <a href="mailto:legal@codebud.dev" className="text-primary/60 hover:text-primary transition-colors">legal@codebud.dev</a></li>
                                         <li>Address: Shiktra Technologies LLP, Bangalore, India</li>
                                     </ul>
                                 </TermsSection>

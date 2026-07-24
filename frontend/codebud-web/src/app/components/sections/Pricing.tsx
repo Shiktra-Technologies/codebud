@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Check, Zap, Crown, Users } from "lucide-react";
 
-import { SectionBadge } from "../ui/section-badge";
-import { Button } from "../ui/button";
+import { SectionBadge } from "@/components/section-badge";
+import { Button } from "@/components/ui/button";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -25,7 +25,7 @@ const plans = [
             "Weekly Challenges",
         ],
         cta: "Start Free",
-        variant: "brandOutline" as const,
+        variant: "outline" as const,
         popular: false,
     },
     {
@@ -45,7 +45,7 @@ const plans = [
             "Mock Interviews",
         ],
         cta: "Go Pro",
-        variant: "brand" as const,
+        variant: "default" as const,
         popular: true,
     },
     {
@@ -65,7 +65,7 @@ const plans = [
             "Invoice Billing",
         ],
         cta: "Contact Sales",
-        variant: "brandOutline" as const,
+        variant: "outline" as const,
         popular: false,
     },
 ];
@@ -74,14 +74,13 @@ export const Pricing = () => {
     const [isYearly, setIsYearly] = useState(false);
 
     return (
-        <section id="pricing" className="py-28 bg-surface-0 overflow-hidden relative">
-            <div className="absolute inset-0 honeycomb-bg-lg opacity-20 pointer-events-none" />
+        <section id="pricing" className="py-28 overflow-hidden relative">
 
             {/* Spotlight */}
             <div
                 className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full pointer-events-none"
                 style={{
-                    background: "radial-gradient(ellipse, rgba(255,193,7,0.04) 0%, transparent 60%)",
+                    background: "radial-gradient(ellipse, transparent 0%, transparent 60%)",
                 }}
             />
 
@@ -103,9 +102,9 @@ export const Pricing = () => {
                         whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.05, duration: 0.6, ease }}
-                        className="text-3xl md:text-5xl lg:text-6xl font-extrabold mb-5 text-white tracking-tight"
+                        className="text-3xl md:text-5xl lg:text-6xl font-extrabold mb-5 text-foreground tracking-tight"
                     >
-                        Simple, <span className="text-shimmer">transparent</span> pricing
+                        Simple, <span className="text-primary">transparent</span> pricing
                     </motion.h2>
 
                     <motion.p
@@ -113,7 +112,7 @@ export const Pricing = () => {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1, duration: 0.5, ease }}
-                        className="text-white/40 text-base md:text-lg max-w-md mx-auto leading-relaxed mb-8"
+                        className="text-muted-foreground text-base md:text-lg max-w-md mx-auto leading-relaxed mb-8"
                     >
                         Start free. Upgrade when you're ready to unlock everything.
                     </motion.p>
@@ -126,27 +125,27 @@ export const Pricing = () => {
                         transition={{ delay: 0.15, duration: 0.5, ease }}
                         className="flex items-center justify-center gap-3"
                     >
-                        <span className={`text-sm font-medium transition-colors duration-200 ${!isYearly ? "text-white" : "text-white/40"}`}>
+                        <span className={`text-sm font-medium transition-colors duration-200 ${!isYearly ? "text-foreground" : "text-muted-foreground"}`}>
                             Monthly
                         </span>
                         <button
                             onClick={() => setIsYearly(!isYearly)}
-                            className="relative w-14 h-7 rounded-full bg-surface-2/80 border border-white/[0.06] transition-colors duration-300 hover:border-yellow-400/20"
+                            className="relative w-14 h-7 rounded-full bg-card border border-border transition-colors duration-300 hover:border-primary/20"
                         >
                             <motion.div
-                                className="absolute top-1 w-5 h-5 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(255,193,7,0.3)]"
+                                className="absolute top-1 w-5 h-5 rounded-full bg-foreground"
                                 animate={{ left: isYearly ? 30 : 4 }}
                                 transition={{ duration: 0.3, ease }}
                             />
                         </button>
-                        <span className={`text-sm font-medium transition-colors duration-200 ${isYearly ? "text-white" : "text-white/40"}`}>
+                        <span className={`text-sm font-medium transition-colors duration-200 ${isYearly ? "text-foreground" : "text-muted-foreground"}`}>
                             Yearly
                         </span>
                         {isYearly && (
                             <motion.span
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="text-[10px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded-full uppercase tracking-wider"
+                                className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full uppercase tracking-wider"
                             >
                                 Save 20%
                             </motion.span>
@@ -168,21 +167,21 @@ export const Pricing = () => {
                             {/* Animated glow for popular */}
                             {plan.popular && (
                                 <div
-                                    className="absolute -inset-px rounded-2xl z-0"
+                                    className="absolute -inset-px rounded-xl z-0"
                                     style={{
-                                        background: "linear-gradient(135deg, rgba(255,193,7,0.3) 0%, rgba(255,193,7,0.05) 40%, rgba(255,193,7,0.05) 60%, rgba(255,193,7,0.2) 100%)",
+                                        background: "linear-gradient(135deg, transparent 0%, transparent 40%, transparent 60%, transparent 100%)",
                                     }}
                                 />
                             )}
 
-                            <div className={`relative h-full bg-surface-2/40 backdrop-blur-sm border rounded-2xl p-7 transition-all duration-500 hover:shadow-[0_12px_48px_rgba(255,193,7,0.08)] overflow-hidden ${plan.popular
-                                    ? "border-yellow-400/20 bg-surface-2/60"
-                                    : "border-white/[0.04] hover:border-yellow-400/10"
+                            <div className={`relative h-full bg-card backdrop-blur-sm border rounded-xl p-7 transition-all duration-500 hover:overflow-hidden overflow-hidden ${plan.popular
+                                    ? "surface-metallic border-border bg-card"
+                                    : "border-border hover:border-primary/10"
                                 }`}>
                                 {/* Popular badge */}
                                 {plan.popular && (
                                     <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                        <span className="text-[10px] font-bold text-surface-0 bg-yellow-400 px-4 py-1 rounded-full uppercase tracking-wider shadow-[0_0_20px_rgba(255,193,7,0.3)]">
+                                        <span className="text-[10px] font-bold text-secondary-foreground bg-secondary px-4 py-1 rounded-full uppercase tracking-wider">
                                             Most Popular
                                         </span>
                                     </div>
@@ -192,20 +191,20 @@ export const Pricing = () => {
                                 <div
                                     className="absolute top-0 left-4 right-4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                                     style={{
-                                        background: "linear-gradient(90deg, transparent, rgba(255,193,7,0.3), transparent)",
+                                        background: "linear-gradient(90deg, transparent, transparent, transparent)",
                                     }}
                                 />
 
                                 {/* Plan icon */}
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-5 transition-all duration-300 ${plan.popular
-                                        ? "bg-yellow-400/15 text-yellow-400"
-                                        : "bg-white/[0.04] text-white/50 group-hover:text-yellow-400/70 group-hover:bg-yellow-400/[0.06]"
+                                        ? "bg-muted text-muted-foreground"
+                                        : "bg-muted text-muted-foreground group-hover:text-primary/70 group-hover:bg-primary/[0.06]"
                                     }`}>
                                     <plan.icon size={20} />
                                 </div>
 
-                                <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
-                                <p className="text-sm text-white/35 mb-5">{plan.description}</p>
+                                <h3 className="text-lg font-bold text-foreground mb-1">{plan.name}</h3>
+                                <p className="text-sm text-muted-foreground mb-5">{plan.description}</p>
 
                                 {/* Price */}
                                 <div className="mb-6">
@@ -214,12 +213,12 @@ export const Pricing = () => {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ duration: 0.3 }}
-                                        className={`text-4xl font-extrabold ${plan.popular ? "text-shimmer" : "text-white"}`}
+                                        className={`text-4xl font-extrabold ${"text-foreground"}`}
                                     >
                                         {isYearly ? plan.yearlyPrice : plan.monthlyPrice}
                                     </motion.span>
                                     {plan.period && (
-                                        <span className="text-sm text-white/30 font-medium ml-1">{plan.period}</span>
+                                        <span className="text-sm text-muted-foreground font-medium ml-1">{plan.period}</span>
                                     )}
                                 </div>
 
@@ -232,9 +231,9 @@ export const Pricing = () => {
                                             whileInView={{ opacity: 1, x: 0 }}
                                             viewport={{ once: true }}
                                             transition={{ delay: 0.3 + i * 0.05, duration: 0.4, ease }}
-                                            className="flex items-center gap-2.5 text-sm text-white/50"
+                                            className="flex items-center gap-2.5 text-sm text-muted-foreground"
                                         >
-                                            <Check size={14} className={`flex-shrink-0 ${plan.popular ? "text-yellow-400" : "text-white/30"}`} />
+                                            <Check size={14} className={`flex-shrink-0 ${"text-muted-foreground"}`} />
                                             {feature}
                                         </motion.li>
                                     ))}
@@ -244,7 +243,7 @@ export const Pricing = () => {
                                 <Button
                                     variant={plan.variant}
                                     size="lg"
-                                    className={`w-full ${plan.popular ? "shadow-[0_0_20px_rgba(255,193,7,0.15)]" : ""}`}
+                                    className={`w-full ${plan.popular ? "" : ""}`}
                                 >
                                     {plan.cta}
                                 </Button>

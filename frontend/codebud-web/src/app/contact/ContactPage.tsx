@@ -12,7 +12,6 @@ import {
     Twitter,
 } from "lucide-react";
 import { PageLayout } from "../components/layout/PageLayout";
-import { HexDivider } from "../components/ui/hex-divider";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -23,21 +22,21 @@ const contactInfo = [
         title: "Email Us",
         value: "hello@codebud.dev",
         description: "We'll respond within 24 hours",
-        gradient: "from-amber-500/20 to-yellow-500/10",
+        gradient: "from-primary/20 to-primary/10",
     },
     {
         icon: MapPin,
         title: "Location",
         value: "Bangalore, India",
         description: "Remote-first, globally distributed",
-        gradient: "from-cyan-500/20 to-blue-500/10",
+        gradient: "from-muted to-muted",
     },
     {
         icon: MessageCircle,
         title: "Community",
         value: "Discord & GitHub",
         description: "Join 10,000+ developers",
-        gradient: "from-violet-500/20 to-purple-500/10",
+        gradient: "from-muted to-muted",
         socials: [
             { icon: Github, href: "#", label: "GitHub" },
             { icon: Twitter, href: "#", label: "Twitter" },
@@ -80,18 +79,18 @@ function FAQItem({ question, answer, index }: { question: string; answer: string
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: index * 0.06, duration: 0.5, ease }}
-            className="border border-white/[0.06] rounded-xl overflow-hidden hover:border-yellow-400/10 transition-colors duration-300"
+            className="border border-border rounded-xl overflow-hidden hover:border-primary/10 transition-colors duration-300"
         >
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex items-center justify-between p-5 text-left group"
             >
-                <span className="font-medium text-white/80 group-hover:text-white transition-colors text-[15px]">
+                <span className="font-medium text-foreground group-hover:text-foreground transition-colors text-[15px]">
                     {question}
                 </span>
                 <ChevronDown
                     size={18}
-                    className={`text-yellow-400/50 transition-transform duration-300 flex-shrink-0 ml-4 ${isOpen ? "rotate-180" : ""}`}
+                    className={`text-primary/50 transition-transform duration-300 flex-shrink-0 ml-4 ${isOpen ? "rotate-180" : ""}`}
                 />
             </button>
             <AnimatePresence>
@@ -103,7 +102,7 @@ function FAQItem({ question, answer, index }: { question: string; answer: string
                         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
                         className="overflow-hidden"
                     >
-                        <div className="px-5 pb-5 text-sm text-white/35 leading-relaxed border-t border-white/[0.04] pt-4">
+                        <div className="px-5 pb-5 text-sm text-muted-foreground leading-relaxed border-t border-border pt-4">
                             {answer}
                         </div>
                     </motion.div>
@@ -135,7 +134,7 @@ export function ContactPage() {
     };
 
     const inputClasses =
-        "w-full bg-surface-2/60 border border-white/[0.06] rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-all duration-300 focus:border-yellow-400/30 focus:shadow-[0_0_20px_rgba(255,193,7,0.06)]";
+        "w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-white/25 outline-none transition-all duration-300 focus:border-primary/30 focus:";
 
     return (
         <PageLayout
@@ -143,14 +142,13 @@ export function ContactPage() {
             title={
                 <>
                     Get in{" "}
-                    <span className="text-shimmer">touch</span>
+                    <span className="text-primary">touch</span>
                 </>
             }
             subtitle="Have a question, feedback, or partnership idea? We'd love to hear from you."
         >
             {/* ── Contact Form + Info ── */}
-            <section className="py-24 relative overflow-hidden bg-surface-0">
-                <div className="absolute inset-0 honeycomb-bg opacity-10 pointer-events-none" />
+            <section className="py-24 relative overflow-hidden bg-background">
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <div className="grid lg:grid-cols-5 gap-12">
                         {/* Form */}
@@ -161,20 +159,20 @@ export function ContactPage() {
                             transition={{ duration: 0.7, ease }}
                             className="lg:col-span-3"
                         >
-                            <div className="relative rounded-2xl border border-white/[0.06] bg-surface-2/20 backdrop-blur-sm p-8 overflow-hidden">
+                            <div className="relative rounded-xl border border-border bg-card backdrop-blur-sm p-8 overflow-hidden">
                                 {/* Glow */}
                                 <div
                                     className="absolute -top-20 -left-20 w-60 h-60 rounded-full pointer-events-none"
                                     style={{
                                         background:
-                                            "radial-gradient(circle, rgba(255,193,7,0.05) 0%, transparent 60%)",
+                                            "radial-gradient(circle, transparent 0%, transparent 60%)",
                                     }}
                                 />
 
                                 <form onSubmit={handleSubmit} className="relative z-10 space-y-5">
                                     <div className="grid sm:grid-cols-2 gap-5">
                                         <div>
-                                            <label className="block text-xs font-medium text-white/50 uppercase tracking-widest mb-2">
+                                            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">
                                                 Name
                                             </label>
                                             <input
@@ -189,7 +187,7 @@ export function ContactPage() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-white/50 uppercase tracking-widest mb-2">
+                                            <label className="block text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">
                                                 Email
                                             </label>
                                             <input
@@ -206,7 +204,7 @@ export function ContactPage() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 uppercase tracking-widest mb-2">
+                                        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">
                                             Subject
                                         </label>
                                         <select
@@ -224,7 +222,7 @@ export function ContactPage() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-medium text-white/50 uppercase tracking-widest mb-2">
+                                        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-widest mb-2">
                                             Message
                                         </label>
                                         <textarea
@@ -241,7 +239,7 @@ export function ContactPage() {
 
                                     <button
                                         type="submit"
-                                        className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-surface-0 font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-200 hover:shadow-[0_0_24px_rgba(255,193,7,0.2)] hover:scale-[1.02] active:scale-[0.98]"
+                                        className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-200 hover: hover:scale-[1.02] active:scale-[0.98]"
                                     >
                                         <Send size={15} />
                                         Send Message
@@ -259,20 +257,20 @@ export function ContactPage() {
                                     whileInView={{ opacity: 1, x: 0 }}
                                     viewport={{ once: true }}
                                     transition={{ delay: i * 0.1, duration: 0.6, ease }}
-                                    className="group relative rounded-2xl border border-white/[0.06] bg-surface-2/30 backdrop-blur-sm p-6 hover:border-yellow-400/15 transition-all duration-500"
+                                    className="group relative rounded-xl border border-border bg-card backdrop-blur-sm p-6 hover:border-primary/15 transition-colors duration-500"
                                 >
-                                    <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                                    <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                                         style={{
-                                            background: "radial-gradient(ellipse at top, rgba(255,193,7,0.03) 0%, transparent 60%)",
+                                            background: "radial-gradient(ellipse at top, transparent 0%, transparent 60%)",
                                         }}
                                     />
                                     <div className="relative z-10">
                                         <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${info.gradient} flex items-center justify-center mb-4`}>
-                                            <info.icon size={20} className="text-white" />
+                                            <info.icon size={20} className="text-foreground" />
                                         </div>
-                                        <h3 className="font-semibold text-white text-sm mb-1">{info.title}</h3>
-                                        <p className="text-yellow-400/70 font-medium text-sm mb-1">{info.value}</p>
-                                        <p className="text-xs text-white/30">{info.description}</p>
+                                        <h3 className="font-semibold text-foreground text-sm mb-1">{info.title}</h3>
+                                        <p className="text-primary/70 font-medium text-sm mb-1">{info.value}</p>
+                                        <p className="text-xs text-muted-foreground">{info.description}</p>
 
                                         {info.socials && (
                                             <div className="flex gap-2 mt-3">
@@ -281,7 +279,7 @@ export function ContactPage() {
                                                         key={s.label}
                                                         href={s.href}
                                                         aria-label={s.label}
-                                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 border border-white/[0.06] hover:text-yellow-400/70 hover:border-yellow-400/20 transition-all duration-300"
+                                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground border border-border hover:text-primary/70 hover:border-primary/20 transition-all duration-300"
                                                     >
                                                         <s.icon size={14} />
                                                     </a>
@@ -296,11 +294,9 @@ export function ContactPage() {
                 </div>
             </section>
 
-            <HexDivider />
 
             {/* ── FAQ ── */}
-            <section className="py-24 relative overflow-hidden bg-surface-0">
-                <div className="absolute inset-0 honeycomb-bg-lg opacity-10 pointer-events-none" />
+            <section className="py-24 relative overflow-hidden bg-background">
                 <div className="max-w-3xl mx-auto px-6 relative z-10">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -309,10 +305,10 @@ export function ContactPage() {
                         transition={{ duration: 0.6, ease }}
                         className="text-center mb-12"
                     >
-                        <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight mb-4">
+                        <h2 className="text-2xl md:text-4xl font-bold text-foreground tracking-tight mb-4">
                             Frequently asked questions
                         </h2>
-                        <p className="text-white/35 max-w-md mx-auto">
+                        <p className="text-muted-foreground max-w-md mx-auto">
                             Can&apos;t find what you&apos;re looking for? Reach out to us directly.
                         </p>
                     </motion.div>

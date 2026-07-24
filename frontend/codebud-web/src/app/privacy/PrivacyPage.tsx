@@ -40,13 +40,13 @@ function PolicySection({
             transition={{ delay: index * 0.03, duration: 0.5, ease }}
             className="scroll-mt-28"
         >
-            <h2 className="text-lg md:text-xl font-bold text-white mb-4 flex items-center gap-3">
-                <span className="w-7 h-7 rounded-lg bg-yellow-400/10 flex items-center justify-center text-xs font-bold text-yellow-400/70">
+            <h2 className="text-lg md:text-xl font-bold text-foreground mb-4 flex items-center gap-3">
+                <span className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary/70">
                     {index + 1}
                 </span>
                 {title}
             </h2>
-            <div className="text-sm text-white/35 leading-relaxed space-y-3 pl-10">
+            <div className="text-sm text-muted-foreground leading-relaxed space-y-3 pl-10">
                 {children}
             </div>
         </motion.div>
@@ -78,19 +78,18 @@ export function PrivacyPage() {
             title={
                 <>
                     Privacy{" "}
-                    <span className="text-shimmer">Policy</span>
+                    <span className="text-primary">Policy</span>
                 </>
             }
             subtitle="Your privacy matters. Here's how we collect, use, and protect your information."
         >
-            <section className="py-16 relative overflow-hidden bg-surface-0">
-                <div className="absolute inset-0 honeycomb-bg opacity-8 pointer-events-none" />
+            <section className="py-16 relative overflow-hidden bg-background">
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     {/* Last updated */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="flex items-center gap-2 text-xs text-white/25 mb-10 justify-center"
+                        className="flex items-center gap-2 text-xs text-muted-foreground/70 mb-10 justify-center"
                     >
                         <Calendar size={12} />
                         Last updated: February 1, 2026
@@ -100,7 +99,7 @@ export function PrivacyPage() {
                         {/* Sticky TOC */}
                         <aside className="hidden lg:block w-56 flex-shrink-0">
                             <nav className="sticky top-28">
-                                <p className="text-[10px] font-semibold text-white/30 uppercase tracking-[0.2em] mb-4">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-4">
                                     On this page
                                 </p>
                                 <ul className="space-y-1.5">
@@ -109,8 +108,8 @@ export function PrivacyPage() {
                                             <a
                                                 href={`#${s.id}`}
                                                 className={`block text-xs py-1 px-3 rounded-md transition-all duration-200 ${activeSection === s.id
-                                                        ? "text-yellow-400/80 bg-yellow-400/[0.06]"
-                                                        : "text-white/25 hover:text-white/50"
+                                                        ? "text-primary/80 bg-primary/[0.06]"
+                                                        : "text-muted-foreground/70 hover:text-muted-foreground"
                                                     }`}
                                             >
                                                 {s.title}
@@ -123,14 +122,14 @@ export function PrivacyPage() {
 
                         {/* Content */}
                         <div className="flex-1 max-w-3xl">
-                            <div className="rounded-2xl border border-white/[0.06] bg-surface-2/20 backdrop-blur-sm p-8 md:p-10 space-y-12">
+                            <div className="rounded-xl border border-border bg-card backdrop-blur-sm p-8 md:p-10 space-y-12">
                                 <PolicySection id="data-collection" title="Data We Collect" index={0}>
                                     <p>We collect information you provide directly when you create an account, enroll in courses, or contact us. This includes:</p>
                                     <ul className="list-disc pl-5 space-y-1.5">
-                                        <li><strong className="text-white/50">Account information:</strong> name, email address, password, and profile details.</li>
-                                        <li><strong className="text-white/50">Payment information:</strong> billing address and payment method details (processed securely via Stripe).</li>
-                                        <li><strong className="text-white/50">Usage data:</strong> course progress, quiz scores, code submissions, and interaction patterns.</li>
-                                        <li><strong className="text-white/50">Device information:</strong> IP address, browser type, operating system, and device identifiers.</li>
+                                        <li><strong className="text-muted-foreground">Account information:</strong> name, email address, password, and profile details.</li>
+                                        <li><strong className="text-muted-foreground">Payment information:</strong> billing address and payment method details (processed securely via Stripe).</li>
+                                        <li><strong className="text-muted-foreground">Usage data:</strong> course progress, quiz scores, code submissions, and interaction patterns.</li>
+                                        <li><strong className="text-muted-foreground">Device information:</strong> IP address, browser type, operating system, and device identifiers.</li>
                                     </ul>
                                 </PolicySection>
 
@@ -149,9 +148,9 @@ export function PrivacyPage() {
                                 <PolicySection id="sharing" title="Data Sharing" index={2}>
                                     <p>We do not sell your personal data. We may share your data with:</p>
                                     <ul className="list-disc pl-5 space-y-1.5">
-                                        <li><strong className="text-white/50">Service providers:</strong> hosting (Vercel), payment processing (Stripe), analytics (PostHog), and email delivery (Resend).</li>
-                                        <li><strong className="text-white/50">Legal compliance:</strong> when required by law, subpoena, or government request.</li>
-                                        <li><strong className="text-white/50">Business transfers:</strong> in connection with a merger, acquisition, or sale of assets (you will be notified).</li>
+                                        <li><strong className="text-muted-foreground">Service providers:</strong> hosting (Vercel), payment processing (Stripe), analytics (PostHog), and email delivery (Resend).</li>
+                                        <li><strong className="text-muted-foreground">Legal compliance:</strong> when required by law, subpoena, or government request.</li>
+                                        <li><strong className="text-muted-foreground">Business transfers:</strong> in connection with a merger, acquisition, or sale of assets (you will be notified).</li>
                                     </ul>
                                 </PolicySection>
 
@@ -174,15 +173,15 @@ export function PrivacyPage() {
                                         <li>Withdraw consent at any time (where processing is based on consent).</li>
                                         <li>Lodge a complaint with your local data protection authority.</li>
                                     </ul>
-                                    <p>To exercise these rights, email <a href="mailto:privacy@codebud.dev" className="text-yellow-400/60 hover:text-yellow-400 transition-colors">privacy@codebud.dev</a>.</p>
+                                    <p>To exercise these rights, email <a href="mailto:privacy@codebud.dev" className="text-primary/60 hover:text-primary transition-colors">privacy@codebud.dev</a>.</p>
                                 </PolicySection>
 
                                 <PolicySection id="cookies" title="Cookies" index={5}>
                                     <p>We use cookies and similar technologies for:</p>
                                     <ul className="list-disc pl-5 space-y-1.5">
-                                        <li><strong className="text-white/50">Essential cookies:</strong> authentication, security, and session management.</li>
-                                        <li><strong className="text-white/50">Analytics cookies:</strong> understanding usage patterns to improve the platform.</li>
-                                        <li><strong className="text-white/50">Preference cookies:</strong> remembering your settings and display preferences.</li>
+                                        <li><strong className="text-muted-foreground">Essential cookies:</strong> authentication, security, and session management.</li>
+                                        <li><strong className="text-muted-foreground">Analytics cookies:</strong> understanding usage patterns to improve the platform.</li>
+                                        <li><strong className="text-muted-foreground">Preference cookies:</strong> remembering your settings and display preferences.</li>
                                     </ul>
                                     <p>You can manage cookie preferences through your browser settings.</p>
                                 </PolicySection>
@@ -194,7 +193,7 @@ export function PrivacyPage() {
                                 <PolicySection id="contact" title="Contact Us" index={7}>
                                     <p>If you have questions or concerns about this Privacy Policy or our data practices, please contact us:</p>
                                     <ul className="list-disc pl-5 space-y-1.5">
-                                        <li>Email: <a href="mailto:privacy@codebud.dev" className="text-yellow-400/60 hover:text-yellow-400 transition-colors">privacy@codebud.dev</a></li>
+                                        <li>Email: <a href="mailto:privacy@codebud.dev" className="text-primary/60 hover:text-primary transition-colors">privacy@codebud.dev</a></li>
                                         <li>Address: Shiktra Technologies LLP, Bangalore, India</li>
                                     </ul>
                                 </PolicySection>

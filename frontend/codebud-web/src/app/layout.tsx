@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { fontVariables } from "@/fonts";
+import { HoneycombField } from "@/components/HoneycombField";
 import "@/styles/index.css";
 import { Providers } from "./providers";
 
@@ -46,20 +48,9 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" className="dark">
-            <head>
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link
-                    rel="preconnect"
-                    href="https://fonts.gstatic.com"
-                    crossOrigin="anonymous"
-                />
-                <link
-                    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-                    rel="stylesheet"
-                />
-            </head>
-            <body className="min-h-screen bg-surface-0 text-white font-sans selection:bg-yellow-400 selection:text-black antialiased">
+        <html lang="en" className={`dark ${fontVariables}`}>
+            <body className="min-h-screen text-foreground font-sans selection:bg-primary selection:text-primary-foreground antialiased">
+                <HoneycombField />
                 <Providers>
                     {children}
                 </Providers>

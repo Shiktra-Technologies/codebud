@@ -1,630 +1,564 @@
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * MACHINED HIVE — token layer (WS-1)                       SHARED FILE
+ * ═══════════════════════════════════════════════════════════════════════
+ * This file is authored ONCE and copied BYTE-IDENTICAL into both
+ * codebud-platform and codebud-web. Do NOT edit it per-repo. If a genuine
+ * divergence is ever needed, it belongs in the consuming stylesheet,
+ * never here. (Amendment B §B4.)
+ *
+ * The app renders with <html class="dark"> permanently; tokens are defined
+ * once at :root. Palette is authored NATIVELY IN OKLCH (Amendment B §B1/§B2)
+ * — fixed hue, monotonic chroma. sRGB hexes in comments are reference only.
+ *
+ * Foreground rule (Amendment D §D1): text on ANY saturated fill — brass,
+ * signal, patina, ember, steel — is always --carbon-canvas, never bone.
+ *
+ * Fill-separation rule (Amendment D §D5): adjacent carbon fills differ by
+ * ~1.05:1 and are NOT perceptible as fills. No boundary may rely on a fill
+ * step — every edge comes from a border, a spacing change, or a type change.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
 :root {
-  /* ── Typography ── */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
-  --font-size: 16px;
+    --font-size: 16px;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
 
-  /* ── Yellow / Amber Palette ── */
-  --yellow-50: #FFFDE7;
-  --yellow-100: #FFF9C4;
-  --yellow-200: #FFF59D;
-  --yellow-300: #FFF176;
-  --yellow-400: #FFC107;
-  --yellow-500: #FFB300;
-  --yellow-600: #FFA000;
-  --yellow-700: #FF8F00;
-  --yellow-800: #FF6F00;
-  --yellow-900: #E65100;
+    /* ─────────────────────────────────────────────────────────────────
+     * Carbon — surfaces & text (fixed hue 75, monotonic chroma) — §B1
+     * ───────────────────────────────────────────────────────────────── */
+    --carbon-canvas:    oklch(14.6% 0.006 75);  /* page background        ≈ #0C0A08 */
+    --carbon-comb:      oklch(16.0% 0.006 75);  /* honeycomb cell fill    ≈ #0F0D0A — RESERVED, tunable (Amdt A); never surface-coupled */
+    --carbon-surface:   oklch(18.2% 0.007 75);  /* cards, panels          ≈ #14120F */
+    --carbon-elevated:  oklch(21.0% 0.009 75);  /* modals, popovers       ≈ #1B1814 */
+    --carbon-input:     oklch(24.1% 0.011 75);  /* inputs, wells          ≈ #231F1A */
+    --carbon-border:    oklch(28.8% 0.013 75);  /* default hairline       ≈ #2F2A24 */
+    --carbon-border-hi: oklch(34.3% 0.016 75);  /* hover / focus border   ≈ #3E3830 */
+    --carbon-tertiary:  oklch(51.8% 0.021 75);  /* disabled, placeholder  ≈ #70675B — NEVER a *-foreground (§D3) */
+    --carbon-secondary: oklch(70.3% 0.023 75);  /* secondary text         ≈ #A89E90 */
+    --carbon-bone:      oklch(97.0% 0.004 75);  /* primary text           ≈ #F7F5F2 */
 
-  /* ── Surface Grays (dark mode layers) ── */
-  --surface-0: #050505;
-  --surface-1: #0A0A0A;
-  --surface-2: #111111;
-  --surface-3: #161616;
-  --surface-4: #1A1A1A;
-  --surface-5: #222222;
-  --surface-6: #2A2A2A;
+    /* ─────────────────────────────────────────────────────────────────
+     * Brass — primary. Chroma peaks at 400/500; never exceed 0.166
+     * (clips outside sRGB). — §B2
+     * ───────────────────────────────────────────────────────────────── */
+    --brass-100: oklch(95.6% 0.053 92);
+    --brass-200: oklch(90.9% 0.104 91);
+    --brass-300: oklch(86.4% 0.144 89);   /* hover  */
+    --brass-400: oklch(83.4% 0.165 88);   /* focus ring */
+    --brass-500: oklch(81.1% 0.166 85);   /* PRIMARY ≈ #F2B705 */
+    --brass-600: oklch(72.3% 0.148 84);   /* pressed */
+    --brass-700: oklch(60.8% 0.124 84);
+    --brass-900: oklch(29.8% 0.059 87);
 
-  /* ── Motion Design Tokens ── */
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-  --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --duration-instant: 100ms;
-  --duration-fast: 150ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
-  --duration-reveal: 800ms;
-  --stagger-delay: 80ms;
+    /* Patina — secondary material (verdigris). student role / success — §B2 */
+    --patina-300: oklch(78.1% 0.091 184);
+    --patina-500: oklch(63.4% 0.100 182);
+    --patina-700: oklch(48.2% 0.076 182);
 
-  /* ── Light mode tokens (defaults) ── */
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+    /* Semantics — §B2 */
+    --signal-400: oklch(67% 0.175 28);     /* error TEXT only (§D20a) — 5.07:1 worst on carbon-input; signal-500 fails as text on elevated/input */
+    --signal-500: oklch(61.7% 0.188 28);   /* danger fill/border + --destructive */
+    --ember-500:  oklch(69.3% 0.161 51);   /* warning */
+    --steel-500:  oklch(65.9% 0.141 269);  /* info    */
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+    /* ─────────────────────────────────────────────────────────────────
+     * shadcn semantic layer — mapped onto the palette above.
+     * Rulings: Amendment B §B2, Amendment D §D1–D4.
+     * ───────────────────────────────────────────────────────────────── */
+    --background: var(--carbon-canvas);
+    --foreground: var(--carbon-bone);
+    --card: var(--carbon-surface);
+    --card-foreground: var(--carbon-bone);
+    --popover: var(--carbon-elevated);
+    --popover-foreground: var(--carbon-bone);
+
+    --primary: var(--brass-500);
+    --primary-foreground: var(--carbon-canvas);        /* §D1 text-on-saturated-fill */
+
+    --secondary: var(--carbon-input);                  /* §6 secondary button fill */
+    --secondary-foreground: var(--carbon-bone);
+
+    --muted: var(--carbon-input);                      /* §D3 */
+    --muted-foreground: var(--carbon-secondary);       /* §D3 — NEVER tertiary */
+
+    --accent: var(--carbon-border);                    /* §D2 hover lightens on dark */
+    --accent-foreground: var(--carbon-bone);
+
+    --destructive: var(--signal-500);
+    --destructive-foreground: var(--carbon-canvas);    /* §D1 (4.91:1 vs 3.69:1 for bone) */
+
+    --border: var(--carbon-border);
+    --input: var(--carbon-border);                     /* shadcn --input = control BORDER */
+    --input-background: var(--carbon-input);           /* the fill */
+    --ring: var(--brass-400);                          /* focus ring */
+
+    /* Charts — data-viz order §1.5 */
+    --chart-1: var(--brass-500);
+    --chart-2: var(--patina-500);
+    --chart-3: var(--steel-500);
+    --chart-4: var(--ember-500);
+    --chart-5: var(--carbon-tertiary);
+
+    /* Sidebar — chrome, shares the page canvas; separated by a hairline (§D4) */
+    --sidebar: var(--carbon-canvas);
+    --sidebar-foreground: var(--carbon-bone);
+    --sidebar-primary: var(--brass-500);
+    --sidebar-primary-foreground: var(--carbon-canvas);
+    --sidebar-accent: var(--carbon-border);            /* follows --accent (§D4) */
+    --sidebar-accent-foreground: var(--carbon-bone);
+    --sidebar-border: var(--carbon-border);
+    --sidebar-ring: var(--brass-400);
+
+    /* ─────────────────────────────────────────────────────────────────
+     * Shape — radii (§3). Cards default xl (20); app shell 2xl (28).
+     * ───────────────────────────────────────────────────────────────── */
+    --radius: 0.875rem;        /* 14px, lg — shadcn base reference */
+
+    /* ─────────────────────────────────────────────────────────────────
+     * Elevation on dark = border + glow, not drop shadow (§3).
+     * ───────────────────────────────────────────────────────────────── */
+    --elev-1: 0 1px 2px rgba(0, 0, 0, .5);
+    --elev-2: 0 4px 16px -4px rgba(0, 0, 0, .6);
+    --elev-3: 0 16px 40px -12px rgba(0, 0, 0, .7);
+    --glow-brass: 0 0 0 1px rgba(242, 183, 5, .22), 0 10px 32px -12px rgba(242, 183, 5, .28);
+
+    /* ─────────────────────────────────────────────────────────────────
+     * Motion — shared by CSS and `motion` so they can't drift (§B3 / §3).
+     * ───────────────────────────────────────────────────────────────── */
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --dur-slow: 380ms;
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
+    --ease-spring: cubic-bezier(.32, .72, 0, 1);
+
+    /* BRIDGE (WS-3) — legacy motion tokens consumed by 31 unmigrated files;
+       reconciled/removed when WS-3 classifies each animation. */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --duration-instant: 100ms;
+    --duration-fast: 150ms;
+    --duration-normal: 300ms;
+    --duration-slow: 500ms;
+
+    /* ─────────────────────────────────────────────────────────────────
+     * BRIDGE (remove in WS-8) — surface-* scale. 156 live platform refs.
+     * Mapped onto carbon by nearest OKLCH lightness (Amendment B §B5;
+     * comb reserved per §D/Q3). Collapses 7 steps → 5 carbon values;
+     * harmless, the old steps were never perceptible as fills (§D5a).
+     * ───────────────────────────────────────────────────────────────── */
+    --surface-0: var(--carbon-canvas);   /* BRIDGE — remove in WS-8 */
+    --surface-1: var(--carbon-surface);  /* BRIDGE — remove in WS-8 */
+    --surface-2: var(--carbon-surface);  /* BRIDGE — remove in WS-8 */
+    --surface-3: var(--carbon-elevated); /* BRIDGE — remove in WS-8 */
+    --surface-4: var(--carbon-input);    /* BRIDGE — remove in WS-8 */
+    --surface-5: var(--carbon-input);    /* BRIDGE — remove in WS-8 */
+    --surface-6: var(--carbon-border);   /* BRIDGE — remove in WS-8 */
 }
 
 @theme inline {
-  --font-family-sans: var(--font-sans);
-  --font-family-mono: var(--font-mono);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-input-background: var(--input-background);
-  --color-switch-background: var(--switch-background);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+    /* Self-hosted faces (WS-2) via next/font/local — hashed families exposed
+       as CSS vars, set on <html> by fontVariables. @theme inline preserves the
+       var() reference so utilities resolve at runtime. No CDN; CSP-clean. */
+    --font-display: var(--font-cabinet), ui-sans-serif, system-ui, sans-serif;
+    --font-sans: var(--font-switzer), ui-sans-serif, system-ui, sans-serif;
+    --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  /* Extended palette for Tailwind classes */
-  --color-yellow-50: var(--yellow-50);
-  --color-yellow-100: var(--yellow-100);
-  --color-yellow-200: var(--yellow-200);
-  --color-yellow-300: var(--yellow-300);
-  --color-yellow-400: var(--yellow-400);
-  --color-yellow-500: var(--yellow-500);
-  --color-yellow-600: var(--yellow-600);
-  --color-yellow-700: var(--yellow-700);
-  --color-yellow-800: var(--yellow-800);
-  --color-yellow-900: var(--yellow-900);
-  --color-surface-0: var(--surface-0);
-  --color-surface-1: var(--surface-1);
-  --color-surface-2: var(--surface-2);
-  --color-surface-3: var(--surface-3);
-  --color-surface-4: var(--surface-4);
-  --color-surface-5: var(--surface-5);
-  --color-surface-6: var(--surface-6);
+    /* ── Palette utilities (bg-carbon-*, text-brass-*, border-*, …) ── */
+    --color-carbon-canvas: var(--carbon-canvas);
+    --color-carbon-comb: var(--carbon-comb);
+    --color-carbon-surface: var(--carbon-surface);
+    --color-carbon-elevated: var(--carbon-elevated);
+    --color-carbon-input: var(--carbon-input);
+    --color-carbon-border: var(--carbon-border);
+    --color-carbon-border-hi: var(--carbon-border-hi);
+    --color-carbon-tertiary: var(--carbon-tertiary);
+    --color-carbon-secondary: var(--carbon-secondary);
+    --color-carbon-bone: var(--carbon-bone);
+
+    --color-brass-100: var(--brass-100);
+    --color-brass-200: var(--brass-200);
+    --color-brass-300: var(--brass-300);
+    --color-brass-400: var(--brass-400);
+    --color-brass-500: var(--brass-500);
+    --color-brass-600: var(--brass-600);
+    --color-brass-700: var(--brass-700);
+    --color-brass-900: var(--brass-900);
+
+    --color-patina-300: var(--patina-300);
+    --color-patina-500: var(--patina-500);
+    --color-patina-700: var(--patina-700);
+
+    --color-signal-400: var(--signal-400);
+    --color-signal-500: var(--signal-500);
+    --color-ember-500: var(--ember-500);
+    --color-steel-500: var(--steel-500);
+
+    /* ── shadcn semantic utilities ── */
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-input-background: var(--input-background);
+    --color-ring: var(--ring);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    /* BRIDGE (WS-8) — surface-* utilities */
+    --color-surface-0: var(--surface-0);
+    --color-surface-1: var(--surface-1);
+    --color-surface-2: var(--surface-2);
+    --color-surface-3: var(--surface-3);
+    --color-surface-4: var(--surface-4);
+    --color-surface-5: var(--surface-5);
+    --color-surface-6: var(--surface-6);
+
+    /* ── Radii (§3): sm 6 · md 10 · lg 14 · xl 20 · 2xl 28 ── */
+    --radius-sm: 0.375rem;  /* 6px  */
+    --radius-md: 0.625rem;  /* 10px */
+    --radius-lg: 0.875rem;  /* 14px */
+    --radius-xl: 1.25rem;   /* 20px — card default */
+    --radius-2xl: 1.75rem;  /* 28px — app shell */
+
+    /* ── Elevation utilities (shadow-elev-*, shadow-glow-brass) ── */
+    --shadow-elev-1: var(--elev-1);
+    --shadow-elev-2: var(--elev-2);
+    --shadow-elev-3: var(--elev-3);
+    --shadow-glow-brass: var(--glow-brass);
+
+    /* Easing is consumed via var(--ease-out) / var(--ease-spring) directly
+       (raw tokens in :root). Not registered here — doing so would shadow
+       Tailwind's built-in `ease-out` utility across the codebase. */
+
+    /* Type scale (partial; full scale is WS-2) */
+    --text-3xl: 2rem;
+    --text-3xl--line-height: 1.2;
+    --text-5xl: 3rem;
+    --text-5xl--line-height: 1.1;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+    * {
+        @apply border-border outline-ring/50;
+    }
 
-  body {
-    @apply bg-background text-foreground;
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+    /* WS-7 (§4): the canvas colour lives on <html>, NOT <body>. The ambient
+       honeycomb field sits at z-index:-1 inside <body>; an opaque body
+       background paints over it and the field disappears. html's background
+       propagates to the page canvas, so the field renders above the canvas and
+       below all in-flow content — satisfying "the field never sits above
+       content" without wrapping the tree in a positioned container. */
+    html {
+        font-size: var(--font-size);
+        scroll-behavior: auto;
+        background-color: var(--background);
+    }
 
-  html {
-    font-size: var(--font-size);
-    scroll-behavior: auto;
-    /* Lenis handles smooth scroll */
-  }
+    body {
+        @apply text-foreground font-sans;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
 
-  /* ── Refined Typography Hierarchy ── */
-  h1 {
-    font-size: var(--text-2xl);
-    font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -0.025em;
-  }
+    /* §D9 — headings default to the display face, FAMILY ONLY. Size, weight,
+       and tracking arrive together via the §2 scale utilities at WS-8. With
+       Tailwind preflight (headings inherit size), a heading missing its
+       utility renders display-face-at-body-size — visibly wrong, so the
+       omission is catchable in review (WS-9 gate greps for it). Do NOT add
+       size/weight/tracking here: display tracking on an 18px heading is far
+       too tight. */
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family: var(--font-display);
+    }
 
-  h2 {
-    font-size: var(--text-xl);
-    font-weight: 700;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-  }
-
-  h3 {
-    font-size: var(--text-lg);
-    font-weight: 600;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
-  }
-
-  h4 {
-    font-size: var(--text-base);
-    font-weight: 600;
-    line-height: 1.4;
-  }
-
-  label {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  button {
-    font-size: var(--text-base);
-    font-weight: 600;
-    line-height: 1.5;
-  }
-
-  input {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-normal);
-    line-height: 1.5;
-  }
+    label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        line-height: 1.5;
+    }
 }
 
-/* ── Global animation utilities ── */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+    .text-balance {
+        text-wrap: balance;
+    }
 
-  .noise-overlay {
-    position: relative;
-  }
+    /* BRIDGE (remove in WS-8) — Metallic Black card treatment. Superseded
+       by border+glow elevation; still referenced by unmigrated surfaces. */
+    .surface-metallic {
+        background-image: linear-gradient(180deg, oklch(1 0 0 / 4%), transparent 40%);
+        box-shadow:
+            inset 0 1px 0 oklch(1 0 0 / 6%),
+            0 1px 2px oklch(0 0 0 / 40%);
+    }
 
-  .noise-overlay::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 128px 128px;
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0.4;
-    mix-blend-mode: overlay;
-  }
+    /* BRIDGE (remove in WS-8) — restyled in WS-2 typography. */
+    .section-label {
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--carbon-secondary);
+        font-weight: var(--font-weight-medium);
+    }
 
-  /* ── Honeycomb Background ── */
-  .honeycomb-bg {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23FFC107' stroke-width='0.4' opacity='0.12'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='%23FFC107' stroke-width='0.15' opacity='0.06'/%3E%3C/svg%3E");
-    background-size: 56px 100px;
-  }
+    .numeric {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
 
-  .honeycomb-bg-lg {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='150'%3E%3Cpath d='M42 99L0 75L0 24L42 0L84 24L84 75L42 99L42 150' fill='none' stroke='%23FFC107' stroke-width='0.3' opacity='0.08'/%3E%3Cpath d='M42 0L42 51L0 75L0 126L42 150L84 126L84 75L42 51' fill='none' stroke='%23FFC107' stroke-width='0.15' opacity='0.04'/%3E%3C/svg%3E");
-    background-size: 84px 150px;
-  }
+    /* BRIDGE (WS-3 classifies; remove in WS-8) — scroll fade-in. */
+    .fade-in {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo);
+    }
 
-  /* ── Hexagonal clip path ── */
-  .clip-hex {
-    clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
-  }
+    .fade-in-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
-  /* ── Honeycomb shimmer (animated gradient sweep) ── */
-  .honeycomb-shimmer {
+/* ─────────────────────────────────────────────────────────────────────
+ * Type scale (§2). display/heading = Cabinet; body = Switzer; label/data
+ * = JetBrains Mono. Sizes in rem (16px base). Applied per-surface in WS-8.
+ * ───────────────────────────────────────────────────────────────────── */
+@layer utilities {
+    .text-display-xl { font-family: var(--font-display); font-size: 3.75rem;    line-height: 3.875rem; letter-spacing: -0.03em;  font-weight: 800; }
+    .text-display-lg { font-family: var(--font-display); font-size: 2.75rem;    line-height: 3rem;     letter-spacing: -0.025em; font-weight: 700; }
+    .text-heading-lg { font-family: var(--font-display); font-size: 1.875rem;   line-height: 2.25rem;  letter-spacing: -0.02em;  font-weight: 700; }
+    .text-heading-md { font-family: var(--font-display); font-size: 1.375rem;   line-height: 1.75rem;  letter-spacing: -0.015em; font-weight: 500; }
+    .text-heading-sm { font-family: var(--font-sans);    font-size: 1.125rem;   line-height: 1.625rem; letter-spacing: -0.01em;  font-weight: 600; }
+    .text-body-lg    { font-family: var(--font-sans);    font-size: 1.0625rem;  line-height: 1.75rem;  letter-spacing: 0;        font-weight: 400; }
+    .text-body       { font-family: var(--font-sans);    font-size: 0.9375rem;  line-height: 1.5rem;   letter-spacing: 0;        font-weight: 400; }
+    .text-body-sm    { font-family: var(--font-sans);    font-size: 0.84375rem; line-height: 1.25rem;  letter-spacing: 0;        font-weight: 400; }
+    .text-label      { font-family: var(--font-mono);    font-size: 0.75rem;    line-height: 1rem;     letter-spacing: 0.08em;   font-weight: 500; text-transform: uppercase; }
+    .text-data       { font-family: var(--font-mono);    font-size: 0.8125rem;  line-height: 1.125rem; letter-spacing: 0.01em;   font-weight: 400; }
+
+    /* Measure guides (§2): body ≤ 68ch, headings ≤ 22ch */
+    .measure-body    { max-width: 68ch; }
+    .measure-heading { max-width: 22ch; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Focus ring (§D19a). Offset-ring utilities are one of the six genericness
+ * tells in §B0 — a detached halo reads as a stock Tailwind default. The inset
+ * canvas line does that utility's actual job (separating the brass from the
+ * control's own fill) without the halo. Banned everywhere; WS-9 greps for it.
+ * ───────────────────────────────────────────────────────────────────── */
+.mh-focus:focus-visible {
+    outline: none;
+    box-shadow:
+        inset 0 0 0 1px var(--carbon-canvas),
+        0 0 0 2px var(--brass-400);
+}
+
+/* §6 Button loading — three pulsing hex dots. The label stays in the DOM at
+   opacity 0 so the button's width never changes when loading starts. */
+.mh-hexdot {
+    width: 6px;
+    height: 7px;
+    background: currentColor;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    animation: mh-hexpulse 1.05s var(--ease-out) infinite;
+}
+
+.mh-hexdot:nth-child(2) {
+    animation-delay: 0.14s;
+}
+
+.mh-hexdot:nth-child(3) {
+    animation-delay: 0.28s;
+}
+
+@keyframes mh-hexpulse {
+
+    0%,
+    80%,
+    100% {
+        opacity: 0.25;
+        transform: scale(0.85);
+    }
+
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mh-hexdot {
+        animation: none;
+        opacity: 0.6;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Loading system (WS-7): route bar §5.2, skeleton sweep §5.3.
+ * Dimensions are reserved by the caller's classes on mount (§D17a); only
+ * the fill and sweep below are delayed by the §D17 rule, so a skeleton
+ * appearing never shifts layout.
+ * ───────────────────────────────────────────────────────────────────── */
+.mh-skeleton {
+    border-radius: var(--radius-md);
+    background: transparent;
+}
+
+.mh-skeleton[data-visible] {
     position: relative;
     overflow: hidden;
-  }
+    background: var(--carbon-elevated);
+}
 
-  .honeycomb-shimmer::before {
-    content: '';
+.mh-skeleton[data-visible]::after {
+    content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(105deg,
-        transparent 30%,
-        rgba(255, 193, 7, 0.03) 45%,
-        rgba(255, 193, 7, 0.06) 50%,
-        rgba(255, 193, 7, 0.03) 55%,
-        transparent 70%);
-    background-size: 200% 100%;
-    animation: shimmer-sweep 8s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 2;
-  }
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(242, 183, 5, 0.05), transparent);
+    animation: mh-sweep 1.4s linear infinite;
 }
 
-/* ── Keyframe animations ── */
-@keyframes shimmer-sweep {
-
-  0%,
-  100% {
-    background-position: 200% 0;
-  }
-
-  50% {
-    background-position: -200% 0;
-  }
+@keyframes mh-sweep {
+    to {
+        transform: translateX(100%);
+    }
 }
 
-@keyframes glow-pulse {
-
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.7;
-    transform: scale(1.05);
-  }
+.mh-routebar {
+    animation: mh-routebar 1.1s var(--ease-out) infinite;
 }
 
-@keyframes hex-float {
+@keyframes mh-routebar {
+    0% {
+        transform: translateX(-100%);
+        width: 40%;
+    }
 
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
+    50% {
+        width: 60%;
+    }
 
-  33% {
-    transform: translateY(-8px) rotate(2deg);
-  }
-
-  66% {
-    transform: translateY(4px) rotate(-1deg);
-  }
+    100% {
+        transform: translateX(350%);
+        width: 40%;
+    }
 }
 
-@keyframes hex-spin-slow {
-  from {
-    transform: rotate(0deg);
-  }
+/* §5.3 — static fill under reduced motion; the bar stays visible rather than
+   being animated off-screen by the global reduced-motion guard below. */
+@media (prefers-reduced-motion: reduce) {
+    .mh-skeleton[data-visible]::after {
+        animation: none;
+    }
 
-  to {
-    transform: rotate(360deg);
-  }
+    .mh-routebar {
+        animation: none;
+        width: 100%;
+        transform: none;
+    }
 }
 
-/* ── Hero text shimmer (gold gradient sweeping across text) ── */
-@keyframes text-shimmer {
-  0% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: -100% 50%;
-  }
-}
-
-.text-shimmer {
-  background: linear-gradient(90deg,
-      #FFC107 0%,
-      #FFD54F 15%,
-      #FFFFFF 30%,
-      #FFD54F 45%,
-      #FFC107 60%,
-      #FFA000 80%,
-      #FFC107 100%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: text-shimmer 4s ease-in-out infinite;
-}
-
-/* ── Floating code particle ── */
-@keyframes float-particle {
-
-  0%,
-  100% {
-    transform: translateY(0) translateX(0) rotate(0deg);
-    opacity: 0;
-  }
-
-  10% {
-    opacity: 1;
-  }
-
-  90% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(-100vh) translateX(20px) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-/* ── IDE glow border animation ── */
-@keyframes ide-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 30px rgba(255, 193, 7, 0.08), 0 8px 40px rgba(0, 0, 0, 0.4);
-  }
-
-  50% {
-    box-shadow: 0 0 50px rgba(255, 193, 7, 0.12), 0 8px 40px rgba(0, 0, 0, 0.4);
-  }
-}
-
-/* ── Spotlight pulse ── */
-@keyframes spotlight-pulse {
-
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1);
-  }
-}
-
-/* ── Loading page animations ── */
+/* BRIDGE (remove in WS-7) — Metallic Black loading keyframes; the boot
+   system is rebuilt in WS-7. */
 @keyframes logo-pulse {
 
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
 
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
+    50% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
 }
 
 @keyframes logo-breathe {
 
-  0%,
-  100% {
-    transform: scale(1);
-  }
+    0%,
+    100% {
+        transform: scale(1);
+    }
 
-  50% {
-    transform: scale(1.05);
-  }
+    50% {
+        transform: scale(1.05);
+    }
 }
 
 @keyframes loading-dot {
 
-  0%,
-  80%,
-  100% {
-    opacity: 0.2;
-    transform: scale(0.8);
-  }
+    0%,
+    80%,
+    100% {
+        opacity: 0.2;
+        transform: scale(0.8);
+    }
 
-  40% {
-    opacity: 1;
-    transform: scale(1.2);
-  }
+    40% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
 }
 
 @keyframes loading-progress {
-  0% {
-    transform: translateX(-100%);
-    width: 40%;
-  }
+    0% {
+        transform: translateX(-100%);
+        width: 40%;
+    }
 
-  50% {
-    width: 60%;
-  }
+    50% {
+        width: 60%;
+    }
 
-  100% {
-    transform: translateX(350%);
-    width: 40%;
-  }
+    100% {
+        transform: translateX(350%);
+        width: 40%;
+    }
 }
 
-.loading-float-particle {
-  animation: float-particle 10s ease-in-out infinite;
-}
+@media (prefers-reduced-motion: reduce) {
 
-/* ── 404 Glitch text effect ── */
-.glitch-text {
-  position: relative;
-  color: transparent;
-  background: linear-gradient(135deg, #FFC107, #FFD54F, #FFA000);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.glitch-text::before,
-.glitch-text::after {
-  content: attr(data-text);
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(135deg, #FFC107, #FFD54F, #FFA000);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  opacity: 0.6;
-}
-
-.glitch-text::before {
-  animation: glitch-1 3s ease-in-out infinite;
-  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
-}
-
-.glitch-text::after {
-  animation: glitch-2 3s ease-in-out infinite;
-  clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
-}
-
-@keyframes glitch-1 {
-
-  0%,
-  90%,
-  100% {
-    transform: translate(0);
-  }
-
-  92% {
-    transform: translate(-4px, -2px);
-  }
-
-  94% {
-    transform: translate(4px, 2px);
-  }
-
-  96% {
-    transform: translate(-2px, 1px);
-  }
-
-  98% {
-    transform: translate(2px, -1px);
-  }
-}
-
-@keyframes glitch-2 {
-
-  0%,
-  90%,
-  100% {
-    transform: translate(0);
-  }
-
-  91% {
-    transform: translate(4px, 2px);
-  }
-
-  93% {
-    transform: translate(-4px, -2px);
-  }
-
-  95% {
-    transform: translate(2px, -1px);
-  }
-
-  97% {
-    transform: translate(-2px, 1px);
-  }
-}
-/* ── Hero Animations ── */
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) scale(1);
-  }
-  50% {
-    transform: translateY(-20px) scale(1.05);
-  }
-}
-
-.floating-circle-1 {
-  top: 10%;
-  left: 5%;
-  animation: float 15s ease-in-out infinite;
-}
-
-.floating-circle-2 {
-  top: 60%;
-  right: 10%;
-  animation: float 15s ease-in-out infinite 5s;
-}
-
-.floating-circle-3 {
-  bottom: 20%;
-  left: 20%;
-  animation: float 15s ease-in-out infinite 10s;
-}
-
-.hero-pattern {
-  background-image: 
-    radial-gradient(circle at 25% 25%, rgba(255, 193, 7, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(255, 193, 7, 0.05) 0%, transparent 50%);
-}
-
-/* ── Scroll Fade-in Animations ── */
-
-.fade-in {
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo);
-}
-
-.fade-in-visible {
-  opacity: 1;
-  transform: translateY(0);
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

@@ -14,9 +14,7 @@ import {
     Zap,
 } from "lucide-react";
 import { PageLayout } from "../components/layout/PageLayout";
-import { HexDivider } from "../components/ui/hex-divider";
-import { FloatingHex } from "../components/ui/floating-hex";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -26,19 +24,19 @@ const perks = [
         icon: Globe,
         title: "Remote-First",
         description: "Work from anywhere in the world. We're a distributed team that values async communication, flexibility, and trust.",
-        gradient: "from-cyan-500/20 to-blue-500/10",
+        gradient: "from-muted to-muted",
     },
     {
         icon: BookOpen,
         title: "Learning Budget",
         description: "₹50,000/year for conferences, courses, books, and tools. We invest in your growth as much as ours.",
-        gradient: "from-amber-500/20 to-yellow-500/10",
+        gradient: "from-primary/20 to-primary/10",
     },
     {
         icon: Rocket,
         title: "Impact at Scale",
         description: "Your work directly impacts 10,000+ learners globally. Ship features that change how people learn to code.",
-        gradient: "from-violet-500/20 to-purple-500/10",
+        gradient: "from-muted to-muted",
     },
 ];
 
@@ -88,10 +86,10 @@ const positions = [
 
 /* ── Department badge colors ── */
 const deptColors: Record<string, string> = {
-    Engineering: "border-cyan-400/30 text-cyan-400/80 bg-cyan-400/[0.06]",
-    Design: "border-violet-400/30 text-violet-400/80 bg-violet-400/[0.06]",
-    Education: "border-amber-400/30 text-amber-400/80 bg-amber-400/[0.06]",
-    Community: "border-emerald-400/30 text-emerald-400/80 bg-emerald-400/[0.06]",
+    Engineering: "border-border text-muted-foreground bg-muted",
+    Design: "border-border text-muted-foreground bg-muted",
+    Education: "border-primary/30 text-primary/80 bg-primary/[0.06]",
+    Community: "border-border text-foreground bg-muted",
 };
 
 /* ── Page ── */
@@ -102,16 +100,13 @@ export function CareersPage() {
             title={
                 <>
                     Build the future{" "}
-                    <span className="text-shimmer">with us</span>
+                    <span className="text-primary">with us</span>
                 </>
             }
             subtitle="We're looking for passionate engineers, designers, and educators who want to shape the next generation of coding education."
         >
             {/* ── Why MYCODEBUD ── */}
-            <section className="py-24 relative overflow-hidden bg-surface-0">
-                <div className="absolute inset-0 honeycomb-bg opacity-10 pointer-events-none" />
-                <FloatingHex size={38} x="6%" y="25%" delay={0} opacity={0.04} rotation={10} />
-                <FloatingHex size={30} x="90%" y="55%" delay={0.5} opacity={0.03} rotation={-12} />
+            <section className="py-24 relative overflow-hidden bg-background">
 
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <motion.div
@@ -121,10 +116,10 @@ export function CareersPage() {
                         transition={{ duration: 0.6, ease }}
                         className="text-center mb-14"
                     >
-                        <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight mb-4">
+                        <h2 className="text-2xl md:text-4xl font-bold text-foreground tracking-tight mb-4">
                             Why join MYCODEBUD?
                         </h2>
-                        <p className="text-white/35 max-w-lg mx-auto">
+                        <p className="text-muted-foreground max-w-lg mx-auto">
                             We believe great work happens when you&apos;re empowered, supported, and inspired.
                         </p>
                     </motion.div>
@@ -137,29 +132,27 @@ export function CareersPage() {
                                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                                 viewport={{ once: true }}
                                 transition={{ delay: i * 0.08, duration: 0.6, ease }}
-                                className="group relative rounded-2xl border border-white/[0.06] bg-surface-2/30 backdrop-blur-sm p-7 hover:border-yellow-400/15 transition-all duration-500 hover:-translate-y-1"
+                                className="group relative rounded-xl border border-border bg-card backdrop-blur-sm p-7 hover:border-primary/15 transition-colors duration-500 hover:-translate-y-1"
                             >
-                                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                                     style={{
-                                        background: "radial-gradient(ellipse at top, rgba(255,193,7,0.04) 0%, transparent 60%)",
+                                        background: "radial-gradient(ellipse at top, transparent 0%, transparent 60%)",
                                     }}
                                 />
                                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${perk.gradient} flex items-center justify-center mb-5`}>
-                                    <perk.icon size={22} className="text-white" />
+                                    <perk.icon size={22} className="text-foreground" />
                                 </div>
-                                <h3 className="font-semibold text-white mb-2 text-lg">{perk.title}</h3>
-                                <p className="text-sm text-white/30 leading-relaxed">{perk.description}</p>
+                                <h3 className="font-semibold text-foreground mb-2 text-lg">{perk.title}</h3>
+                                <p className="text-sm text-muted-foreground leading-relaxed">{perk.description}</p>
                             </motion.div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            <HexDivider />
 
             {/* ── Open Positions ── */}
-            <section className="py-24 relative overflow-hidden bg-surface-0">
-                <div className="absolute inset-0 honeycomb-bg-lg opacity-10 pointer-events-none" />
+            <section className="py-24 relative overflow-hidden bg-background">
                 <div className="max-w-4xl mx-auto px-6 relative z-10">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -168,12 +161,12 @@ export function CareersPage() {
                         transition={{ duration: 0.6, ease }}
                         className="text-center mb-14"
                     >
-                        <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight mb-4">
+                        <h2 className="text-2xl md:text-4xl font-bold text-foreground tracking-tight mb-4">
                             Open positions
                         </h2>
-                        <p className="text-white/35 max-w-md mx-auto">
+                        <p className="text-muted-foreground max-w-md mx-auto">
                             Don&apos;t see a match? Send your resume to{" "}
-                            <a href="mailto:careers@codebud.dev" className="text-yellow-400/70 hover:text-yellow-400 transition-colors">
+                            <a href="mailto:careers@codebud.dev" className="text-primary/70 hover:text-primary transition-colors">
                                 careers@codebud.dev
                             </a>
                         </p>
@@ -187,36 +180,36 @@ export function CareersPage() {
                                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                                 viewport={{ once: true }}
                                 transition={{ delay: i * 0.06, duration: 0.5, ease }}
-                                className="group relative rounded-2xl border border-white/[0.06] bg-surface-2/20 backdrop-blur-sm p-6 hover:border-yellow-400/15 transition-all duration-500"
+                                className="group relative rounded-xl border border-border bg-card backdrop-blur-sm p-6 hover:border-primary/15 transition-colors duration-500"
                             >
-                                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                                     style={{
-                                        background: "radial-gradient(ellipse at top left, rgba(255,193,7,0.03) 0%, transparent 50%)",
+                                        background: "radial-gradient(ellipse at top left, transparent 0%, transparent 50%)",
                                     }}
                                 />
                                 <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <h3 className="font-semibold text-white group-hover:text-yellow-400/90 transition-colors duration-300">
+                                            <h3 className="text-body font-semibold text-foreground group-hover:text-primary/90 transition-colors duration-300">
                                                 {pos.title}
                                             </h3>
                                         </div>
-                                        <p className="text-xs text-white/30 mb-3">{pos.description}</p>
+                                        <p className="text-xs text-muted-foreground mb-3">{pos.description}</p>
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${deptColors[pos.department] || "border-white/10 text-white/40 bg-white/[0.03]"}`}>
+                                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${deptColors[pos.department] || "border-border text-muted-foreground bg-muted"}`}>
                                                 <Building2 size={9} />
                                                 {pos.department}
                                             </span>
-                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border border-white/[0.08] text-white/40 bg-white/[0.02]">
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border border-border text-muted-foreground bg-muted">
                                                 <MapPin size={9} />
                                                 {pos.location}
                                             </span>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border border-white/[0.08] text-white/30 bg-white/[0.02]">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border border-border text-muted-foreground bg-muted">
                                                 {pos.type}
                                             </span>
                                         </div>
                                     </div>
-                                    <button className="sm:self-center inline-flex items-center gap-1.5 text-sm font-semibold text-yellow-400/70 hover:text-yellow-400 transition-colors group/btn">
+                                    <button className="sm:self-center inline-flex items-center gap-1.5 text-sm font-semibold text-primary/70 hover:text-primary transition-colors group/btn">
                                         Apply
                                         <ArrowRight size={14} className="group-hover/btn:translate-x-0.5 transition-transform" />
                                     </button>
@@ -227,15 +220,13 @@ export function CareersPage() {
                 </div>
             </section>
 
-            <HexDivider />
 
             {/* ── Culture CTA ── */}
-            <section className="py-24 relative overflow-hidden bg-surface-0">
-                <div className="absolute inset-0 honeycomb-bg opacity-15 pointer-events-none" />
+            <section className="py-24 relative overflow-hidden bg-background">
                 <div
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[300px] rounded-full pointer-events-none"
                     style={{
-                        background: "radial-gradient(ellipse, rgba(255,193,7,0.05) 0%, transparent 60%)",
+                        background: "radial-gradient(ellipse, transparent 0%, transparent 60%)",
                     }}
                 />
                 <div className="max-w-2xl mx-auto px-6 text-center relative z-10">
@@ -245,16 +236,16 @@ export function CareersPage() {
                         viewport={{ once: true }}
                         transition={{ duration: 0.6, ease }}
                     >
-                        <h2 className="text-2xl md:text-4xl font-bold text-white tracking-tight mb-4">
-                            Ready to make an <span className="text-shimmer">impact?</span>
+                        <h2 className="text-2xl md:text-4xl font-bold text-foreground tracking-tight mb-4">
+                            Ready to make an <span className="text-primary">impact?</span>
                         </h2>
-                        <p className="text-white/35 mb-8 max-w-md mx-auto">
+                        <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                             At MYCODEBUD, every line of code you write helps someone learn something new. Join a team that&apos;s changing education, one commit at a time.
                         </p>
                         <Button
-                            variant="brand"
-                            size="xl"
-                            className="px-10 group shadow-[0_0_30px_rgba(255,193,7,0.15)]"
+                            variant="default"
+                            size="lg"
+                            className="px-10 group"
                         >
                             View All Openings
                             <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />

@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
 
-import { HexDivider } from "../ui/hex-divider";
 
 const stats = [
     { label: "Active Learners", value: 10000, suffix: "+", icon: "👨‍💻" },
@@ -40,7 +39,7 @@ function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
             : `${display}`;
 
     return (
-        <div ref={ref} className="text-3xl md:text-5xl font-bold mb-2 font-mono tabular-nums text-shimmer">
+        <div ref={ref} className="text-3xl md:text-5xl font-bold mb-2 font-mono tabular-nums text-foreground">
             {formatted}
             {suffix}
         </div>
@@ -49,12 +48,10 @@ function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
 
 export const Stats = () => {
     return (
-        <section className="py-20 md:py-24 relative overflow-hidden bg-surface-0">
-            <div className="absolute inset-0 honeycomb-bg-lg opacity-30 pointer-events-none" />
+        <section className="py-20 md:py-24 relative overflow-hidden">
 
             {/* Top divider */}
             <div className="absolute top-0 left-0 right-0">
-                <HexDivider />
             </div>
 
             {/* Ambient spotlight */}
@@ -62,7 +59,7 @@ export const Stats = () => {
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[300px] rounded-full pointer-events-none"
                 style={{
                     background:
-                        "radial-gradient(ellipse, rgba(255,193,7,0.04) 0%, transparent 70%)",
+                        "radial-gradient(ellipse, transparent 0%, transparent 70%)",
                 }}
             />
 
@@ -78,12 +75,12 @@ export const Stats = () => {
                             className="group relative text-center"
                         >
                             {/* Glassmorphic card */}
-                            <div className="relative bg-surface-2/40 backdrop-blur-sm border border-white/[0.04] rounded-2xl p-6 md:p-8 transition-all duration-500 hover:border-yellow-400/15 hover:bg-surface-2/60 hover:shadow-[0_8px_40px_rgba(255,193,7,0.06)]">
+                            <div className="relative bg-card backdrop-blur-sm border border-border rounded-xl p-6 md:p-8 transition-all duration-500 hover:border-primary/15 hover:bg-card hover:">
                                 {/* Gradient top border on hover */}
                                 <div
                                     className="absolute top-0 left-4 right-4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                                     style={{
-                                        background: "linear-gradient(90deg, transparent, rgba(255,193,7,0.4), transparent)",
+                                        background: "linear-gradient(90deg, transparent, transparent, transparent)",
                                     }}
                                 />
 
@@ -96,7 +93,7 @@ export const Stats = () => {
                                 <AnimatedNumber value={stat.value} suffix={stat.suffix} />
 
                                 {/* Label */}
-                                <div className="text-[10px] md:text-xs font-medium text-white/30 uppercase tracking-[0.2em] group-hover:text-white/45 transition-colors duration-300">
+                                <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-[0.2em] group-hover:text-muted-foreground transition-colors duration-300">
                                     {stat.label}
                                 </div>
                             </div>
@@ -107,7 +104,6 @@ export const Stats = () => {
 
             {/* Bottom divider */}
             <div className="absolute bottom-0 left-0 right-0">
-                <HexDivider />
             </div>
         </section>
     );

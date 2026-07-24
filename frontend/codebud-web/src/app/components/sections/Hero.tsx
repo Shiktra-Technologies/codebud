@@ -5,10 +5,9 @@ import { motion } from "motion/react";
 import { ArrowRight, ChevronDown, Play } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "../ui/button";
-import { SectionBadge } from "../ui/section-badge";
-import { FloatingHex } from "../ui/floating-hex";
-import { CodeTyping } from "../ui/code-typing";
+import { Button } from "@/components/ui/button";
+import { SectionBadge } from "@/components/section-badge";
+import { CodeTyping } from "@/components/brand/code-typing";
 import { PLATFORM_AUTH_URL } from "@/lib/platformUrl";
 
 const BabylonScene = lazy(() =>
@@ -31,10 +30,8 @@ const codeSymbols = [
 
 export const Hero = () => {
     return (
-        <section className="relative min-h-screen flex flex-col items-center overflow-hidden bg-surface-0 noise-overlay">
+        <section className="relative min-h-screen flex flex-col items-center overflow-hidden noise-overlay">
             {/* ── Honeycomb pattern ── */}
-            <div className="absolute inset-0 z-0 honeycomb-bg pointer-events-none" />
-            <div className="absolute inset-0 z-[1] honeycomb-shimmer pointer-events-none" />
 
             {/* ── Babylon.js 3D Scene ── */}
             <div className="absolute inset-0 z-[2] pointer-events-none">
@@ -52,7 +49,7 @@ export const Hero = () => {
                         width: 1000,
                         height: 800,
                         background:
-                            "radial-gradient(ellipse, rgba(255,193,7,0.1) 0%, rgba(255,193,7,0.04) 30%, transparent 60%)",
+                            "radial-gradient(ellipse, transparent 0%, transparent 30%, transparent 60%)",
                         animation: "spotlight-pulse 6s ease-in-out infinite",
                     }}
                 />
@@ -61,14 +58,14 @@ export const Hero = () => {
                     className="absolute top-1/4 left-1/3 w-[600px] h-[600px]"
                     style={{
                         background:
-                            "radial-gradient(circle, rgba(99,102,241,0.04) 0%, transparent 50%)",
+                            "radial-gradient(circle, transparent 0%, transparent 50%)",
                     }}
                 />
                 {/* Bottom fade */}
                 <div
                     className="absolute bottom-0 left-0 right-0 h-48"
                     style={{
-                        background: "linear-gradient(to top, var(--surface-0), transparent)",
+                        background: "linear-gradient(to top, var(--background), transparent)",
                     }}
                 />
             </div>
@@ -78,7 +75,7 @@ export const Hero = () => {
                 {codeSymbols.map((p, i) => (
                     <motion.span
                         key={i}
-                        className="absolute font-mono text-yellow-400/[0.07] font-bold select-none"
+                        className="absolute font-mono text-primary/[0.07] font-bold select-none"
                         style={{ left: p.x, top: p.y, fontSize: p.size }}
                         animate={{
                             y: [0, -15, 5, -10, 0],
@@ -97,11 +94,6 @@ export const Hero = () => {
                     </motion.span>
                 ))}
 
-                {/* Hex decorations */}
-                <FloatingHex size={64} x="6%" y="18%" delay={0.5} opacity={0.06} rotation={15} />
-                <FloatingHex size={40} x="90%" y="22%" delay={0.8} opacity={0.04} rotation={-10} />
-                <FloatingHex size={52} x="80%" y="68%" delay={1.1} opacity={0.05} rotation={25} />
-                <FloatingHex size={36} x="10%" y="72%" delay={1.4} opacity={0.04} rotation={-20} />
             </div>
 
             {/* ── Content ── */}
@@ -116,7 +108,7 @@ export const Hero = () => {
                 >
                     <SectionBadge>
                         <span className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                             Now in Early Access
                         </span>
                     </SectionBadge>
@@ -130,10 +122,10 @@ export const Hero = () => {
                     className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold leading-[1.05] tracking-tight mb-7"
                 >
                     Learn to{" "}
-                    <span className="text-shimmer">Code.</span>
+                    <span className="text-primary">Code.</span>
                     <br />
                     Build the{" "}
-                    <span className="text-shimmer">Future.</span>
+                    <span className="text-primary">Future.</span>
                 </motion.h1>
 
                 {/* Subtitle */}
@@ -141,7 +133,7 @@ export const Hero = () => {
                     initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     transition={{ duration: 0.7, delay: 0.55, ease }}
-                    className="text-white/45 text-base md:text-lg lg:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
+                    className="text-muted-foreground text-base md:text-lg lg:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
                 >
                     From zero to hero — interactive lessons, real-world projects, AI-powered feedback, and a thriving community of 10,000+ developers.
                 </motion.p>
@@ -154,13 +146,13 @@ export const Hero = () => {
                     className="flex flex-col sm:flex-row items-center gap-3 mb-16 sm:mb-20"
                 >
                     <Link href={PLATFORM_AUTH_URL}>
-                        <Button variant="brand" size="xl" className="w-full sm:w-auto group px-8">
+                        <Button variant="default" size="lg" className="w-full sm:w-auto group px-8">
                             Start Learning Free
                             <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform duration-200" />
                         </Button>
                     </Link>
                     <a href="/#features">
-                        <Button variant="brandOutline" size="xl" className="w-full sm:w-auto px-8">
+                        <Button variant="outline" size="lg" className="w-full sm:w-auto px-8">
                             <Play size={15} className="mr-1" />
                             Watch Demo
                         </Button>
@@ -176,7 +168,7 @@ export const Hero = () => {
                     style={{ perspective: 1200 }}
                 >
                     <div
-                        className="relative rounded-xl overflow-hidden border border-white/[0.08]"
+                        className="relative rounded-xl overflow-hidden border border-border"
                         style={{
                             transform: "perspective(1200px) rotateX(2deg)",
                             animation: "ide-glow 4s ease-in-out infinite",
@@ -187,29 +179,29 @@ export const Hero = () => {
                             className="absolute -inset-px rounded-xl pointer-events-none z-20"
                             style={{
                                 background:
-                                    "linear-gradient(135deg, rgba(255,193,7,0.15) 0%, transparent 40%, transparent 60%, rgba(255,193,7,0.1) 100%)",
+                                    "linear-gradient(135deg, transparent 0%, transparent 40%, transparent 60%, transparent 100%)",
                             }}
                         />
 
                         {/* IDE Chrome — Top bar */}
-                        <div className="relative z-10 bg-surface-2/90 backdrop-blur-lg border-b border-white/[0.06]">
+                        <div className="relative z-10 bg-card backdrop-blur-lg border-b border-border">
                             {/* Traffic lights + tabs */}
                             <div className="flex items-center px-4 py-2.5">
                                 <div className="flex gap-1.5 mr-4">
-                                    <div className="w-3 h-3 rounded-full bg-red-500/60" />
-                                    <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-                                    <div className="w-3 h-3 rounded-full bg-green-500/60" />
+                                    <div className="w-3 h-3 rounded-full bg-destructive/60" />
+                                    <div className="w-3 h-3 rounded-full bg-primary/60" />
+                                    <div className="w-3 h-3 rounded-full bg-muted" />
                                 </div>
                                 <div className="flex gap-px flex-1">
-                                    <div className="bg-surface-3/80 px-4 py-1.5 rounded-t-lg text-[11px] text-white/60 font-mono flex items-center gap-2 border border-white/[0.06] border-b-0">
-                                        <svg width="12" height="12" viewBox="0 0 32 32" className="text-blue-400">
+                                    <div className="bg-muted px-4 py-1.5 rounded-t-lg text-[11px] text-muted-foreground font-mono flex items-center gap-2 border border-border border-b-0">
+                                        <svg width="12" height="12" viewBox="0 0 32 32" className="text-muted-foreground">
                                             <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.2" />
                                             <text x="16" y="21" textAnchor="middle" fontSize="16" fill="currentColor" fontWeight="bold">⚛</text>
                                         </svg>
                                         Welcome.tsx
                                     </div>
-                                    <div className="px-4 py-1.5 text-[11px] text-white/25 font-mono flex items-center gap-2">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-yellow-400/40">
+                                    <div className="px-4 py-1.5 text-[11px] text-muted-foreground/70 font-mono flex items-center gap-2">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary/40">
                                             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
                                         </svg>
                                         styles.css
@@ -219,10 +211,10 @@ export const Hero = () => {
                         </div>
 
                         {/* IDE Body — sidebar + code */}
-                        <div className="relative z-10 flex bg-surface-1/95 backdrop-blur-xl">
+                        <div className="relative z-10 flex bg-card backdrop-blur-xl">
                             {/* Mini sidebar — file tree */}
-                            <div className="hidden sm:block w-44 border-r border-white/[0.04] py-3 px-2 shrink-0">
-                                <div className="text-[9px] uppercase tracking-[0.2em] text-white/20 font-semibold px-2 mb-2">
+                            <div className="hidden sm:block w-44 border-r border-border py-3 px-2 shrink-0">
+                                <div className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70 font-semibold px-2 mb-2">
                                     Explorer
                                 </div>
                                 {[
@@ -237,8 +229,8 @@ export const Hero = () => {
                                     <div
                                         key={i}
                                         className={`flex items-center gap-1.5 py-0.5 px-2 rounded text-[11px] font-mono cursor-default ${f.active
-                                            ? "bg-yellow-400/[0.08] text-yellow-400/80"
-                                            : "text-white/30 hover:text-white/50"
+                                            ? "bg-primary/[0.08] text-primary/80"
+                                            : "text-muted-foreground hover:text-muted-foreground"
                                             }`}
                                         style={{ paddingLeft: `${8 + f.indent * 12}px` }}
                                     >
@@ -257,17 +249,17 @@ export const Hero = () => {
                         </div>
 
                         {/* IDE Footer — status bar */}
-                        <div className="relative z-10 bg-surface-2/80 border-t border-white/[0.04] px-4 py-1 flex items-center justify-between">
+                        <div className="relative z-10 bg-card border-t border-border px-4 py-1 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1.5 text-[10px] text-white/25 font-mono">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400/60" />
+                                <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 font-mono">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-muted" />
                                     Ready
                                 </span>
-                                <span className="text-[10px] text-white/15 font-mono">UTF-8</span>
+                                <span className="text-[10px] text-muted-foreground/60 font-mono">UTF-8</span>
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className="text-[10px] text-white/15 font-mono">TypeScript React</span>
-                                <span className="text-[10px] text-white/15 font-mono">Ln 1, Col 1</span>
+                                <span className="text-[10px] text-muted-foreground/60 font-mono">TypeScript React</span>
+                                <span className="text-[10px] text-muted-foreground/60 font-mono">Ln 1, Col 1</span>
                             </div>
                         </div>
                     </div>
@@ -280,10 +272,10 @@ export const Hero = () => {
                     transition={{ delay: 1.5, duration: 0.8 }}
                     className="mt-10 sm:mt-14 flex flex-col items-center gap-3"
                 >
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-white/15 font-semibold">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-semibold">
                         Trusted by developers at
                     </span>
-                    <div className="flex items-center gap-6 sm:gap-8 text-white/15">
+                    <div className="flex items-center gap-6 sm:gap-8 text-muted-foreground/60">
                         {["Google", "Microsoft", "Amazon", "Meta", "Stripe"].map((company) => (
                             <span key={company} className="text-xs sm:text-sm font-semibold tracking-wide">
                                 {company}
@@ -301,7 +293,7 @@ export const Hero = () => {
                 className="relative z-10 pb-8"
             >
                 <motion.div animate={{ y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
-                    <ChevronDown size={20} className="text-white/20" />
+                    <ChevronDown size={20} className="text-muted-foreground/70" />
                 </motion.div>
             </motion.div>
         </section>
