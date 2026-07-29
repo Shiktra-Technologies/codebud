@@ -31,7 +31,7 @@
      * Carbon — surfaces & text (fixed hue 75, monotonic chroma) — §B1
      * ───────────────────────────────────────────────────────────────── */
     --carbon-canvas:    oklch(14.6% 0.006 75);  /* page background        ≈ #0C0A08 */
-    --carbon-comb:      oklch(16.0% 0.006 75);  /* honeycomb cell fill    ≈ #0F0D0A — RESERVED, tunable (Amdt A); never surface-coupled */
+    --carbon-comb:      oklch(17.5% 0.006 75);  /* honeycomb cell fill    ≈ #12100E — tunable (Amdt A; Item A → Moderate, +2.9 step); never surface-coupled */
     --carbon-surface:   oklch(18.2% 0.007 75);  /* cards, panels          ≈ #14120F */
     --carbon-elevated:  oklch(21.0% 0.009 75);  /* modals, popovers       ≈ #1B1814 */
     --carbon-input:     oklch(24.1% 0.011 75);  /* inputs, wells          ≈ #231F1A */
@@ -119,11 +119,14 @@
     --radius: 0.875rem;        /* 14px, lg — shadcn base reference */
 
     /* ─────────────────────────────────────────────────────────────────
-     * Elevation on dark = border + glow, not drop shadow (§3).
+     * Elevation on dark (§3, Item B1): a 1px light top-edge highlight is
+     * what the eye reads as "raised" on carbon-canvas — a dark drop-shadow
+     * can't lift a card off near-black. The ambient shadow only grounds;
+     * it is support, not the separation mechanism.
      * ───────────────────────────────────────────────────────────────── */
-    --elev-1: 0 1px 2px rgba(0, 0, 0, .5);
-    --elev-2: 0 4px 16px -4px rgba(0, 0, 0, .6);
-    --elev-3: 0 16px 40px -12px rgba(0, 0, 0, .7);
+    --elev-1: inset 0 1px 0 rgba(247, 245, 242, .05), 0 1px 2px rgba(0, 0, 0, .4);
+    --elev-2: inset 0 1px 0 rgba(247, 245, 242, .07), 0 2px 10px -3px rgba(0, 0, 0, .5);
+    --elev-3: inset 0 1px 0 rgba(247, 245, 242, .09), 0 10px 30px -10px rgba(0, 0, 0, .6);
     --glow-brass: 0 0 0 1px rgba(242, 183, 5, .22), 0 10px 32px -12px rgba(242, 183, 5, .28);
 
     /* ─────────────────────────────────────────────────────────────────
@@ -349,6 +352,38 @@
     .fade-in-visible {
         opacity: 1;
         transform: translateY(0);
+    }
+
+    /* Scrollbar treatments (post-launch Item 2). One rule: hide only where the
+       axis must NOT scroll at all; style where it genuinely overflows.
+       - .mh-no-scrollbar: horizontal strips (tabs, table wrappers). Pair with
+         overflow-y-hidden so the axis-coupled phantom vertical bar can't exist.
+       - .mh-scroll: real scroll regions (sidebar nav, capped code blocks). */
+    .mh-no-scrollbar {
+        scrollbar-width: none;            /* Firefox */
+        -ms-overflow-style: none;         /* legacy Edge */
+    }
+    .mh-no-scrollbar::-webkit-scrollbar {
+        display: none;                    /* Chromium / WebKit */
+    }
+
+    .mh-scroll {
+        scrollbar-width: thin;                                 /* Firefox */
+        scrollbar-color: var(--carbon-border) transparent;
+    }
+    .mh-scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    .mh-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .mh-scroll::-webkit-scrollbar-thumb {
+        background: var(--carbon-border);
+        border-radius: 9999px;
+    }
+    .mh-scroll::-webkit-scrollbar-thumb:hover {
+        background: var(--carbon-border-hi);
     }
 }
 

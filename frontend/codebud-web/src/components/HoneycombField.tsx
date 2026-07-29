@@ -19,7 +19,9 @@
 const S = 32.33; // circumradius; flat-to-flat = √3·S ≈ 56px (§A2 cell size)
 const H = Math.sqrt(3) * S; // ≈ 56 — tile height, column vertical pitch
 const TILE_W = 3 * S; // ≈ 97 — tile width (two hex columns)
-const R = S - 0.9; // fill radius < S leaves the ~1px canvas gutter (no stroke)
+const R = S - 0.4; // §2b: gutter halved (1.8px→0.8px) so tiles nearly touch and
+                   // read as a milled PLATE, not an outline grid. The lever is the
+                   // gutter, never fill lightness (raising fill worsens the grid).
 
 function hex(cx: number, cy: number): string {
     const p: string[] = [];

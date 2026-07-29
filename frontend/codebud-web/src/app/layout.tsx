@@ -36,10 +36,7 @@ export const metadata: Metadata = {
         index: true,
         follow: true,
     },
-    icons: {
-        icon: '/favicon.ico',
-        shortcut: '/favicon.ico',
-    },
+    // Favicon set via the app-dir convention (app/favicon.ico + icon.png + apple-icon.png).
 };
 
 export default function RootLayout({
