@@ -17,9 +17,9 @@ const MascotMark = (
     <img
         src="/logo/logo.png"
         alt=""
-        width={14}
-        height={14}
-        className="inline-block h-3.5 w-3.5 align-text-bottom object-contain"
+        width={10}
+        height={10}
+        className="inline-block h-2.5 w-2.5 align-text-bottom object-contain"
     />
 );
 

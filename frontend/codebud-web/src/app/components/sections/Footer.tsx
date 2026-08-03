@@ -93,7 +93,7 @@ export const Footer = () => {
                             <img
                                 src="/logo/logo.png"
                                 alt=""
-                                className="w-8 h-8 rounded-lg object-contain shrink-0"
+                                className="w-5 h-5 object-contain shrink-0"
                             />
                             <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                         </a>
