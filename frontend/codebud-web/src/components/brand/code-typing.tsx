@@ -2,6 +2,30 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { motion } from "motion/react";
+import { Rocket } from "lucide-react";
+
+/*
+ * B1 step 1: two tokens in these snippets carried emoji (a bee after the
+ * wordmark, a rocket in the "Level up!" comment). The typewriter reveals each
+ * token by slicing its `text` one character at a time, so a component cannot
+ * live inside a token string -- hence `node`, rendered once that token's
+ * characters are fully typed. The bee is now the mascot mark itself; the rocket
+ * is lucide's, which is decorative brand dressing here rather than a label.
+ */
+const MascotMark = (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+        src="/logo/logo.png"
+        alt=""
+        width={14}
+        height={14}
+        className="inline-block h-3.5 w-3.5 align-text-bottom object-contain"
+    />
+);
+
+const RocketMark = (
+    <Rocket size={12} strokeWidth={1.5} className="inline-block align-text-bottom" aria-hidden="true" />
+);
 
 /* ── CodeTyping ───────────────────────────────────────────────────── */
 /* Embeddable typewriter with syntax-highlighted code snippets        */
@@ -29,7 +53,7 @@ const codeSnippets = [
             { text: "", cls: "", newLine: true },
             { text: "        Hello, ", cls: "text-muted-foreground" },
             { text: "MYCODEBUD", cls: "text-foreground/90 font-bold" },
-            { text: " 🐝", cls: "text-white" },
+            { text: " ", cls: "text-white", node: MascotMark },
             { text: "", cls: "", newLine: true },
             { text: "      </", cls: "text-muted-foreground/70" },
             { text: "h1", cls: "text-foreground" },
@@ -98,7 +122,8 @@ const codeSnippets = [
             { text: "start", cls: "text-foreground/90" },
             { text: "()", cls: "text-white/50" },
             { text: "  ", cls: "text-white/50" },
-            { text: "# → Level up! 🚀", cls: "text-white/25" },
+            { text: "# → Level up! ", cls: "text-white/25" },
+            { text: " ", cls: "text-white/25", node: RocketMark },
         ],
     },
 ];
@@ -107,6 +132,8 @@ interface CodeToken {
     text: string;
     cls: string;
     newLine?: boolean;
+    /** Rendered after `text`, but only once this token is fully typed. */
+    node?: React.ReactNode;
 }
 
 export function CodeTyping() {
@@ -165,11 +192,13 @@ export function CodeTyping() {
 
         const visibleLen = Math.min(token.text.length, remaining);
         const visibleText = token.text.slice(0, visibleLen);
+        const fullyTyped = visibleLen === token.text.length;
         rendered += token.text.length;
 
         lines[lines.length - 1].push(
             <span key={`${rendered}-${token.text}`} className={token.cls}>
                 {visibleText}
+                {fullyTyped && token.node}
             </span>,
         );
     }

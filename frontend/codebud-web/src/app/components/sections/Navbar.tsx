@@ -20,7 +20,6 @@ export const Navbar = () => {
 
     const navLinks = [
         { label: "Features", href: "/#features" },
-        { label: "Pricing", href: "/#pricing" },
         { label: "About", href: "/about" },
         { label: "Contact", href: "/contact" },
     ];
@@ -57,20 +56,15 @@ export const Navbar = () => {
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between relative z-10">
                     {/* Logo with glow */}
                     <Link href="/" className="flex items-center gap-2.5 group">
-                        <div className="relative">
-                            {/* Logo glow */}
-                            <div
-                                className="absolute -inset-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                                style={{
-                                    background: "radial-gradient(circle, transparent 0%, transparent 70%)",
-                                }}
-                            />
-                            <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:overflow-hidden transition-shadow duration-300">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" className="w-4.5 h-4.5">
-                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                                </svg>
-                            </div>
-                        </div>
+                        {/* The mascot mark — same asset the platform header serves.
+                            alt="" because it is decorative: the MYCODEBUD wordmark
+                            beside it is rendered at every breakpoint and carries the
+                            link's accessible name (§D22b). */}
+                        <img
+                            src="/logo/logo.png"
+                            alt=""
+                            className="w-8 h-8 rounded-lg object-contain shrink-0"
+                        />
                         <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                     </Link>
 

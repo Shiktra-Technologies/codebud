@@ -42,7 +42,7 @@ export default function Error({
                     className="mb-6 flex justify-center"
                 >
                     <div className="w-20 h-20 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
-                        <AlertTriangle size={36} className="text-destructive/80" />
+                        <AlertTriangle size={36} className="text-destructive/80" strokeWidth={1.5} />
                     </div>
                 </motion.div>
 
@@ -102,12 +102,12 @@ export default function Error({
                         className="px-8 group"
                         onClick={() => reset()}
                     >
-                        <RefreshCw size={16} className="mr-1.5 group-hover:rotate-180 transition-transform duration-500" />
+                        <RefreshCw size={16} className="mr-1.5 group-hover:rotate-180 transition-transform duration-500" strokeWidth={1.5} />
                         Try Again
                     </Button>
                     <Link href="/">
                         <Button variant="outline" size="lg" className="px-8">
-                            <Home size={16} className="mr-1.5" />
+                            <Home size={16} className="mr-1.5" strokeWidth={1.5} />
                             Go Home
                         </Button>
                     </Link>
@@ -117,11 +117,12 @@ export default function Error({
             {/* Navbar */}
             <div className="fixed top-0 left-0 right-0 z-50 p-5">
                 <Link href="/" className="flex items-center gap-2.5 group w-fit">
-                    <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover: transition-shadow duration-300">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" className="w-4.5 h-4.5">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
-                    </div>
+                    {/* decorative — the MYCODEBUD wordmark beside it carries the name */}
+                    <img
+                        src="/logo/logo.png"
+                        alt=""
+                        className="w-8 h-8 rounded-lg object-contain shrink-0"
+                    />
                     <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                 </Link>
             </div>

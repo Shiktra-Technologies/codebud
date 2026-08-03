@@ -92,7 +92,7 @@ export function TermsPage() {
                         animate={{ opacity: 1 }}
                         className="flex items-center gap-2 text-xs text-muted-foreground/70 mb-10 justify-center"
                     >
-                        <Calendar size={12} />
+                        <Calendar size={12} strokeWidth={1.5} />
                         Last updated: February 1, 2026
                     </motion.div>
 

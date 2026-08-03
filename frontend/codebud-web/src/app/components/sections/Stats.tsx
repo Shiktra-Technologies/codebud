@@ -2,13 +2,20 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
+import { Users, Code2, FolderKanban, Star, type LucideIcon } from "lucide-react";
 
-
-const stats = [
-    { label: "Active Learners", value: 10000, suffix: "+", icon: "👨‍💻" },
-    { label: "Coding Challenges", value: 200, suffix: "+", icon: "⚡" },
-    { label: "Project-Based Courses", value: 50, suffix: "+", icon: "🚀" },
-    { label: "Student Satisfaction", value: 95, suffix: "%", icon: "⭐" },
+/*
+ * B1 step 1: these four carried emoji (technologist, bolt, rocket, star), which
+ * the no-emoji rule forbids. Mapped to what each stat MEANS rather than to each
+ * removed glyph's lucide
+ * twin — "Project-Based Courses" is projects, not a rocket. Interim treatment:
+ * B1 step 4 replaces these with the custom hex-derived accent marks.
+ */
+const stats: { label: string; value: number; suffix: string; icon: LucideIcon }[] = [
+    { label: "Active Learners", value: 10000, suffix: "+", icon: Users },
+    { label: "Coding Challenges", value: 200, suffix: "+", icon: Code2 },
+    { label: "Project-Based Courses", value: 50, suffix: "+", icon: FolderKanban },
+    { label: "Student Satisfaction", value: 95, suffix: "%", icon: Star },
 ];
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -49,61 +56,36 @@ function AnimatedNumber({ value, suffix }: { value: number; suffix: string }) {
 export const Stats = () => {
     return (
         <section className="py-20 md:py-24 relative overflow-hidden">
-
-            {/* Top divider */}
-            <div className="absolute top-0 left-0 right-0">
-            </div>
-
-            {/* Ambient spotlight */}
-            <div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[300px] rounded-full pointer-events-none"
-                style={{
-                    background:
-                        "radial-gradient(ellipse, transparent 0%, transparent 70%)",
-                }}
-            />
-
             <div className="max-w-6xl mx-auto px-6 relative z-10">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                    {stats.map((stat, index) => (
-                        <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: 25, filter: "blur(6px)" }}
-                            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                            viewport={{ once: true, margin: "-50px" }}
-                            transition={{ delay: index * 0.1, duration: 0.6, ease }}
-                            className="group relative text-center"
-                        >
-                            {/* Glassmorphic card */}
-                            <div className="relative bg-card backdrop-blur-sm border border-border rounded-xl p-6 md:p-8 transition-all duration-500 hover:border-primary/15 hover:bg-card hover:">
-                                {/* Gradient top border on hover */}
-                                <div
-                                    className="absolute top-0 left-4 right-4 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                                    style={{
-                                        background: "linear-gradient(90deg, transparent, transparent, transparent)",
-                                    }}
-                                />
+                    {stats.map((stat, index) => {
+                        const Icon = stat.icon;
+                        return (
+                            <motion.div
+                                key={stat.label}
+                                initial={{ opacity: 0, y: 25, filter: "blur(6px)" }}
+                                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                                viewport={{ once: true, margin: "-50px" }}
+                                transition={{ delay: index * 0.1, duration: 0.6, ease }}
+                                className="group relative text-center"
+                            >
+                                <div className="relative bg-card backdrop-blur-sm border border-border rounded-xl p-6 md:p-8 transition-colors duration-500 hover:border-primary/15">
+                                    {/* h-8 matches the 2rem line-box the emoji occupied, so the
+                                        numbers below keep their exact position. */}
+                                    <div className="h-8 mb-3 flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity duration-300">
+                                        <Icon size={22} strokeWidth={1.5} className="text-primary" aria-hidden="true" />
+                                    </div>
 
-                                {/* Emoji icon */}
-                                <div className="text-2xl mb-3 opacity-60 group-hover:opacity-100 transition-opacity duration-300">
-                                    {stat.icon}
+                                    <AnimatedNumber value={stat.value} suffix={stat.suffix} />
+
+                                    <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-[0.2em]">
+                                        {stat.label}
+                                    </div>
                                 </div>
-
-                                {/* Number with shimmer */}
-                                <AnimatedNumber value={stat.value} suffix={stat.suffix} />
-
-                                {/* Label */}
-                                <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-[0.2em] group-hover:text-muted-foreground transition-colors duration-300">
-                                    {stat.label}
-                                </div>
-                            </div>
-                        </motion.div>
-                    ))}
+                            </motion.div>
+                        );
+                    })}
                 </div>
-            </div>
-
-            {/* Bottom divider */}
-            <div className="absolute bottom-0 left-0 right-0">
             </div>
         </section>
     );

@@ -37,10 +37,18 @@ function hex(cx: number, cy: number): string {
 const CELLS = [hex(0, H / 2), hex(1.5 * S, 0), hex(1.5 * S, H), hex(TILE_W, H / 2)];
 
 export function HoneycombField() {
-    // Comb in the side margins only: transparent center column, faded far edges,
-    // plus a vertical edge fade — combined by intersecting the two masks.
+    // Comb across the full width, quieter behind the content column, faded far
+    // edges, plus a vertical edge fade — the two masks are intersected.
+    //
+    // §A3: the centre stops were `transparent`, which switched the comb OFF
+    // between 41% and 59% of the width (a ~260px dead band at 1440px) and put
+    // roughly a third of the screen below half strength — read as "visible at
+    // the sides, absent in the middle". They now hold alpha 0.45 so the comb is
+    // continuous full-width while staying recessive under card text. 0.45 is
+    // the dial; the fill (--carbon-comb 17.5%) and gutter (R = S - 0.4) are NOT
+    // the lever and stay put, or the gutter-grid look returns.
     const maskH =
-        "linear-gradient(to right, transparent 0%, #000 10%, #000 26%, transparent 41%, transparent 59%, #000 74%, #000 90%, transparent 100%)";
+        "linear-gradient(to right, transparent 0%, #000 10%, #000 26%, rgba(0,0,0,0.45) 41%, rgba(0,0,0,0.45) 59%, #000 74%, #000 90%, transparent 100%)";
     const maskV = "linear-gradient(to bottom, transparent 0%, #000 14%, #000 86%, transparent 100%)";
     return (
         <div

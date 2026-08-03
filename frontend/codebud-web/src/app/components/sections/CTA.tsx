@@ -69,7 +69,7 @@ export const CTA = () => {
                         <Link href={PLATFORM_AUTH_URL}>
                             <Button variant="default" size="lg" className="px-10 group">
                                 Join MYCODEBUD Today
-                                <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
+                                <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" strokeWidth={1.5} />
                             </Button>
                         </Link>
                         <a href="/#features">

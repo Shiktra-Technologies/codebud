@@ -17,7 +17,6 @@ const footerLinks = [
         title: "Product",
         links: [
             { label: "Features", href: "/#features" },
-            { label: "Pricing", href: "/#pricing" },
             { label: "Roadmap", href: "#" },
             { label: "Changelog", href: "#" },
         ],
@@ -90,11 +89,12 @@ export const Footer = () => {
                     {/* Brand */}
                     <div className="max-w-sm">
                         <a href="/" className="flex items-center gap-2.5 mb-4 group">
-                            <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:overflow-hidden transition-shadow duration-300">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" className="w-4.5 h-4.5">
-                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                                </svg>
-                            </div>
+                            {/* decorative — the MYCODEBUD wordmark beside it carries the name */}
+                            <img
+                                src="/logo/logo.png"
+                                alt=""
+                                className="w-8 h-8 rounded-lg object-contain shrink-0"
+                            />
                             <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                         </a>
                         <p className="text-sm text-muted-foreground leading-relaxed mb-6">
@@ -110,7 +110,7 @@ export const Footer = () => {
                                     aria-label={s.label}
                                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground border border-border transition-all duration-300 hover:scale-110 hover:border-border ${s.hoverColor}`}
                                 >
-                                    <s.icon size={16} />
+                                    <s.icon size={16} strokeWidth={1.5} />
                                 </a>
                             ))}
                         </div>
@@ -147,7 +147,7 @@ export const Footer = () => {
                                         type="submit"
                                         className="px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm transition-all duration-200 flex items-center gap-1.5 hover:"
                                     >
-                                        <Send size={14} />
+                                        <Send size={14} strokeWidth={1.5} />
                                         Subscribe
                                     </button>
                                 </div>
@@ -184,7 +184,7 @@ export const Footer = () => {
                 <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
                         © {new Date().getFullYear()} MYCODEBUD. Made with
-                        <Heart size={11} className="text-destructive/60 fill-destructive/60" />
+                        <Heart size={11} className="text-destructive/60 fill-destructive/60" strokeWidth={1.5} />
                         for developers.
                     </p>
 
@@ -195,7 +195,7 @@ export const Footer = () => {
                     >
                         Back to top
                         <div className="w-7 h-7 rounded-lg border border-border flex items-center justify-center group-hover:border-primary/20 group-hover:bg-primary/[0.05] transition-all duration-300">
-                            <ArrowUp size={12} className="group-hover:-translate-y-0.5 transition-transform" />
+                            <ArrowUp size={12} className="group-hover:-translate-y-0.5 transition-transform" strokeWidth={1.5} />
                         </div>
                     </button>
                 </div>
