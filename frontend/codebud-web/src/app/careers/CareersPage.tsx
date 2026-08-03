@@ -140,7 +140,7 @@ export function CareersPage() {
                                     }}
                                 />
                                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${perk.gradient} flex items-center justify-center mb-5`}>
-                                    <perk.icon size={22} className="text-foreground" />
+                                    <perk.icon size={22} className="text-foreground" strokeWidth={1.5} />
                                 </div>
                                 <h3 className="font-semibold text-foreground mb-2 text-lg">{perk.title}</h3>
                                 <p className="text-sm text-muted-foreground leading-relaxed">{perk.description}</p>
@@ -197,11 +197,11 @@ export function CareersPage() {
                                         <p className="text-xs text-muted-foreground mb-3">{pos.description}</p>
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${deptColors[pos.department] || "border-border text-muted-foreground bg-muted"}`}>
-                                                <Building2 size={9} />
+                                                <Building2 size={9} strokeWidth={1.5} />
                                                 {pos.department}
                                             </span>
                                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border border-border text-muted-foreground bg-muted">
-                                                <MapPin size={9} />
+                                                <MapPin size={9} strokeWidth={1.5} />
                                                 {pos.location}
                                             </span>
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium border border-border text-muted-foreground bg-muted">
@@ -211,7 +211,7 @@ export function CareersPage() {
                                     </div>
                                     <button className="sm:self-center inline-flex items-center gap-1.5 text-sm font-semibold text-primary/70 hover:text-primary transition-colors group/btn">
                                         Apply
-                                        <ArrowRight size={14} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                                        <ArrowRight size={14} className="group-hover/btn:translate-x-0.5 transition-transform" strokeWidth={1.5} />
                                     </button>
                                 </div>
                             </motion.div>
@@ -248,7 +248,7 @@ export function CareersPage() {
                             className="px-10 group"
                         >
                             View All Openings
-                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
+                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" strokeWidth={1.5} />
                         </Button>
                     </motion.div>
                 </div>

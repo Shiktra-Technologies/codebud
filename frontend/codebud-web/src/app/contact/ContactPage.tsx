@@ -90,8 +90,7 @@ function FAQItem({ question, answer, index }: { question: string; answer: string
                 </span>
                 <ChevronDown
                     size={18}
-                    className={`text-primary/50 transition-transform duration-300 flex-shrink-0 ml-4 ${isOpen ? "rotate-180" : ""}`}
-                />
+                    className={`text-primary/50 transition-transform duration-300 flex-shrink-0 ml-4 ${isOpen ? "rotate-180" : ""}`} strokeWidth={1.5} />
             </button>
             <AnimatePresence>
                 {isOpen && (
@@ -241,7 +240,7 @@ export function ContactPage() {
                                         type="submit"
                                         className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-200 hover: hover:scale-[1.02] active:scale-[0.98]"
                                     >
-                                        <Send size={15} />
+                                        <Send size={15} strokeWidth={1.5} />
                                         Send Message
                                     </button>
                                 </form>
@@ -266,7 +265,7 @@ export function ContactPage() {
                                     />
                                     <div className="relative z-10">
                                         <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${info.gradient} flex items-center justify-center mb-4`}>
-                                            <info.icon size={20} className="text-foreground" />
+                                            <info.icon size={20} className="text-foreground" strokeWidth={1.5} />
                                         </div>
                                         <h3 className="font-semibold text-foreground text-sm mb-1">{info.title}</h3>
                                         <p className="text-primary/70 font-medium text-sm mb-1">{info.value}</p>
@@ -281,7 +280,7 @@ export function ContactPage() {
                                                         aria-label={s.label}
                                                         className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground border border-border hover:text-primary/70 hover:border-primary/20 transition-all duration-300"
                                                     >
-                                                        <s.icon size={14} />
+                                                        <s.icon size={14} strokeWidth={1.5} />
                                                     </a>
                                                 ))}
                                             </div>

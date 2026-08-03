@@ -144,7 +144,7 @@ export default function NotFound() {
                 >
                     <Link href="/">
                         <Button variant="default" size="lg" className="px-8 group">
-                            <Home size={16} className="mr-1.5" />
+                            <Home size={16} className="mr-1.5" strokeWidth={1.5} />
                             Take Me Home
                         </Button>
                     </Link>
@@ -154,7 +154,7 @@ export default function NotFound() {
                         className="px-8"
                         onClick={() => window.history.back()}
                     >
-                        <ArrowLeft size={16} className="mr-1.5" />
+                        <ArrowLeft size={16} className="mr-1.5" strokeWidth={1.5} />
                         Go Back
                     </Button>
                 </motion.div>
@@ -163,11 +163,12 @@ export default function NotFound() {
             {/* Navbar shadow at top for consistency */}
             <div className="fixed top-0 left-0 right-0 z-50 p-5">
                 <Link href="/" className="flex items-center gap-2.5 group w-fit">
-                    <div className="relative w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover: transition-shadow duration-300">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2.5" className="w-4.5 h-4.5">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
-                    </div>
+                    {/* decorative — the MYCODEBUD wordmark beside it carries the name */}
+                    <img
+                        src="/logo/logo.png"
+                        alt=""
+                        className="w-8 h-8 rounded-lg object-contain shrink-0"
+                    />
                     <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                 </Link>
             </div>

@@ -6,7 +6,7 @@ import {
     Lightbulb,
     Users,
     Shield,
-    Sparkles,
+    Accessibility,
     Target,
     Heart,
     Globe,
@@ -40,7 +40,7 @@ const values = [
         gradient: "from-muted to-muted",
     },
     {
-        icon: Sparkles,
+        icon: Accessibility,
         title: "Accessible to All",
         description:
             "From absolute beginners to seasoned pros, MYCODEBUD meets you where you are with adaptive learning paths and flexible pricing.",
@@ -208,7 +208,7 @@ export function AboutPage() {
                                 <div className="relative z-10">
                                     <div className="flex items-center gap-3 mb-6">
                                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                            <Heart size={20} className="text-primary" />
+                                            <Heart size={20} className="text-primary" strokeWidth={1.5} />
                                         </div>
                                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                                             Our Mission
@@ -265,7 +265,7 @@ export function AboutPage() {
                                     }}
                                 />
                                 <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${v.gradient} flex items-center justify-center mb-4`}>
-                                    <v.icon size={20} className="text-foreground" />
+                                    <v.icon size={20} className="text-foreground" strokeWidth={1.5} />
                                 </div>
                                 <h3 className="text-body font-semibold text-foreground mb-2">{v.title}</h3>
                                 <p className="text-sm text-muted-foreground leading-relaxed">{v.description}</p>
@@ -340,7 +340,7 @@ export function AboutPage() {
                                 className="text-center group"
                             >
                                 <div className="w-12 h-12 rounded-xl bg-primary/[0.06] border border-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/10 transition-colors duration-300">
-                                    <m.icon size={20} className="text-primary/70" />
+                                    <m.icon size={20} className="text-primary/70" strokeWidth={1.5} />
                                 </div>
                                 <div className="text-3xl md:text-4xl font-extrabold text-foreground mb-1">
                                     <AnimatedCounter value={m.value} suffix={m.suffix} />

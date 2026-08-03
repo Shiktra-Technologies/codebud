@@ -7,8 +7,6 @@ import {
     Hero,
     Stats,
     Features,
-    Testimonials,
-    Pricing,
     CTA,
     Footer,
 } from "./components/sections";
@@ -41,8 +39,6 @@ export default function HomePage() {
                 <Hero />
                 <Stats />
                 <Features />
-                <Testimonials />
-                <Pricing />
                 <CTA />
             </main>
             <Footer />

@@ -2,13 +2,13 @@
 
 import React, { useRef, useCallback } from "react";
 import { motion } from "motion/react";
-import { Book, Code, Users, Zap, Trophy, Rocket } from "lucide-react";
+import { BookOpen, Code, Users, Zap, Trophy, Rocket } from "lucide-react";
 
 import { SectionBadge } from "@/components/section-badge";
 
 const features = [
     {
-        icon: Book,
+        icon: BookOpen,
         title: "Structured Learning Paths",
         description:
             "From HTML basics to full-stack mastery — follow curated roadmaps designed by industry experts.",

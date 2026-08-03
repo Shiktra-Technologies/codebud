@@ -2,7 +2,7 @@
 
 import React, { Suspense, lazy } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, ChevronDown, Play } from "lucide-react";
+import { ArrowRight, ChevronDown, File, Folder, Play } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -148,12 +148,12 @@ export const Hero = () => {
                     <Link href={PLATFORM_AUTH_URL}>
                         <Button variant="default" size="lg" className="w-full sm:w-auto group px-8">
                             Start Learning Free
-                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform duration-200" />
+                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform duration-200" strokeWidth={1.5} />
                         </Button>
                     </Link>
                     <a href="/#features">
                         <Button variant="outline" size="lg" className="w-full sm:w-auto px-8">
-                            <Play size={15} className="mr-1" />
+                            <Play size={15} className="mr-1" strokeWidth={1.5} />
                             Watch Demo
                         </Button>
                     </a>
@@ -194,9 +194,22 @@ export const Hero = () => {
                                 </div>
                                 <div className="flex gap-px flex-1">
                                     <div className="bg-muted px-4 py-1.5 rounded-t-lg text-[11px] text-muted-foreground font-mono flex items-center gap-2 border border-border border-b-0">
-                                        <svg width="12" height="12" viewBox="0 0 32 32" className="text-muted-foreground">
+                                        {/* React mark, drawn rather than set as the atom emoji:
+                                            nucleus + three orbits. Same 12px box as before. */}
+                                        <svg
+                                            width="12"
+                                            height="12"
+                                            viewBox="0 0 32 32"
+                                            className="text-muted-foreground"
+                                            aria-hidden="true"
+                                        >
                                             <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.2" />
-                                            <text x="16" y="21" textAnchor="middle" fontSize="16" fill="currentColor" fontWeight="bold">⚛</text>
+                                            <circle cx="16" cy="16" r="2.6" fill="currentColor" />
+                                            <g fill="none" stroke="currentColor" strokeWidth="1.6">
+                                                <ellipse cx="16" cy="16" rx="10.5" ry="4" />
+                                                <ellipse cx="16" cy="16" rx="10.5" ry="4" transform="rotate(60 16 16)" />
+                                                <ellipse cx="16" cy="16" rx="10.5" ry="4" transform="rotate(120 16 16)" />
+                                            </g>
                                         </svg>
                                         Welcome.tsx
                                     </div>
@@ -230,13 +243,18 @@ export const Hero = () => {
                                         key={i}
                                         className={`flex items-center gap-1.5 py-0.5 px-2 rounded text-[11px] font-mono cursor-default ${f.active
                                             ? "bg-primary/[0.08] text-primary/80"
-                                            : "text-muted-foreground hover:text-muted-foreground"
+                                            : "text-muted-foreground"
                                             }`}
                                         style={{ paddingLeft: `${8 + f.indent * 12}px` }}
                                     >
-                                        <span className="text-[9px]">
-                                            {f.isDir ? "📁" : f.active ? "📄" : "📄"}
-                                        </span>
+                                        {/* The folder/file emoji became the real thing. The old
+                                            ternary branched on f.active to pick between two
+                                            identical glyphs, so that branch is gone too. */}
+                                        {f.isDir ? (
+                                            <Folder size={11} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
+                                        ) : (
+                                            <File size={11} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
+                                        )}
                                         {f.name}
                                     </div>
                                 ))}
@@ -293,7 +311,7 @@ export const Hero = () => {
                 className="relative z-10 pb-8"
             >
                 <motion.div animate={{ y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
-                    <ChevronDown size={20} className="text-muted-foreground/70" />
+                    <ChevronDown size={20} className="text-muted-foreground/70" strokeWidth={1.5} />
                 </motion.div>
             </motion.div>
         </section>

@@ -109,7 +109,7 @@ export function BlogPage() {
                             <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-card to-transparent" />
                             <div className="absolute top-5 left-5">
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border ${categoryColors[featuredPost.category]}`}>
-                                    <Tag size={10} />
+                                    <Tag size={10} strokeWidth={1.5} />
                                     {featuredPost.category}
                                 </span>
                             </div>
@@ -128,12 +128,12 @@ export function BlogPage() {
                             <div className="flex items-center gap-4 text-xs text-muted-foreground/70">
                                 <span>{featuredPost.date}</span>
                                 <span className="flex items-center gap-1">
-                                    <Clock size={12} />
+                                    <Clock size={12} strokeWidth={1.5} />
                                     {featuredPost.readTime}
                                 </span>
                                 <span className="ml-auto flex items-center gap-1 text-primary/50 group-hover:text-primary/80 font-medium transition-colors">
                                     Read article
-                                    <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                                    <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" strokeWidth={1.5} />
                                 </span>
                             </div>
                         </div>
@@ -188,7 +188,7 @@ export function BlogPage() {
                                 <div className="relative z-10">
                                     <div className="flex items-center justify-between mb-4">
                                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${categoryColors[post.category] || "border-border text-muted-foreground bg-muted"}`}>
-                                            <Tag size={9} />
+                                            <Tag size={9} strokeWidth={1.5} />
                                             {post.category}
                                         </span>
                                         <span className="text-[11px] text-muted-foreground/70">{post.date}</span>
@@ -201,12 +201,12 @@ export function BlogPage() {
                                     </p>
                                     <div className="flex items-center justify-between text-[11px] text-muted-foreground/70">
                                         <span className="flex items-center gap-1">
-                                            <Clock size={11} />
+                                            <Clock size={11} strokeWidth={1.5} />
                                             {post.readTime}
                                         </span>
                                         <span className="flex items-center gap-1 text-primary/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 font-medium">
                                             Read
-                                            <ArrowRight size={11} />
+                                            <ArrowRight size={11} strokeWidth={1.5} />
                                         </span>
                                     </div>
                                 </div>
