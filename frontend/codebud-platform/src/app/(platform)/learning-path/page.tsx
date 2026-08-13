@@ -24,6 +24,7 @@ import {
     Compass,
     Layers,
     Lock,
+    ArrowLeft,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -54,6 +55,10 @@ function MatchRing({ pct }: { pct: number }) {
     const stroke = 8;
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
+    // Below this, we're not confident enough in the score to celebrate it —
+    // an honest "still learning about you" state reads better than a
+    // dramatic ring stuck near zero.
+    const lowConfidence = pct < 15;
     const dash = (Math.max(0, Math.min(100, pct)) / 100) * c;
 
     return (
@@ -63,7 +68,7 @@ function MatchRing({ pct }: { pct: number }) {
                 aria-hidden
                 className="absolute inset-0 rounded-full bg-amber-400/20 blur-3xl"
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 0.55, scale: 1 }}
+                animate={{ opacity: lowConfidence ? 0.25 : 0.55, scale: 1 }}
                 transition={{ duration: 1.2, ease }}
             />
             <svg width={size} height={size} className="relative -rotate-90">
@@ -75,19 +80,33 @@ function MatchRing({ pct }: { pct: number }) {
                     stroke="rgba(255,255,255,0.06)"
                     strokeWidth={stroke}
                 />
-                <motion.circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={r}
-                    fill="none"
-                    stroke="url(#match-grad)"
-                    strokeWidth={stroke}
-                    strokeLinecap="round"
-                    strokeDasharray={c}
-                    initial={{ strokeDashoffset: c }}
-                    animate={{ strokeDashoffset: c - dash }}
-                    transition={{ duration: 1.4, delay: 0.25, ease }}
-                />
+                {!lowConfidence && (
+                    <motion.circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={r}
+                        fill="none"
+                        stroke="url(#match-grad)"
+                        strokeWidth={stroke}
+                        strokeLinecap="round"
+                        strokeDasharray={c}
+                        initial={{ strokeDashoffset: c }}
+                        animate={{ strokeDashoffset: c - dash }}
+                        transition={{ duration: 1.4, delay: 0.25, ease }}
+                    />
+                )}
+                {lowConfidence && (
+                    <circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={r}
+                        fill="none"
+                        stroke="rgba(251,191,36,0.35)"
+                        strokeWidth={stroke}
+                        strokeDasharray="2 10"
+                        strokeLinecap="round"
+                    />
+                )}
                 <defs>
                     <linearGradient id="match-grad" x1="0" y1="0" x2="1" y2="1">
                         <stop offset="0%" stopColor="#fbbf24" />
@@ -96,18 +115,34 @@ function MatchRing({ pct }: { pct: number }) {
                 </defs>
             </svg>
             <div className="absolute inset-0 grid place-items-center">
-                <div className="text-center">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.6 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.6, delay: 0.6, ease }}
-                        className="font-mono text-[44px] font-bold leading-none tabular-nums text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.45)]"
-                    >
-                        {pct}
-                    </motion.div>
-                    <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-400/70">
-                        % personalized
-                    </div>
+                <div className="text-center px-4">
+                    {lowConfidence ? (
+                        <>
+                            <Sparkles
+                                size={20}
+                                className="mx-auto mb-1.5 text-amber-400/70"
+                            />
+                            <div className="text-[11px] font-semibold leading-snug text-amber-200/80">
+                                Getting to
+                                <br />
+                                know you
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.6 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.6, delay: 0.6, ease }}
+                                className="font-mono text-[44px] font-bold leading-none tabular-nums text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.45)]"
+                            >
+                                {pct}
+                            </motion.div>
+                            <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-400/70">
+                                % personalized
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
@@ -161,7 +196,7 @@ function Hero({
                 }}
             />
 
-            <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 py-16 sm:py-24 lg:grid-cols-[1fr_auto] lg:gap-16">
+            <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 py-16 sm:py-10 lg:grid-cols-[1fr_auto] lg:gap-16">
                 <div>
                     <motion.div
                         initial={{ opacity: 0, y: 8 }}
@@ -323,19 +358,38 @@ function TopMatchCard({
                 {/* RIGHT — score panel */}
                 <div className="flex items-center justify-center">
                     <div className="flex flex-col items-center text-center">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                            Match score
-                        </div>
-                        <div className="mt-2 font-mono text-[88px] font-bold leading-none tabular-nums text-white sm:text-[104px]">
-                            {course.score}
-                        </div>
-                        <div className="-mt-1 text-base font-semibold tracking-wider text-amber-400">
-                            % match
-                        </div>
-                        <p className="mt-5 max-w-[200px] text-xs leading-relaxed text-zinc-500">
-                            Computed from your goal, level, and the interests
-                            you picked during onboarding.
-                        </p>
+                        {course.score < 15 ? (
+                            <>
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                                    Match confidence
+                                </div>
+                                <Sparkles
+                                    size={28}
+                                    className="mt-4 text-amber-400/60"
+                                />
+                                <p className="mt-3 max-w-[220px] text-xs leading-relaxed text-zinc-500">
+                                    We&apos;re still learning your preferences —
+                                    this pick is based on your goal and level so
+                                    far. Scores sharpen as you explore.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                                    Match score
+                                </div>
+                                <div className="mt-2 font-mono text-[88px] font-bold leading-none tabular-nums text-white sm:text-[104px]">
+                                    {course.score}
+                                </div>
+                                <div className="-mt-1 text-base font-semibold tracking-wider text-amber-400">
+                                    % match
+                                </div>
+                                <p className="mt-5 max-w-[200px] text-xs leading-relaxed text-zinc-500">
+                                    Computed from your goal, level, and the interests
+                                    you picked during onboarding.
+                                </p>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -600,8 +654,14 @@ export default function LearningPathPage() {
     if (error) {
         return (
             <div className="grid min-h-[60vh] place-items-center px-6">
-                <div className="max-w-md rounded-xl border border-red-500/20 bg-red-500/[0.04] px-5 py-4 text-sm text-red-300">
-                    {error}
+                <div className="max-w-md rounded-xl border border-red-500/20 bg-red-500/[0.04] px-5 py-4 text-sm text-red-300 text-center">
+                    <p>{error}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-400/20 bg-red-400/[0.06] px-3 py-1.5 text-xs font-semibold text-red-200 transition-colors hover:bg-red-400/10"
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
@@ -645,6 +705,15 @@ export default function LearningPathPage() {
 
     return (
         <div className="min-h-screen bg-[#08080b] text-white">
+        <header className="mx-auto w-full max-w-6xl px-4 pt-8">
+        <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-base font-medium text-zinc-200 transition-colors hover:text-white"
+        >
+            <ArrowLeft size={16} />
+            Back to dashboard
+        </Link>
+        </header>
             <Hero
                 displayName={displayName}
                 topScore={topMatch.score}

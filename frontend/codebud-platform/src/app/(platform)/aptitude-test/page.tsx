@@ -202,8 +202,9 @@ export default function AptitudeTestPage() {
     if (loadingQuestions) {
         return (
             <div className="min-h-screen bg-surface-0 flex items-center justify-center p-4">
-                <div className="text-center">
-                    <p className="text-sm text-white/60">Loading aptitude questions from database...</p>
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-6 h-6 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
+                    <p className="text-xs text-white/40">Loading aptitude questions…</p>
                 </div>
             </div>
         );

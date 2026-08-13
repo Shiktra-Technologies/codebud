@@ -305,8 +305,14 @@ export default function RoadmapPage() {
     if (error || !snapshot) {
         return (
             <div className="grid min-h-[60vh] place-items-center bg-[#08080b] px-6">
-                <div className="max-w-md rounded-xl border border-red-500/20 bg-red-500/[0.04] px-5 py-4 text-sm text-red-300">
-                    {error || "Failed to load your roadmap"}
+                <div className="max-w-md rounded-xl border border-red-500/20 bg-red-500/[0.04] px-5 py-4 text-sm text-red-300 text-center">
+                    <p>{error || "Failed to load your roadmap"}</p>
+                    <button
+                        onClick={() => load()}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-400/20 bg-red-400/[0.06] px-3 py-1.5 text-xs font-semibold text-red-200 transition-colors hover:bg-red-400/10"
+                    >
+                        <RefreshCw size={11} /> Retry
+                    </button>
                 </div>
             </div>
         );

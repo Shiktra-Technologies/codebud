@@ -47,6 +47,10 @@ import apiClient from "@/lib/apiClient";
 import BootSequence from "@/app/components/BootSequence";
 import RecommendedCourseList from "./_components/RecommendedCourseList";
 import MyMentorWidget from "./_components/MyMentorWidget";
+import { HexIcon } from "@/app/components/ui/hex-icon";
+import { HexDivider } from "@/app/components/ui/hex-divider";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { CardSkeletonGrid } from "@/app/components/ui/card-skeleton";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -503,13 +507,13 @@ export default function DashboardPage() {
                                 transition={{ duration: 0.5, ease }}
                             >
                             <div>
-                                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
                                     Welcome back,{" "}
                                     <span className="text-yellow-400">
                                         {displayName}
                                     </span>
                                 </h1>
-                                <p className="text-sm text-white/30 mt-1">
+                                <p className="text-sm text-white/35 mt-1.5">
                                     Continue your coding journey where you left off
                                 </p>
                             </div>
@@ -555,7 +559,7 @@ export default function DashboardPage() {
                                                 {isActive && (
                                                     <motion.div
                                                         layoutId="activeTab"
-                                                        className="absolute inset-0 rounded-lg bg-surface-3/80 border border-white/[0.08]"
+                                                        className="absolute inset-0 rounded-lg clip-hex-corner bg-surface-3/80 border border-white/[0.08]"
                                                         transition={{
                                                             type: "spring",
                                                             duration: 0.4,
@@ -705,6 +709,8 @@ function OverviewTab({
                 <RecommendedCourseList />
             </div>
 
+            <HexDivider className="mb-8" />
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {stats.map((stat, i) => {
@@ -717,9 +723,9 @@ function OverviewTab({
                                     <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
                                         {stat.label}
                                     </span>
-                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
-                                        <Icon size={14} className="text-white" />
-                                    </div>
+                                    <HexIcon size="sm">
+                                        <Icon size={13} />
+                                    </HexIcon>
                                 </div>
                                 <p className="text-2xl font-bold text-white">{stat.value}</p>
                             </div>
@@ -729,9 +735,12 @@ function OverviewTab({
             </div>
 
             {/* Quick Actions */}
-            <h2 className="text-lg font-bold text-white mb-4">
-                Quick Actions
-            </h2>
+            <div className="mb-4 flex items-center gap-2">
+                <Zap size={14} className="text-amber-400" />
+                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+                    Quick Actions
+                </h2>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                 {[
                     {
@@ -819,21 +828,11 @@ function OverviewTab({
                         </span>
                     </div>
                     {submissions.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-surface-3/50 border border-white/[0.06] flex items-center justify-center">
-                                <Target
-                                    size={20}
-                                    className="text-white/15"
-                                />
-                            </div>
-                            <p className="text-sm text-white/30 mb-1">
-                                No submissions yet
-                            </p>
-                            <p className="text-xs text-white/15">
-                                Complete an assessment to see your results
-                                here
-                            </p>
-                        </div>
+                        <EmptyState
+                            icon={Target}
+                            title="No submissions yet"
+                            description="Complete an assessment to see your results here"
+                        />
                     ) : (
                         <div className="divide-y divide-white/[0.04]">
                             {submissions.slice(0, 5).map((sub, i) => {
@@ -921,15 +920,12 @@ function OverviewTab({
                         </button>
                     </div>
                     {leaderboard.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <Trophy
-                                size={20}
-                                className="mx-auto mb-2 text-white/15"
-                            />
-                            <p className="text-xs text-white/25">
-                                Rankings appear after assessments
-                            </p>
-                        </div>
+                        <EmptyState
+                            icon={Trophy}
+                            title="No rankings yet"
+                            description="Rankings appear after assessments"
+                            size="sm"
+                        />
                     ) : (
                         <div className="divide-y divide-white/[0.04]">
                             {leaderboard.slice(0, 5).map((entry, i) => {
@@ -1044,9 +1040,9 @@ function CoursesTab() {
 
     if (loading) {
         return (
-            <div className="py-16 text-center">
-                <div className="w-6 h-6 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs text-white/20">Loading courses...</p>
+            <div>
+                <div className="h-4 w-40 rounded bg-white/[0.05] animate-pulse mb-4" />
+                <CardSkeletonGrid count={3} className="mb-8" />
             </div>
         );
     }
@@ -1484,9 +1480,9 @@ function JobsTab() {
 
     if (loading) {
         return (
-            <div className="py-16 text-center">
-                <div className="w-6 h-6 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs text-white/20">Loading jobs...</p>
+            <div>
+                <div className="h-4 w-40 rounded bg-white/[0.05] animate-pulse mb-4" />
+                <CardSkeletonGrid count={3} />
             </div>
         );
     }

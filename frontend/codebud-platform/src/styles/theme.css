@@ -190,6 +190,24 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* ── Accessible focus states ──────────────────────────────────────── */
+  /* Dark, low-opacity surfaces make default browser focus rings nearly
+     invisible. Give every interactive element a clear, on-brand ring
+     that meets keyboard-navigation visibility needs without relying on
+     background/border shifts alone. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [role="tab"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid rgba(255, 193, 7, 0.6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
   html {
     font-size: var(--font-size);
     scroll-behavior: auto;
@@ -280,6 +298,14 @@
   /* ── Hexagonal clip path ── */
   .clip-hex {
     clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+  }
+
+  /* ── Hex-cut corner ── */
+  /* A single clipped corner — a restrained nod to the hex motif for
+     active-state indicators (tab pills, selected chips) without turning
+     the whole shape into a hexagon. */
+  .clip-hex-corner {
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
   }
 
   /* ── Honeycomb shimmer (animated gradient sweep) ── */

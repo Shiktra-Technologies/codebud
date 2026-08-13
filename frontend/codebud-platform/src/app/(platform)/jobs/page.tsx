@@ -9,15 +9,16 @@ import type { Job } from "@/lib/services/newJobService";
 import {
     Briefcase,
     MapPin,
-    Clock,
     DollarSign,
     Search,
     ArrowLeft,
-    Loader2,
     Building2,
     Users,
     ChevronRight,
 } from "lucide-react";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { ErrorState } from "@/app/components/ui/error-state";
+import { ListSkeleton } from "@/app/components/ui/card-skeleton";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -25,13 +26,31 @@ export default function JobsPage() {
     const { user } = useAuth();
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [jobType, setJobType] = useState<string>("all");
 
+    const loadJobs = () => {
+        setLoading(true);
+        setError(null);
+        listJobs()
+            .then((res) => {
+                if (res.success) {
+                    setJobs(res.jobs || []);
+                } else {
+                    setJobs([]);
+                    setError("Failed to load job openings");
+                }
+            })
+            .catch(() => {
+                setError("Network error. Please check your connection and try again.");
+                setJobs([]);
+            })
+            .finally(() => setLoading(false));
+    };
+
     useEffect(() => {
-        listJobs().then((res) => {
-            if (res.success) setJobs(res.jobs || []);
-        }).finally(() => setLoading(false));
+        loadJobs();
     }, []);
 
     const filtered = jobs.filter((j) => {
@@ -42,14 +61,6 @@ export default function JobsPage() {
         const matchType = jobType === "all" || j.type === jobType;
         return matchSearch && matchType;
     });
-
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-surface-0 flex items-center justify-center">
-                <Loader2 size={28} className="animate-spin text-white/20" />
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-surface-0">
@@ -78,6 +89,7 @@ export default function JobsPage() {
                     </motion.div>
 
                     {/* Filters */}
+                    {!loading && !error && (
                     <div className="flex flex-wrap items-center gap-4 mb-8">
                         <div className="relative flex-1 min-w-[200px] max-w-sm">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/15" />
@@ -93,19 +105,30 @@ export default function JobsPage() {
                             ))}
                         </div>
                     </div>
+                    )}
 
                     {/* Job Count */}
-                    <p className="text-xs text-white/25 mb-4">{filtered.length} {filtered.length === 1 ? "opening" : "openings"}</p>
+                    {!loading && !error && (
+                        <p className="text-xs text-white/25 mb-4">{filtered.length} {filtered.length === 1 ? "opening" : "openings"}</p>
+                    )}
 
-                    {filtered.length === 0 ? (
-                        <div className="py-20 text-center">
-                            <Briefcase size={32} className="mx-auto mb-3 text-white/10" />
-                            <h4 className="text-sm font-semibold text-white/30 mb-1">{searchTerm || jobType !== "all" ? "No matches" : "No Jobs Available"}</h4>
-                            <p className="text-xs text-white/15">Check back later for new opportunities</p>
-                        </div>
-                    ) : (
+                    {loading && <ListSkeleton count={5} />}
+
+                    {!loading && error && (
+                        <ErrorState message={error} onRetry={loadJobs} />
+                    )}
+
+                    {!loading && !error && filtered.length === 0 ? (
+                        <EmptyState
+                            icon={Briefcase}
+                            title={searchTerm || jobType !== "all" ? "No matches" : "No jobs available"}
+                            description="Check back later for new opportunities"
+                        />
+                    ) : !loading && !error && (
                         <div className="space-y-3">
-                            {filtered.map((job, i) => (
+                            {filtered.map((job, i) => {
+                                const hasSalary = job.salary_range && (job.salary_range.min ?? 0) > 0;
+                                return (
                                 <motion.div
                                     key={job._id}
                                     initial={{ opacity: 0, y: 12 }}
@@ -128,15 +151,20 @@ export default function JobsPage() {
                                                     </p>
                                                 )}
                                                 <p className="text-xs text-white/25 line-clamp-2 mb-3">{job.description || ""}</p>
+
+                                                {/* Most decision-relevant fact gets more visual weight */}
+                                                {hasSalary && (
+                                                    <div className="mb-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-400/[0.06] border border-emerald-400/15 px-2.5 py-1">
+                                                        <DollarSign size={12} className="text-emerald-400" />
+                                                        <span className="text-[13px] font-semibold text-emerald-300">
+                                                            {job.salary_range!.currency} {(job.salary_range!.min ?? 0).toLocaleString()} – {(job.salary_range!.max ?? 0).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                )}
+
                                                 <div className="flex flex-wrap items-center gap-4 text-[11px] text-white/20">
                                                     {job.location && <span className="flex items-center gap-1"><MapPin size={10} />{job.location}</span>}
                                                     <span className="capitalize">{job.experience_level}</span>
-                                                    {job.salary_range && (job.salary_range.min ?? 0) > 0 && (
-                                                        <span className="flex items-center gap-1">
-                                                            <DollarSign size={10} />
-                                                            {job.salary_range.currency} {(job.salary_range.min ?? 0).toLocaleString()} – {(job.salary_range.max ?? 0).toLocaleString()}
-                                                        </span>
-                                                    )}
                                                     {(job.application_count || 0) > 0 && (
                                                         <span className="flex items-center gap-1"><Users size={10} />{job.application_count} applicants</span>
                                                     )}
@@ -153,7 +181,7 @@ export default function JobsPage() {
                                         </div>
                                     </Link>
                                 </motion.div>
-                            ))}
+                            );})}
                         </div>
                     )}
                 </div>

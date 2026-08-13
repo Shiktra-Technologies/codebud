@@ -9,16 +9,15 @@ import { getUserSubmissions } from "@/lib/services/submissionService";
 import {
     Code2,
     Search,
-    Filter,
     CheckCircle2,
-    Clock,
     ChevronRight,
     Zap,
     Brain,
     Trophy,
     ArrowUpRight,
-    Loader2,
 } from "lucide-react";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { ListSkeleton } from "@/app/components/ui/card-skeleton";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -104,7 +103,7 @@ export default function ProblemsPage() {
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold text-white">Problem Library</h1>
-                                <p className="text-xs text-white/25">Practice DSA problems at your own pace</p>
+                                <p className="text-xs text-white/30">Practice DSA problems at your own pace</p>
                             </div>
                         </div>
                     </motion.div>
@@ -157,16 +156,15 @@ export default function ProblemsPage() {
             {/* Problems List */}
             <div className="max-w-6xl mx-auto px-6 py-6">
                 {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 size={24} className="animate-spin text-white/20" />
-                    </div>
+                    <ListSkeleton count={6} />
                 ) : filtered.length === 0 ? (
-                    <div className="text-center py-20">
-                        <Code2 size={32} className="mx-auto mb-3 text-white/10" />
-                        <p className="text-sm text-white/25">No problems found</p>
-                    </div>
+                    <EmptyState
+                        icon={Code2}
+                        title="No problems found"
+                        description="Try a different search or difficulty filter"
+                    />
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                         {filtered.map((problem, i) => {
                             const solved = solvedIds.has(i) || solvedIds.has(problem.id);
                             return (

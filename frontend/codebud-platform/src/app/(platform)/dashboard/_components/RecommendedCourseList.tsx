@@ -20,8 +20,8 @@ const DIFFICULTY_LABEL: Record<1 | 2 | 3, string> = {
     3: "Advanced",
 };
 
-function formatTag(tag: string) {
-    return tag.replace(/_/g, " ");
+function formatTag(tag: string | undefined): string {
+    return tag ? tag.replace(/_/g, " ") : "";
 }
 
 function MatchHUD({ pct }: { pct: number }) {
@@ -316,8 +316,14 @@ export default function RecommendedCourseList() {
             {loading && <SkeletonGrid />}
 
             {!loading && error && (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 py-3 text-sm text-red-300">
-                    {error}
+                <div className="rounded-xl border border-red-500/20 bg-red-500/[0.04] px-4 py-3 text-sm text-red-300 flex items-center justify-between gap-3">
+                    <span>{error}</span>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="shrink-0 text-xs font-semibold text-red-200 hover:text-white transition-colors"
+                    >
+                        Retry
+                    </button>
                 </div>
             )}
 

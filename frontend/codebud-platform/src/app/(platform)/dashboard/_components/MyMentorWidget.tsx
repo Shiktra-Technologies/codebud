@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { User, Calendar, MessageSquare, Briefcase, GraduationCap, ArrowRight, FolderUp } from "lucide-react";
 import { getMyMentor, getStudentTasks, getStudentProjects, MentorUser, MentorshipTask, MentorshipProject } from "@/lib/services/mentorshipService";
 import StudentProjectUploadModal from "./StudentProjectUploadModal";
+import { EmptyState } from "@/app/components/ui/empty-state";
 
 interface MyMentorWidgetProps {
     // When provided (dashboard passes them from the aggregated /api/dashboard
@@ -63,12 +64,13 @@ export default function MyMentorWidget(props: MyMentorWidgetProps) {
 
     if (!mentor) {
         return (
-            <div className="bg-surface-2/50 backdrop-blur-xl rounded-2xl border border-white/[0.06] p-6 text-center">
-                <GraduationCap className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                <h3 className="text-sm font-semibold text-white/80">Mentorship Ecosystem</h3>
-                <p className="text-xs text-white/30 mt-1">
-                    You have not been assigned a mentor yet.
-                </p>
+            <div className="bg-surface-2/50 backdrop-blur-xl rounded-2xl border border-white/[0.06]">
+                <EmptyState
+                    icon={GraduationCap}
+                    title="No mentor assigned yet"
+                    description="Once you're matched with a mentor, their tasks, projects, and feedback will show up here."
+                    size="sm"
+                />
             </div>
         );
     }

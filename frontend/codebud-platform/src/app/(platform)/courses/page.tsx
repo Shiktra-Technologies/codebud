@@ -12,8 +12,11 @@ import {
     Star,
     Search,
     ArrowLeft,
-    Loader2,
 } from "lucide-react";
+import { HexIcon } from "@/app/components/ui/hex-icon";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { ErrorState } from "@/app/components/ui/error-state";
+import { CardSkeletonGrid } from "@/app/components/ui/card-skeleton";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -61,33 +64,6 @@ export default function CoursesPage() {
         return matchSearch && matchDifficulty;
     });
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-surface-0 flex items-center justify-center">
-                <Loader2 size={28} className="animate-spin text-white/20" />
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen bg-surface-0 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 inline-block">
-                        <p className="text-red-400 text-sm">⚠️ {error}</p>
-                    </div>
-                    <p className="text-white/40 text-sm mb-6">Unable to load courses at this time</p>
-                    <button 
-                        onClick={() => window.location.reload()}
-                        className="px-4 py-2 rounded-lg bg-yellow-400 text-surface-0 text-sm font-medium hover:bg-yellow-500 transition-colors"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-screen bg-surface-0">
             <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04]">
@@ -115,6 +91,7 @@ export default function CoursesPage() {
                     </motion.div>
 
                     {/* Filters */}
+                    {!loading && !error && (
                     <div className="flex flex-wrap items-center gap-4 mb-8">
                         <div className="relative flex-1 min-w-[200px] max-w-sm">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/15" />
@@ -130,15 +107,27 @@ export default function CoursesPage() {
                             ))}
                         </div>
                     </div>
+                    )}
+
+                    {/* Loading */}
+                    {loading && <CardSkeletonGrid count={6} />}
+
+                    {/* Error */}
+                    {!loading && error && (
+                        <ErrorState
+                            message={error}
+                            onRetry={() => window.location.reload()}
+                        />
+                    )}
 
                     {/* Course Grid */}
-                    {filtered.length === 0 ? (
-                        <div className="py-20 text-center">
-                            <BookOpen size={32} className="mx-auto mb-3 text-white/10" />
-                            <h4 className="text-sm font-semibold text-white/30 mb-1">{searchTerm || difficulty !== "all" ? "No matches" : "No Courses Yet"}</h4>
-                            <p className="text-xs text-white/15">Check back soon for new content</p>
-                        </div>
-                    ) : (
+                    {!loading && !error && filtered.length === 0 ? (
+                        <EmptyState
+                            icon={BookOpen}
+                            title={searchTerm || difficulty !== "all" ? "No matches" : "No courses yet"}
+                            description="Check back soon for new content"
+                        />
+                    ) : !loading && !error && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                             {filtered.map((course, i) => {
                                 const isEnrolled = enrolledIds.has(course._id);
@@ -154,7 +143,11 @@ export default function CoursesPage() {
                                             className="group block bg-surface-2/50 rounded-xl border border-white/[0.06] hover:border-white/[0.12] transition-all overflow-hidden">
                                             {/* Thumbnail placeholder */}
                                             <div className="h-36 bg-gradient-to-br from-yellow-400/5 to-amber-500/5 flex items-center justify-center border-b border-white/[0.04]">
-                                                <BookOpen size={32} className="text-white/10 group-hover:text-yellow-400/30 transition-colors" />
+                                                <div className="opacity-40 group-hover:opacity-100 transition-opacity duration-300">
+                                                    <HexIcon size="lg">
+                                                        <BookOpen size={22} />
+                                                    </HexIcon>
+                                                </div>
                                             </div>
                                             <div className="p-5">
                                                 <div className="flex items-center gap-2 mb-2">

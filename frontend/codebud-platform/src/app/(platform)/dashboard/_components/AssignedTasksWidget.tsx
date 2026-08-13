@@ -1,12 +1,16 @@
 import React from "react";
-import { CheckSquare, ArrowRight, Loader2, Clock } from "lucide-react";
+import { CheckSquare, ArrowRight, Clock } from "lucide-react";
 import { MentorshipTask } from "@/lib/services/mentorshipService";
+import { Skeleton } from "@/app/components/ui/skeleton";
+import { EmptyState } from "@/app/components/ui/empty-state";
 
 export default function AssignedTasksWidget({ tasks, loading }: { tasks: MentorshipTask[], loading: boolean }) {
     if (loading) {
         return (
-            <div className="bg-surface-2/30 border border-white/[0.04] rounded-2xl p-6 flex justify-center items-center h-48">
-                <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+            <div className="bg-surface-2/30 border border-white/[0.04] rounded-2xl p-5 h-48 space-y-3">
+                <Skeleton className="h-4 w-32 bg-white/[0.05]" />
+                <Skeleton className="h-14 w-full rounded-xl bg-white/[0.04]" />
+                <Skeleton className="h-14 w-full rounded-xl bg-white/[0.04]" />
             </div>
         );
     }
@@ -51,9 +55,13 @@ export default function AssignedTasksWidget({ tasks, loading }: { tasks: Mentors
                         </div>
                     ))
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-6">
-                        <CheckSquare size={32} className="text-white/20 mb-3" />
-                        <p className="text-sm text-white/60">No pending tasks</p>
+                    <div className="flex-1 flex items-center justify-center">
+                        <EmptyState
+                            icon={CheckSquare}
+                            title="No pending tasks"
+                            description="New tasks from your mentor will show up here"
+                            size="sm"
+                        />
                     </div>
                 )}
             </div>
