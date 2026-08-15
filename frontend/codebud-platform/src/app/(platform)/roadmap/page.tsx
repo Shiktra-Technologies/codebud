@@ -35,6 +35,7 @@ import {
     type RoadmapSnapshot,
     type RoadmapStage,
 } from "@/lib/services/roadmapService";
+import { ErrorState } from "@/app/components/ui/error-state";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 const POLL_MS = 60_000;
@@ -92,7 +93,7 @@ function ProgressRing({ pct }: { pct: number }) {
                     <div className="font-mono text-[32px] font-bold leading-none tabular-nums text-amber-300">
                         {pct}%
                     </div>
-                    <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-zinc-400">
                         complete
                     </div>
                 </div>
@@ -147,18 +148,18 @@ function MilestoneRow({ milestone }: { milestone: RoadmapMilestone }) {
                                 ? "text-zinc-400 line-through decoration-zinc-600"
                                 : isActive
                                     ? "text-white"
-                                    : "text-zinc-500"
+                                    : "text-zinc-400"
                         }`}
                     >
                         {milestone.title}
                     </h4>
                     {milestone.detail && (
-                        <span className="rounded-md border border-white/[0.06] bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
+                        <span className="rounded-md border border-white/[0.06] bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
                             {milestone.detail}
                         </span>
                     )}
                 </div>
-                <p className={`mt-0.5 text-xs ${isActive ? "text-zinc-400" : "text-zinc-600"}`}>
+                <p className={`mt-0.5 text-xs ${isActive ? "text-zinc-300" : "text-zinc-500"}`}>
                     {milestone.description}
                 </p>
 
@@ -180,7 +181,7 @@ function MilestoneRow({ milestone }: { milestone: RoadmapMilestone }) {
                     className={`mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                         isActive
                             ? "bg-amber-400 text-zinc-950 hover:bg-amber-300"
-                            : "border border-white/[0.07] text-zinc-500 hover:border-white/[0.15] hover:text-zinc-300"
+                            : "border border-white/[0.07] text-zinc-400 hover:border-white/[0.15] hover:text-zinc-200"
                     }`}
                 >
                     {milestone.cta}
@@ -220,16 +221,16 @@ function StageBlock({ stage, index }: { stage: RoadmapStage; index: number }) {
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h3
                     className={`text-lg font-semibold ${
-                        stage.status === "upcoming" ? "text-zinc-500" : "text-white"
+                        stage.status === "upcoming" ? "text-zinc-400" : "text-white"
                     }`}
                 >
                     {stage.title}
                 </h3>
-                <span className="text-[11px] font-medium tabular-nums text-zinc-500">
+                <span className="text-[11px] font-medium tabular-nums text-zinc-400">
                     {done}/{stage.milestones.length} done
                 </span>
             </div>
-            <p className="mt-0.5 text-xs text-zinc-500">{stage.tagline}</p>
+            <p className="mt-0.5 text-xs text-zinc-400">{stage.tagline}</p>
 
             <div className="mt-4 space-y-2.5">
                 {stage.milestones.map((m) => (
@@ -293,7 +294,7 @@ export default function RoadmapPage() {
 
     if (loading) {
         return (
-            <div className="grid min-h-[60vh] place-items-center bg-[#08080b] text-zinc-500">
+            <div className="grid min-h-[60vh] place-items-center bg-surface-0 text-zinc-500">
                 <div className="flex flex-col items-center gap-3">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-400/20 border-t-amber-400" />
                     <p className="text-xs">Loading your roadmap…</p>
@@ -304,10 +305,12 @@ export default function RoadmapPage() {
 
     if (error || !snapshot) {
         return (
-            <div className="grid min-h-[60vh] place-items-center bg-[#08080b] px-6">
-                <div className="max-w-md rounded-xl border border-red-500/20 bg-red-500/[0.04] px-5 py-4 text-sm text-red-300">
-                    {error || "Failed to load your roadmap"}
-                </div>
+            <div className="grid min-h-[60vh] place-items-center bg-surface-0 px-6">
+                <ErrorState
+                    message={error || "Failed to load your roadmap"}
+                    onRetry={() => load()}
+                    className="w-full max-w-md"
+                />
             </div>
         );
     }
@@ -315,12 +318,12 @@ export default function RoadmapPage() {
     const { stages, current, completedCount, totalCount, overallPct } = snapshot;
 
     return (
-        <div className="min-h-screen bg-[#08080b] text-white">
+        <div className="min-h-screen bg-surface-0 text-white honeycomb-bg-lg honeycomb-readable">
             {/* Header */}
             <header className="mx-auto w-full max-w-5xl px-6 pt-8">
                 <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300"
+                    className="pressable inline-flex items-center gap-1.5 text-xs font-medium text-zinc-300 transition-colors hover:text-white"
                 >
                     <ArrowLeft size={13} /> Back to dashboard
                 </Link>

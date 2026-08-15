@@ -190,6 +190,24 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* ── Accessible focus states ──────────────────────────────────────── */
+  /* Dark, low-opacity surfaces make default browser focus rings nearly
+     invisible. Give every interactive element a clear, on-brand ring
+     that meets keyboard-navigation visibility needs without relying on
+     background/border shifts alone. */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [role="tab"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid rgba(255, 193, 7, 0.6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
   html {
     font-size: var(--font-size);
     scroll-behavior: auto;
@@ -267,13 +285,16 @@
   }
 
   /* ── Honeycomb Background ── */
+  /* Gold hex-grid texture used as an ambient page background. Kept subtle
+     (never behind dense text/data) but visible enough to read as an
+     intentional honeycomb motif rather than a barely-there noise layer. */
   .honeycomb-bg {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23FFC107' stroke-width='0.4' opacity='0.12'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='%23FFC107' stroke-width='0.15' opacity='0.06'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23FFC107' stroke-width='0.65' opacity='0.26'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='%23FFC107' stroke-width='0.28' opacity='0.14'/%3E%3C/svg%3E");
     background-size: 56px 100px;
   }
 
   .honeycomb-bg-lg {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='150'%3E%3Cpath d='M42 99L0 75L0 24L42 0L84 24L84 75L42 99L42 150' fill='none' stroke='%23FFC107' stroke-width='0.3' opacity='0.08'/%3E%3Cpath d='M42 0L42 51L0 75L0 126L42 150L84 126L84 75L42 51' fill='none' stroke='%23FFC107' stroke-width='0.15' opacity='0.04'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='150'%3E%3Cpath d='M42 99L0 75L0 24L42 0L84 24L84 75L42 99L42 150' fill='none' stroke='%23FFC107' stroke-width='0.55' opacity='0.22'/%3E%3Cpath d='M42 0L42 51L0 75L0 126L42 150L84 126L84 75L42 51' fill='none' stroke='%23FFC107' stroke-width='0.28' opacity='0.12'/%3E%3C/svg%3E");
     background-size: 84px 150px;
   }
 
@@ -282,7 +303,143 @@
     clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
   }
 
+  /* ── Hex-cut corner ── */
+  /* A single clipped corner — a restrained nod to the hex motif for
+     active-state indicators (tab pills, selected chips) without turning
+     the whole shape into a hexagon. */
+  .clip-hex-corner {
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  }
+
+  /* ── Card hover ── */
+  /* Shared, restrained hover treatments for interactive cards. Variants
+     differ by intent so every card doesn't feel mechanically identical.
+     Applied as utilities on top of existing styles — no new components. */
+  .card-hover {
+    transition: transform var(--duration-normal) var(--ease-out-expo),
+      box-shadow var(--duration-normal) var(--ease-out-expo),
+      border-color var(--duration-normal) var(--ease-out-expo),
+      background-color var(--duration-fast) var(--ease-out-cubic);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255, 193, 7, 0.22);
+    box-shadow: 0 14px 36px -16px rgba(255, 193, 7, 0.2),
+      0 6px 16px -8px rgba(0, 0, 0, 0.45);
+  }
+
+  .card-hover:active {
+    transform: translateY(-1px);
+  }
+
+  /* Dense grids / stat tiles — quieter lift */
+  .card-hover-subtle {
+    transition: transform var(--duration-normal) var(--ease-out-expo),
+      box-shadow var(--duration-normal) var(--ease-out-expo),
+      border-color var(--duration-normal) var(--ease-out-expo),
+      background-color var(--duration-fast) var(--ease-out-cubic);
+  }
+
+  .card-hover-subtle:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 193, 7, 0.14);
+    box-shadow: 0 10px 24px -14px rgba(255, 193, 7, 0.12),
+      0 3px 10px -4px rgba(0, 0, 0, 0.35);
+  }
+
+  /* List rows — lateral nudge instead of vertical lift */
+  .card-hover-row {
+    transition: transform var(--duration-normal) var(--ease-out-expo),
+      background-color var(--duration-fast) var(--ease-out-cubic),
+      border-color var(--duration-normal) var(--ease-out-expo),
+      box-shadow var(--duration-normal) var(--ease-out-expo);
+  }
+
+  .card-hover-row:hover {
+    transform: translateX(4px);
+    border-color: rgba(255, 193, 7, 0.16);
+    box-shadow: -4px 0 20px -12px rgba(255, 193, 7, 0.12);
+  }
+
+  /* Featured / assessment cards — stronger amber glow */
+  .card-hover-glow {
+    transition: transform var(--duration-normal) var(--ease-out-expo),
+      box-shadow var(--duration-normal) var(--ease-out-expo),
+      border-color var(--duration-normal) var(--ease-out-expo);
+  }
+
+  .card-hover-glow:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 193, 7, 0.3);
+    box-shadow: 0 16px 40px -14px rgba(255, 193, 7, 0.3),
+      0 6px 16px -6px rgba(0, 0, 0, 0.45);
+  }
+
+  .card-hover-glow:active {
+    transform: translateY(-2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card-hover:hover,
+    .card-hover:active,
+    .card-hover-subtle:hover,
+    .card-hover-row:hover,
+    .card-hover-glow:hover,
+    .card-hover-glow:active {
+      transform: none;
+    }
+
+    .animate-rise,
+    .page-enter,
+    .stagger-children > * {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
+
+  /* ── Smooth enter / rise motion ── */
+  .page-enter {
+    animation: page-enter var(--duration-slow) var(--ease-out-expo) both;
+  }
+
+  .animate-rise {
+    animation: rise-in var(--duration-normal) var(--ease-out-expo) both;
+  }
+
+  .stagger-children > *:nth-child(1) { animation-delay: calc(var(--stagger-delay) * 0); }
+  .stagger-children > *:nth-child(2) { animation-delay: calc(var(--stagger-delay) * 1); }
+  .stagger-children > *:nth-child(3) { animation-delay: calc(var(--stagger-delay) * 2); }
+  .stagger-children > *:nth-child(4) { animation-delay: calc(var(--stagger-delay) * 3); }
+  .stagger-children > *:nth-child(5) { animation-delay: calc(var(--stagger-delay) * 4); }
+  .stagger-children > *:nth-child(6) { animation-delay: calc(var(--stagger-delay) * 5); }
+  .stagger-children > *:nth-child(7) { animation-delay: calc(var(--stagger-delay) * 6); }
+  .stagger-children > *:nth-child(8) { animation-delay: calc(var(--stagger-delay) * 7); }
+
+  .stagger-children > * {
+    animation: rise-in var(--duration-normal) var(--ease-out-expo) both;
+  }
+
+  /* Soft press feedback for chips / filters / icon buttons */
+  .pressable {
+    transition: transform var(--duration-fast) var(--ease-out-expo),
+      background-color var(--duration-fast) var(--ease-out-cubic),
+      border-color var(--duration-fast) var(--ease-out-expo),
+      color var(--duration-fast) var(--ease-out-cubic),
+      box-shadow var(--duration-fast) var(--ease-out-expo);
+  }
+
+  .pressable:hover {
+    transform: translateY(-1px);
+  }
+
+  .pressable:active {
+    transform: scale(0.97);
+  }
+
   /* ── Honeycomb shimmer (animated gradient sweep) ── */
+  /* Kept intentionally soft so cards stay readable. */
   .honeycomb-shimmer {
     position: relative;
     overflow: hidden;
@@ -293,15 +450,52 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(105deg,
-        transparent 30%,
-        rgba(255, 193, 7, 0.03) 45%,
-        rgba(255, 193, 7, 0.06) 50%,
-        rgba(255, 193, 7, 0.03) 55%,
-        transparent 70%);
+        transparent 35%,
+        rgba(255, 193, 7, 0.015) 48%,
+        rgba(255, 193, 7, 0.035) 50%,
+        rgba(255, 193, 7, 0.015) 52%,
+        transparent 65%);
     background-size: 200% 100%;
-    animation: shimmer-sweep 8s ease-in-out infinite;
+    animation: shimmer-sweep 10s ease-in-out infinite;
     pointer-events: none;
     z-index: 2;
+  }
+
+  /* Soft top fade so honeycomb stays visible but text in hero sections stays crisp */
+  .honeycomb-readable {
+    position: relative;
+  }
+
+  .honeycomb-readable::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: min(420px, 55vh);
+    background: linear-gradient(
+      to bottom,
+      rgba(5, 5, 5, 0.72) 0%,
+      rgba(5, 5, 5, 0.35) 55%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .honeycomb-readable > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Skeleton shimmer (gold-tinted, smoother than plain pulse) */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 193, 7, 0.08) 50%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s var(--ease-in-out) infinite;
   }
 }
 
@@ -315,6 +509,40 @@
 
   50% {
     background-position: -200% 0;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

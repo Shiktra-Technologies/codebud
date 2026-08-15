@@ -34,7 +34,7 @@ export default function MentorshipQuickStats({
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.1, duration: 0.5, ease }}
-                        className={`group bg-surface-2/40 border border-white/[0.04] rounded-2xl p-5 flex flex-col justify-between hover:bg-surface-2/60 transition-colors ${stat.border}`}
+                        className={`card-hover-subtle group bg-surface-2/40 border border-white/[0.04] rounded-2xl p-5 flex flex-col justify-between hover:bg-surface-2/60 ${stat.border}`}
                     >
                         <div className="flex items-center justify-between mb-4">
                             <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>

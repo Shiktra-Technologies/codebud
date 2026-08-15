@@ -24,7 +24,7 @@ export default function NotFound() {
     return (
         <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center px-6 relative overflow-hidden">
             {/* Honeycomb background */}
-            <div className="absolute inset-0 honeycomb-bg opacity-20 pointer-events-none" />
+            <div className="absolute inset-0 honeycomb-bg opacity-30 pointer-events-none" />
 
             {/* Spotlights */}
             <div

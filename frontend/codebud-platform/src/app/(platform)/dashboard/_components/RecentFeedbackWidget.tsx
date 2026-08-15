@@ -1,5 +1,6 @@
 import React from "react";
-import { MessageSquare, Star, ArrowRight } from "lucide-react";
+import { MessageSquare, Star } from "lucide-react";
+import { EmptyState } from "@/app/components/ui/empty-state";
 
 export default function RecentFeedbackWidget() {
     return (
@@ -11,14 +12,15 @@ export default function RecentFeedbackWidget() {
                 </div>
             </div>
 
-            <div className="p-5 flex-1 flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 rounded-2xl bg-yellow-400/5 flex items-center justify-center mb-4 border border-yellow-400/10">
-                    <Star className="w-6 h-6 text-yellow-400/40" />
-                </div>
-                <p className="text-sm text-white/50 mb-1">No feedback received yet</p>
-                <p className="text-xs text-white/30">Submit a task or project to get reviewed</p>
+            <div className="flex-1 flex items-center justify-center">
+                <EmptyState
+                    icon={Star}
+                    title="No feedback received yet"
+                    description="Submit a task or project to get reviewed"
+                    size="sm"
+                />
             </div>
-            
+
             <div className="p-4 border-t border-white/[0.04] text-center">
                 <button className="text-xs font-semibold text-white/40 hover:text-white transition-colors">
                     View All Feedback →

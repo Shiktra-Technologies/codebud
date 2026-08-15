@@ -83,7 +83,7 @@ export default function JobDetailPage() {
     if (!job) return null;
 
     return (
-        <div className="min-h-screen bg-surface-0">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg">
             <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04]">
                 <div className="h-full max-w-7xl mx-auto px-4 lg:px-8 flex items-center">
                     <Link href="/jobs" className="flex items-center gap-2 text-xs font-medium text-white/30 hover:text-white/50 transition-colors">

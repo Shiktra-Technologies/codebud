@@ -217,7 +217,7 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="min-h-screen bg-surface-0">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg-lg">
             <div className="max-w-3xl mx-auto px-4 py-8">
                 <Link href="/dashboard"
                     className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-yellow-400 transition-colors mb-8 group">

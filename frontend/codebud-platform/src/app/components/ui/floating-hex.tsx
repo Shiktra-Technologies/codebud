@@ -22,7 +22,7 @@ export function FloatingHex({
     x,
     y,
     delay = 0,
-    opacity = 0.06,
+    opacity = 0.09,
     rotation = 0,
     className,
 }: FloatingHexProps) {

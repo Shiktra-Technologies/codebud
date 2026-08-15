@@ -18,6 +18,7 @@ import { motion } from "motion/react";
 import {
     Sparkles,
     ArrowRight,
+    ArrowLeft,
     Check,
     Target,
     GraduationCap,
@@ -34,6 +35,8 @@ import {
 } from "@/lib/services/recommendations";
 import { formatReasons } from "@/lib/recommendationExplanation";
 import { postRecommendationEvents } from "@/lib/services/recommendationEvents";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { ErrorState } from "@/app/components/ui/error-state";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -54,6 +57,10 @@ function MatchRing({ pct }: { pct: number }) {
     const stroke = 8;
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
+    // Below this, we're not confident enough in the score to celebrate it —
+    // an honest "still learning about you" state reads better than a
+    // dramatic ring stuck near zero.
+    const lowConfidence = pct < 15;
     const dash = (Math.max(0, Math.min(100, pct)) / 100) * c;
 
     return (
@@ -63,7 +70,7 @@ function MatchRing({ pct }: { pct: number }) {
                 aria-hidden
                 className="absolute inset-0 rounded-full bg-amber-400/20 blur-3xl"
                 initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 0.55, scale: 1 }}
+                animate={{ opacity: lowConfidence ? 0.25 : 0.55, scale: 1 }}
                 transition={{ duration: 1.2, ease }}
             />
             <svg width={size} height={size} className="relative -rotate-90">
@@ -75,19 +82,33 @@ function MatchRing({ pct }: { pct: number }) {
                     stroke="rgba(255,255,255,0.06)"
                     strokeWidth={stroke}
                 />
-                <motion.circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={r}
-                    fill="none"
-                    stroke="url(#match-grad)"
-                    strokeWidth={stroke}
-                    strokeLinecap="round"
-                    strokeDasharray={c}
-                    initial={{ strokeDashoffset: c }}
-                    animate={{ strokeDashoffset: c - dash }}
-                    transition={{ duration: 1.4, delay: 0.25, ease }}
-                />
+                {!lowConfidence && (
+                    <motion.circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={r}
+                        fill="none"
+                        stroke="url(#match-grad)"
+                        strokeWidth={stroke}
+                        strokeLinecap="round"
+                        strokeDasharray={c}
+                        initial={{ strokeDashoffset: c }}
+                        animate={{ strokeDashoffset: c - dash }}
+                        transition={{ duration: 1.4, delay: 0.25, ease }}
+                    />
+                )}
+                {lowConfidence && (
+                    <circle
+                        cx={size / 2}
+                        cy={size / 2}
+                        r={r}
+                        fill="none"
+                        stroke="rgba(251,191,36,0.35)"
+                        strokeWidth={stroke}
+                        strokeDasharray="2 10"
+                        strokeLinecap="round"
+                    />
+                )}
                 <defs>
                     <linearGradient id="match-grad" x1="0" y1="0" x2="1" y2="1">
                         <stop offset="0%" stopColor="#fbbf24" />
@@ -96,18 +117,34 @@ function MatchRing({ pct }: { pct: number }) {
                 </defs>
             </svg>
             <div className="absolute inset-0 grid place-items-center">
-                <div className="text-center">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.6 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.6, delay: 0.6, ease }}
-                        className="font-mono text-[44px] font-bold leading-none tabular-nums text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.45)]"
-                    >
-                        {pct}
-                    </motion.div>
-                    <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-400/70">
-                        % personalized
-                    </div>
+                <div className="text-center px-4">
+                    {lowConfidence ? (
+                        <>
+                            <Sparkles
+                                size={20}
+                                className="mx-auto mb-1.5 text-amber-400/70"
+                            />
+                            <div className="text-[11px] font-semibold leading-snug text-amber-200/80">
+                                Getting to
+                                <br />
+                                know you
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.6 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.6, delay: 0.6, ease }}
+                                className="font-mono text-[44px] font-bold leading-none tabular-nums text-amber-300 drop-shadow-[0_0_18px_rgba(251,191,36,0.45)]"
+                            >
+                                {pct}
+                            </motion.div>
+                            <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-400/70">
+                                % personalized
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
@@ -140,18 +177,18 @@ function Hero({
 }) {
     return (
         <section className="relative overflow-hidden">
-            {/* Background mesh */}
+            {/* Background mesh — kept soft so hero copy stays readable */}
             <div
                 aria-hidden
                 className="absolute inset-0 -z-10"
                 style={{
                     backgroundImage:
-                        "radial-gradient(50% 50% at 50% 30%, rgba(251,191,36,0.10), transparent 70%), radial-gradient(40% 35% at 85% 80%, rgba(244,114,182,0.05), transparent 60%)",
+                        "radial-gradient(50% 50% at 50% 30%, rgba(251,191,36,0.07), transparent 70%), linear-gradient(to bottom, rgba(5,5,5,0.55) 0%, transparent 70%)",
                 }}
             />
             <div
                 aria-hidden
-                className="absolute inset-0 -z-10 opacity-50"
+                className="absolute inset-0 -z-10 opacity-35"
                 style={{
                     backgroundImage:
                         "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
@@ -161,7 +198,16 @@ function Hero({
                 }}
             />
 
-            <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 py-16 sm:py-24 lg:grid-cols-[1fr_auto] lg:gap-16">
+            <div className="mx-auto w-full max-w-6xl px-6 pt-8">
+                <Link
+                    href="/dashboard"
+                    className="pressable inline-flex items-center gap-1.5 text-xs font-medium text-zinc-300 transition-colors hover:text-white"
+                >
+                    <ArrowLeft size={13} /> Back to dashboard
+                </Link>
+            </div>
+
+            <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 pb-16 pt-10 sm:pb-24 sm:pt-14 lg:grid-cols-[1fr_auto] lg:gap-16">
                 <div>
                     <motion.div
                         initial={{ opacity: 0, y: 8 }}
@@ -189,7 +235,7 @@ function Hero({
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.7, delay: 0.22, ease }}
-                        className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-zinc-400"
+                        className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-zinc-300"
                     >
                         We built a personalized path based on what you told us
                         — your goal, your interests, and where you are right now.
@@ -237,7 +283,7 @@ function TopMatchCard({
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4, ease }}
-            className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-zinc-950/80 backdrop-blur-2xl"
+            className="card-hover-glow relative overflow-hidden rounded-3xl border border-white/[0.08] bg-zinc-950/80 backdrop-blur-2xl"
         >
             {/* Glow accent */}
             <div
@@ -323,19 +369,38 @@ function TopMatchCard({
                 {/* RIGHT — score panel */}
                 <div className="flex items-center justify-center">
                     <div className="flex flex-col items-center text-center">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                            Match score
-                        </div>
-                        <div className="mt-2 font-mono text-[88px] font-bold leading-none tabular-nums text-white sm:text-[104px]">
-                            {course.score}
-                        </div>
-                        <div className="-mt-1 text-base font-semibold tracking-wider text-amber-400">
-                            % match
-                        </div>
-                        <p className="mt-5 max-w-[200px] text-xs leading-relaxed text-zinc-500">
-                            Computed from your goal, level, and the interests
-                            you picked during onboarding.
-                        </p>
+                        {course.score < 15 ? (
+                            <>
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                                    Match confidence
+                                </div>
+                                <Sparkles
+                                    size={28}
+                                    className="mt-4 text-amber-400/60"
+                                />
+                                <p className="mt-3 max-w-[220px] text-xs leading-relaxed text-zinc-500">
+                                    We&apos;re still learning your preferences —
+                                    this pick is based on your goal and level so
+                                    far. Scores sharpen as you explore.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                                    Match score
+                                </div>
+                                <div className="mt-2 font-mono text-[88px] font-bold leading-none tabular-nums text-white sm:text-[104px]">
+                                    {course.score}
+                                </div>
+                                <div className="-mt-1 text-base font-semibold tracking-wider text-amber-400">
+                                    % match
+                                </div>
+                                <p className="mt-5 max-w-[200px] text-xs leading-relaxed text-zinc-500">
+                                    Computed from your goal, level, and the interests
+                                    you picked during onboarding.
+                                </p>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -360,7 +425,7 @@ function PathCard({
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.1 + index * 0.07, ease }}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-950/70 p-6 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-400/25 hover:shadow-[0_0_40px_rgba(251,191,36,0.08)]"
+            className="card-hover group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-zinc-950/70 p-6 backdrop-blur-xl"
         >
             <div
                 aria-hidden
@@ -446,7 +511,7 @@ function RoadmapTeaser() {
     return (
         <section className="mx-auto w-full max-w-6xl px-6 pb-24">
             <div className="mb-6 flex items-center gap-2">
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
                     Coming next to your path
                 </h2>
                 <div className="h-px flex-1 bg-gradient-to-r from-white/[0.06] to-transparent" />
@@ -457,14 +522,14 @@ function RoadmapTeaser() {
                         key={title}
                         className="rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.015] p-5"
                     >
-                        <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-zinc-500">
+                        <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-zinc-400">
                             <Icon size={14} />
                         </div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-300">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
                             {title}
-                            <Lock size={11} className="text-zinc-600" />
+                            <Lock size={11} className="text-zinc-500" />
                         </div>
-                        <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
+                        <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
                             {body}
                         </p>
                     </div>
@@ -600,30 +665,24 @@ export default function LearningPathPage() {
     if (error) {
         return (
             <div className="grid min-h-[60vh] place-items-center px-6">
-                <div className="max-w-md rounded-xl border border-red-500/20 bg-red-500/[0.04] px-5 py-4 text-sm text-red-300">
-                    {error}
-                </div>
+                <ErrorState
+                    message={error}
+                    onRetry={() => window.location.reload()}
+                    className="w-full max-w-md"
+                />
             </div>
         );
     }
 
     if (!courses.length) {
         return (
-            <div className="grid min-h-[60vh] place-items-center px-6 text-center">
-                <div>
-                    <p className="text-base text-zinc-300">
-                        We couldn&apos;t find paths matching your profile yet.
-                    </p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                        New courses are added regularly — check back soon.
-                    </p>
-                    <Link
-                        href="/courses"
-                        className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-xs font-semibold text-zinc-300 transition-colors hover:border-amber-400/30 hover:text-amber-300"
-                    >
-                        Browse all courses <ArrowRight size={12} />
-                    </Link>
-                </div>
+            <div className="grid min-h-[60vh] place-items-center px-6">
+                <EmptyState
+                    icon={Layers}
+                    title="We couldn't find paths matching your profile yet"
+                    description="New courses are added regularly — check back soon."
+                    action={{ label: "Browse all courses", href: "/courses" }}
+                />
             </div>
         );
     }
@@ -644,7 +703,7 @@ export default function LearningPathPage() {
     });
 
     return (
-        <div className="min-h-screen bg-[#08080b] text-white">
+        <div className="min-h-screen bg-surface-0 text-white honeycomb-bg-lg honeycomb-readable">
             <Hero
                 displayName={displayName}
                 topScore={topMatch.score}
@@ -668,7 +727,7 @@ export default function LearningPathPage() {
                             <h2 className="text-2xl font-semibold text-white">
                                 More paths shaped for you
                             </h2>
-                            <p className="mt-1 text-sm text-zinc-500">
+                            <p className="mt-1 text-sm text-zinc-400">
                                 Ranked by overall fit. Pick what feels right.
                             </p>
                         </div>

@@ -47,6 +47,10 @@ import apiClient from "@/lib/apiClient";
 import BootSequence from "@/app/components/BootSequence";
 import RecommendedCourseList from "./_components/RecommendedCourseList";
 import MyMentorWidget from "./_components/MyMentorWidget";
+import { HexIcon } from "@/app/components/ui/hex-icon";
+import { HexDivider } from "@/app/components/ui/hex-divider";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { CardSkeletonGrid } from "@/app/components/ui/card-skeleton";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -291,7 +295,7 @@ export default function DashboardPage() {
 
     return (
         <BootSequence>
-            <div className="min-h-screen bg-surface-0">
+            <div className="min-h-screen bg-surface-0 honeycomb-bg-lg">
                 {/* ── Top Navbar ─────────────────────────────────────────────── */}
                 <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-1/80 backdrop-blur-2xl border-b border-white/[0.06]">
                     <div className="h-full flex items-center justify-between px-4 lg:px-8">
@@ -300,7 +304,7 @@ export default function DashboardPage() {
                             href="/dashboard"
                             className="flex items-center gap-3 group"
                         >
-                            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_30px_rgba(255,193,7,0.25)] transition-shadow">
+                            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_30px_rgba(255,193,7,0.25)] group-hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
                                 <svg
                                     viewBox="0 0 24 24"
                                     fill="none"
@@ -492,7 +496,7 @@ export default function DashboardPage() {
                 <main className="pt-16">
                     {/* Cleaned Top Nav: Replaced by Tab Switcher inside the main view */}
 
-                    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
+                    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8 page-enter">
                         <div className="flex-1 min-w-0">
                             {/* Welcome + Refresh */}
                             <motion.div
@@ -503,20 +507,20 @@ export default function DashboardPage() {
                                 transition={{ duration: 0.5, ease }}
                             >
                             <div>
-                                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                                <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
                                     Welcome back,{" "}
                                     <span className="text-yellow-400">
                                         {displayName}
                                     </span>
                                 </h1>
-                                <p className="text-sm text-white/30 mt-1">
+                                <p className="text-sm text-white/40 mt-1.5">
                                     Continue your coding journey where you left off
                                 </p>
                             </div>
                             <button
                                 onClick={() => fetchData(true)}
                                 disabled={refreshing}
-                                className="shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-2/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/[0.1] transition-all disabled:opacity-50"
+                                className="pressable shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-2/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/[0.1] disabled:opacity-50"
                             >
                                 <RefreshCw
                                     size={14}
@@ -555,7 +559,7 @@ export default function DashboardPage() {
                                                 {isActive && (
                                                     <motion.div
                                                         layoutId="activeTab"
-                                                        className="absolute inset-0 rounded-lg bg-surface-3/80 border border-white/[0.08]"
+                                                        className="absolute inset-0 rounded-lg clip-hex-corner bg-surface-3/80 border border-white/[0.08]"
                                                         transition={{
                                                             type: "spring",
                                                             duration: 0.4,
@@ -705,21 +709,23 @@ function OverviewTab({
                 <RecommendedCourseList />
             </div>
 
+            <HexDivider className="mb-8" />
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {stats.map((stat, i) => {
                     const Icon = stat.icon;
                     return (
-                        <div key={stat.label} className="relative group">
-                            <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                            <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-colors">
+                        <div key={stat.label} className="relative group card-hover-subtle">
+                            <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-yellow-400/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                            <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5">
                                 <div className="flex items-center justify-between mb-3">
                                     <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
                                         {stat.label}
                                     </span>
-                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
-                                        <Icon size={14} className="text-white" />
-                                    </div>
+                                    <HexIcon size="sm">
+                                        <Icon size={13} />
+                                    </HexIcon>
                                 </div>
                                 <p className="text-2xl font-bold text-white">{stat.value}</p>
                             </div>
@@ -729,9 +735,12 @@ function OverviewTab({
             </div>
 
             {/* Quick Actions */}
-            <h2 className="text-lg font-bold text-white mb-4">
-                Quick Actions
-            </h2>
+            <div className="mb-4 flex items-center gap-2">
+                <Zap size={14} className="text-amber-400" />
+                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+                    Quick Actions
+                </h2>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                 {[
                     {
@@ -770,14 +779,14 @@ function OverviewTab({
                                     delay: i * 0.08,
                                     ease,
                                 }}
-                                className="group relative overflow-hidden bg-surface-2/50 rounded-xl border border-white/[0.06] p-6 hover:border-yellow-400/20 transition-all duration-300 cursor-pointer h-full"
+                                className="card-hover-glow group relative overflow-hidden bg-surface-2/50 rounded-xl border border-white/[0.06] p-6 cursor-pointer h-full"
                             >
                                 <div
                                     className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
                                 />
                                 <div className="relative">
                                     <div className="flex items-center justify-between mb-4">
-                                        <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center group-hover:border-yellow-400/20 transition-colors">
+                                        <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center group-hover:border-yellow-400/20 group-hover:scale-110 transition-all duration-300">
                                             <Icon
                                                 size={18}
                                                 className="text-white/50 group-hover:text-yellow-400 transition-colors"
@@ -819,21 +828,11 @@ function OverviewTab({
                         </span>
                     </div>
                     {submissions.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-surface-3/50 border border-white/[0.06] flex items-center justify-center">
-                                <Target
-                                    size={20}
-                                    className="text-white/15"
-                                />
-                            </div>
-                            <p className="text-sm text-white/30 mb-1">
-                                No submissions yet
-                            </p>
-                            <p className="text-xs text-white/15">
-                                Complete an assessment to see your results
-                                here
-                            </p>
-                        </div>
+                        <EmptyState
+                            icon={Target}
+                            title="No submissions yet"
+                            description="Complete an assessment to see your results here"
+                        />
                     ) : (
                         <div className="divide-y divide-white/[0.04]">
                             {submissions.slice(0, 5).map((sub, i) => {
@@ -921,15 +920,12 @@ function OverviewTab({
                         </button>
                     </div>
                     {leaderboard.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <Trophy
-                                size={20}
-                                className="mx-auto mb-2 text-white/15"
-                            />
-                            <p className="text-xs text-white/25">
-                                Rankings appear after assessments
-                            </p>
-                        </div>
+                        <EmptyState
+                            icon={Trophy}
+                            title="No rankings yet"
+                            description="Rankings appear after assessments"
+                            size="sm"
+                        />
                     ) : (
                         <div className="divide-y divide-white/[0.04]">
                             {leaderboard.slice(0, 5).map((entry, i) => {
@@ -1044,9 +1040,9 @@ function CoursesTab() {
 
     if (loading) {
         return (
-            <div className="py-16 text-center">
-                <div className="w-6 h-6 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs text-white/20">Loading courses...</p>
+            <div>
+                <div className="h-4 w-40 rounded bg-white/[0.05] animate-pulse mb-4" />
+                <CardSkeletonGrid count={3} className="mb-8" />
             </div>
         );
     }
@@ -1075,7 +1071,7 @@ function CoursesTab() {
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ duration: 0.3, delay: i * 0.08, ease }}
-                                    className="group relative bg-surface-2/50 backdrop-blur-sm rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.12] transition-all duration-300"
+                                    className="card-hover group relative bg-surface-2/50 backdrop-blur-sm rounded-2xl border border-white/[0.06] overflow-hidden"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                     <div className="relative p-6 space-y-5">
@@ -1193,7 +1189,7 @@ function AssessmentsTab() {
                                 delay: i * 0.1,
                                 ease,
                             }}
-                            className="group relative bg-surface-2/50 rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.12] transition-all duration-300"
+                            className="card-hover-glow group relative bg-surface-2/50 rounded-2xl border border-white/[0.06] overflow-hidden"
                         >
                             <div
                                 className={`absolute inset-0 bg-gradient-to-br ${test.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
@@ -1484,9 +1480,9 @@ function JobsTab() {
 
     if (loading) {
         return (
-            <div className="py-16 text-center">
-                <div className="w-6 h-6 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs text-white/20">Loading jobs...</p>
+            <div>
+                <div className="h-4 w-40 rounded bg-white/[0.05] animate-pulse mb-4" />
+                <CardSkeletonGrid count={3} />
             </div>
         );
     }
@@ -1541,7 +1537,7 @@ function JobsTab() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.4, delay: i * 0.06, ease }}
-                                className="group bg-surface-2/50 rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-all duration-300"
+                                className="card-hover group bg-surface-2/50 rounded-xl border border-white/[0.06] p-5"
                             >
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center">
