@@ -14,6 +14,7 @@ import {
     UserPlus,
     ChevronRight,
 } from "lucide-react";
+import { FloatingHex } from "@/app/components/ui/floating-hex";
 
 const KC_BASE =
     process.env.NEXT_PUBLIC_KEYCLOAK_URL || "https://keycloak.mycodebud.in";
@@ -63,7 +64,7 @@ export default function AuthPage() {
     /* ── Loading skeleton ── */
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-surface-0 flex items-center justify-center">
+            <div className="min-h-screen bg-surface-0 honeycomb-bg flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
             </div>
         );
@@ -98,17 +99,21 @@ export default function AuthPage() {
                 }}
             />
 
+            <FloatingHex size={48} x="8%" y="18%" delay={0.2} opacity={0.1} rotation={12} />
+            <FloatingHex size={32} x="88%" y="22%" delay={0.8} opacity={0.08} rotation={-8} />
+            <FloatingHex size={40} x="78%" y="72%" delay={1.2} opacity={0.07} rotation={20} />
+
             {/* ── Main card ── */}
             <div
                 className="relative w-full max-w-md z-10"
                 style={{
                     background:
                         "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)",
-                    border: "1px solid rgba(255,193,7,0.15)",
+                    border: "1px solid rgba(255,193,7,0.18)",
                     borderRadius: "1.5rem",
                     backdropFilter: "blur(24px)",
                     boxShadow:
-                        "0 0 0 1px rgba(0,0,0,0.3), 0 24px 64px rgba(0,0,0,0.5), 0 0 60px rgba(255,193,7,0.06)",
+                        "0 0 0 1px rgba(0,0,0,0.3), 0 24px 64px rgba(0,0,0,0.5), 0 0 60px rgba(255,193,7,0.08)",
                     padding: "2.5rem 2rem",
                 }}
             >

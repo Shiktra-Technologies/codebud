@@ -92,7 +92,7 @@ export default function ProblemsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-surface-0">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg-lg">
             {/* Header */}
             <div className="border-b border-white/[0.04]">
                 <div className="max-w-6xl mx-auto px-6 py-8">
@@ -144,8 +144,8 @@ export default function ProblemsPage() {
                 <div className="flex gap-1.5">
                     {(["All", "Easy", "Medium", "Hard"] as const).map((d) => (
                         <button key={d} onClick={() => setDiffFilter(d)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                                diffFilter === d ? "bg-yellow-400/10 text-yellow-400 border border-yellow-400/20" : "bg-surface-3/30 text-white/25 border border-white/[0.04] hover:text-white/40"
+                            className={`pressable px-3 py-1.5 rounded-lg text-xs font-medium ${
+                                diffFilter === d ? "bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 shadow-[0_0_16px_rgba(255,193,7,0.12)]" : "bg-surface-3/30 text-white/25 border border-white/[0.04] hover:text-white/40"
                             }`}>
                             {d}
                         </button>
@@ -154,7 +154,7 @@ export default function ProblemsPage() {
             </div>
 
             {/* Problems List */}
-            <div className="max-w-6xl mx-auto px-6 py-6">
+            <div className="max-w-6xl mx-auto px-6 py-6 page-enter">
                 {loading ? (
                     <ListSkeleton count={6} />
                 ) : filtered.length === 0 ? (
@@ -171,15 +171,15 @@ export default function ProblemsPage() {
                                 <motion.div key={problem.id || i}
                                     initial={{ opacity: 0, y: 6 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3, ease, delay: i * 0.03 }}>
+                                    transition={{ duration: 0.35, ease, delay: i * 0.03 }}>
                                     <Link href={`/problems/${resolveProblemSlug(problem)}`}
-                                        className="group flex items-center gap-4 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:border-white/[0.08] hover:bg-surface-2/50 transition-all">
-                                        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-surface-3/40 border border-white/[0.04] text-xs font-bold text-white/25">
+                                        className="card-hover-row group flex items-center gap-4 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:bg-surface-2/50">
+                                        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-surface-3/40 border border-white/[0.04] text-xs font-bold text-white/25 group-hover:border-yellow-400/20 group-hover:text-yellow-400/70 transition-colors duration-300">
                                             {i + 1}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <h3 className="text-sm font-semibold text-white/70 group-hover:text-white/90 transition-colors truncate">
+                                                <h3 className="text-sm font-semibold text-white/70 group-hover:text-white transition-colors duration-300 truncate">
                                                     {problem.title}
                                                 </h3>
                                                 {solved && <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />}
@@ -197,7 +197,7 @@ export default function ProblemsPage() {
                                         <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border shrink-0 ${diffColors[problem.difficulty] || "text-white/20"}`}>
                                             {problem.difficulty}
                                         </span>
-                                        <ArrowUpRight size={14} className="text-white/10 group-hover:text-white/30 transition-colors shrink-0" />
+                                        <ArrowUpRight size={14} className="text-white/10 group-hover:text-yellow-400/50 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 shrink-0" />
                                     </Link>
                                 </motion.div>
                             );
@@ -209,9 +209,9 @@ export default function ProblemsPage() {
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease, delay: 0.4 }}
                     className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-surface-2/60 to-surface-3/20 border border-white/[0.06] text-center">
                     <h3 className="text-base font-bold text-white mb-1">Ready for a timed challenge?</h3>
-                    <p className="text-xs text-white/25 mb-4">Take the full DSA assessment with a 90-minute timer</p>
+                    <p className="text-xs text-white/40 mb-4">Take the full DSA assessment with a 90-minute timer</p>
                     <Link href="/dsa-test"
-                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-400 text-surface-0 text-sm font-bold hover:bg-yellow-300 transition-colors shadow-[0_0_20px_rgba(255,193,7,0.15)]">
+                        className="pressable inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-yellow-400 text-surface-0 text-sm font-bold hover:bg-yellow-300 shadow-[0_0_20px_rgba(255,193,7,0.15)] hover:shadow-[0_0_32px_rgba(255,193,7,0.28)]">
                         <Zap size={16} /> Start DSA Test
                     </Link>
                 </motion.div>

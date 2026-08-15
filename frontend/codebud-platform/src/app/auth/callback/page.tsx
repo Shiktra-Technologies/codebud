@@ -86,7 +86,7 @@ export default function AuthCallbackPage() {
     }, [exchangeAuthorizationCode, logout, router]);
 
     return (
-        <div className="min-h-screen bg-surface-0 flex items-center justify-center px-6">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg flex items-center justify-center px-6">
             <div className="w-full max-w-md rounded-2xl border border-white/10 bg-surface-1/80 backdrop-blur-xl p-8 text-center">
                 {error ? (
                     <>

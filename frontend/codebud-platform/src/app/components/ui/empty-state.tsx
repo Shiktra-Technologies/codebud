@@ -35,7 +35,7 @@ export function EmptyState({
     return (
         <div
             className={cn(
-                "group flex flex-col items-center justify-center text-center",
+                "group flex flex-col items-center justify-center text-center animate-rise",
                 compact ? "py-8 px-4" : "py-12 px-6",
                 className,
             )}
@@ -47,7 +47,7 @@ export function EmptyState({
             </div>
             <p
                 className={cn(
-                    "font-semibold text-white/60",
+                    "font-semibold text-white/70",
                     compact ? "text-xs" : "text-sm",
                 )}
             >
@@ -56,7 +56,7 @@ export function EmptyState({
             {description && (
                 <p
                     className={cn(
-                        "text-white/30 mt-1 max-w-[240px]",
+                        "text-white/40 mt-1.5 max-w-[240px] leading-relaxed",
                         compact ? "text-[11px]" : "text-xs",
                     )}
                 >
@@ -67,14 +67,14 @@ export function EmptyState({
                 (action.href ? (
                     <Link
                         href={action.href}
-                        className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-xs font-semibold text-yellow-400 hover:bg-yellow-400/15 hover:border-yellow-400/30 transition-colors"
+                        className="mt-4 pressable inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-xs font-semibold text-yellow-400 hover:bg-yellow-400/15 hover:border-yellow-400/30"
                     >
                         {action.label}
                     </Link>
                 ) : (
                     <button
                         onClick={action.onClick}
-                        className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-xs font-semibold text-yellow-400 hover:bg-yellow-400/15 hover:border-yellow-400/30 transition-colors"
+                        className="mt-4 pressable inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-xs font-semibold text-yellow-400 hover:bg-yellow-400/15 hover:border-yellow-400/30"
                     >
                         {action.label}
                     </button>

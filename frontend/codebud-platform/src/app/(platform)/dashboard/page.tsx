@@ -295,7 +295,7 @@ export default function DashboardPage() {
 
     return (
         <BootSequence>
-            <div className="min-h-screen bg-surface-0">
+            <div className="min-h-screen bg-surface-0 honeycomb-bg-lg">
                 {/* ── Top Navbar ─────────────────────────────────────────────── */}
                 <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-1/80 backdrop-blur-2xl border-b border-white/[0.06]">
                     <div className="h-full flex items-center justify-between px-4 lg:px-8">
@@ -304,7 +304,7 @@ export default function DashboardPage() {
                             href="/dashboard"
                             className="flex items-center gap-3 group"
                         >
-                            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_30px_rgba(255,193,7,0.25)] transition-shadow">
+                            <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_30px_rgba(255,193,7,0.25)] group-hover:scale-105 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
                                 <svg
                                     viewBox="0 0 24 24"
                                     fill="none"
@@ -496,7 +496,7 @@ export default function DashboardPage() {
                 <main className="pt-16">
                     {/* Cleaned Top Nav: Replaced by Tab Switcher inside the main view */}
 
-                    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
+                    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8 page-enter">
                         <div className="flex-1 min-w-0">
                             {/* Welcome + Refresh */}
                             <motion.div
@@ -513,14 +513,14 @@ export default function DashboardPage() {
                                         {displayName}
                                     </span>
                                 </h1>
-                                <p className="text-sm text-white/35 mt-1.5">
+                                <p className="text-sm text-white/40 mt-1.5">
                                     Continue your coding journey where you left off
                                 </p>
                             </div>
                             <button
                                 onClick={() => fetchData(true)}
                                 disabled={refreshing}
-                                className="shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-2/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/[0.1] transition-all disabled:opacity-50"
+                                className="pressable shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-2/50 border border-white/[0.06] text-xs font-medium text-white/40 hover:text-white/60 hover:border-white/[0.1] disabled:opacity-50"
                             >
                                 <RefreshCw
                                     size={14}
@@ -716,9 +716,9 @@ function OverviewTab({
                 {stats.map((stat, i) => {
                     const Icon = stat.icon;
                     return (
-                        <div key={stat.label} className="relative group">
-                            <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                            <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-colors">
+                        <div key={stat.label} className="relative group card-hover-subtle">
+                            <div className="absolute -inset-px rounded-xl bg-gradient-to-br from-yellow-400/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                            <div className="relative bg-surface-2/50 backdrop-blur-sm rounded-xl border border-white/[0.06] p-5">
                                 <div className="flex items-center justify-between mb-3">
                                     <span className="text-xs font-semibold uppercase tracking-wider text-white/30">
                                         {stat.label}
@@ -779,14 +779,14 @@ function OverviewTab({
                                     delay: i * 0.08,
                                     ease,
                                 }}
-                                className="group relative overflow-hidden bg-surface-2/50 rounded-xl border border-white/[0.06] p-6 hover:border-yellow-400/20 transition-all duration-300 cursor-pointer h-full"
+                                className="card-hover-glow group relative overflow-hidden bg-surface-2/50 rounded-xl border border-white/[0.06] p-6 cursor-pointer h-full"
                             >
                                 <div
                                     className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
                                 />
                                 <div className="relative">
                                     <div className="flex items-center justify-between mb-4">
-                                        <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center group-hover:border-yellow-400/20 transition-colors">
+                                        <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center group-hover:border-yellow-400/20 group-hover:scale-110 transition-all duration-300">
                                             <Icon
                                                 size={18}
                                                 className="text-white/50 group-hover:text-yellow-400 transition-colors"
@@ -1071,7 +1071,7 @@ function CoursesTab() {
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ duration: 0.3, delay: i * 0.08, ease }}
-                                    className="group relative bg-surface-2/50 backdrop-blur-sm rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.12] transition-all duration-300"
+                                    className="card-hover group relative bg-surface-2/50 backdrop-blur-sm rounded-2xl border border-white/[0.06] overflow-hidden"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/5 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                     <div className="relative p-6 space-y-5">
@@ -1189,7 +1189,7 @@ function AssessmentsTab() {
                                 delay: i * 0.1,
                                 ease,
                             }}
-                            className="group relative bg-surface-2/50 rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.12] transition-all duration-300"
+                            className="card-hover-glow group relative bg-surface-2/50 rounded-2xl border border-white/[0.06] overflow-hidden"
                         >
                             <div
                                 className={`absolute inset-0 bg-gradient-to-br ${test.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
@@ -1537,7 +1537,7 @@ function JobsTab() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.4, delay: i * 0.06, ease }}
-                                className="group bg-surface-2/50 rounded-xl border border-white/[0.06] p-5 hover:border-white/[0.1] transition-all duration-300"
+                                className="card-hover group bg-surface-2/50 rounded-xl border border-white/[0.06] p-5"
                             >
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="w-10 h-10 rounded-lg bg-surface-3/80 border border-white/[0.06] flex items-center justify-center">

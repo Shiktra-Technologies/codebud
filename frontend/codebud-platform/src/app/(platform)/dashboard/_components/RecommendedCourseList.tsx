@@ -11,6 +11,8 @@ import {
 } from "@/lib/services/recommendations";
 import { formatReasons } from "@/lib/recommendationExplanation";
 import { postRecommendationEvents } from "@/lib/services/recommendationEvents";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { CardSkeletonGrid } from "@/app/components/ui/card-skeleton";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -84,9 +86,9 @@ function CourseCard({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: index * 0.06, ease }}
-            className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/80 backdrop-blur-xl transition-colors hover:border-amber-400/25"
+            className="card-hover group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/80 backdrop-blur-xl"
         >
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-400/[0.04] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-400/[0.03] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
             <div className="relative flex flex-col gap-4 p-5">
                 <header className="flex items-start justify-between gap-3">
@@ -178,59 +180,28 @@ function SectionShell({ children }: { children: React.ReactNode }) {
 }
 
 function SkeletonGrid() {
-    return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                    key={i}
-                    className="h-52 animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/40"
-                />
-            ))}
-        </div>
-    );
+    return <CardSkeletonGrid count={3} />;
 }
 
 function EmptyOnboarding() {
     return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-10 text-center">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg border border-amber-400/25 bg-amber-400/[0.08]">
-                <Lock size={16} className="text-amber-400" />
-            </div>
-            <p className="text-sm font-semibold text-white">
-                Complete onboarding to unlock recommendations
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-                Tell us your goal, skill level, and interests so the engine can
-                personalize your path.
-            </p>
-            <Link
-                href="/onboarding"
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-zinc-950 transition-colors hover:bg-amber-400"
-            >
-                Start onboarding <ArrowRight size={14} />
-            </Link>
-        </div>
+        <EmptyState
+            icon={Lock}
+            title="Complete onboarding to unlock recommendations"
+            description="Tell us your goal, skill level, and interests so the engine can personalize your path."
+            action={{ label: "Start onboarding", href: "/onboarding" }}
+        />
     );
 }
 
 function EmptyNoMatches() {
     return (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-10 text-center">
-            <Telescope size={20} className="mb-2 text-zinc-500" />
-            <p className="text-sm font-semibold text-white">
-                No matches yet
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-                We couldn&apos;t find courses for your profile. New paths drop
-                weekly — check back soon.
-            </p>
-            <Link
-                href="/courses"
-                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold text-zinc-300 transition-colors hover:border-amber-400/30 hover:text-amber-300"
-            >
-                Browse all courses <ArrowRight size={12} />
-            </Link>
-        </div>
+        <EmptyState
+            icon={Telescope}
+            title="No matches yet"
+            description="We couldn't find courses for your profile. New paths drop weekly — check back soon."
+            action={{ label: "Browse all courses", href: "/courses" }}
+        />
     );
 }
 

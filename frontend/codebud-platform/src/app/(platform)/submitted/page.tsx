@@ -107,7 +107,7 @@ export default function SubmittedPage() {
     };
 
     return (
-        <div className="min-h-screen bg-surface-0">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg-lg">
             {/* Header */}
             <div className="border-b border-white/[0.04]">
                 <div className="max-w-5xl mx-auto px-6 py-8">
@@ -191,7 +191,7 @@ export default function SubmittedPage() {
                                     initial={{ opacity: 0, y: 6 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3, ease, delay: i * 0.03 }}
-                                    className="flex items-center gap-4 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:border-white/[0.08] hover:bg-surface-2/50 transition-all">
+                                    className="card-hover-subtle flex items-center gap-4 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:bg-surface-2/50">
 
                                     {/* Type Icon */}
                                     <div className="w-9 h-9 rounded-lg bg-surface-3/40 border border-white/[0.04] flex items-center justify-center shrink-0">

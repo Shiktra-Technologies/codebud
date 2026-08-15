@@ -18,7 +18,7 @@ export default function Error({
     return (
         <div className="min-h-screen bg-surface-0 flex flex-col items-center justify-center px-6 relative overflow-hidden">
             {/* Honeycomb background */}
-            <div className="absolute inset-0 honeycomb-bg opacity-15 pointer-events-none" />
+            <div className="absolute inset-0 honeycomb-bg opacity-25 pointer-events-none" />
 
             {/* Red-tinted spotlight */}
             <div

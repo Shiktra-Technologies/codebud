@@ -65,7 +65,7 @@ export default function CoursesPage() {
     });
 
     return (
-        <div className="min-h-screen bg-surface-0">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg-lg">
             <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04]">
                 <div className="h-full max-w-7xl mx-auto px-4 lg:px-8 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -84,10 +84,10 @@ export default function CoursesPage() {
             </header>
 
             <main className="pt-16">
-                <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+                <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 page-enter">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease }} className="mb-8">
                         <h1 className="text-2xl font-bold text-white mb-1">Course Catalog</h1>
-                        <p className="text-sm text-white/25">Browse and enroll in courses — all free</p>
+                        <p className="text-sm text-white/30">Browse and enroll in courses — all free</p>
                     </motion.div>
 
                     {/* Filters */}
@@ -101,7 +101,7 @@ export default function CoursesPage() {
                         <div className="flex gap-1 p-1 bg-surface-2/40 rounded-xl border border-white/[0.04]">
                             {["all", "beginner", "intermediate", "advanced"].map((d) => (
                                 <button key={d} onClick={() => setDifficulty(d)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${difficulty === d ? "bg-yellow-400 text-surface-0" : "text-white/30 hover:text-white/50"}`}>
+                                    className={`pressable px-3 py-1.5 rounded-lg text-xs font-medium ${difficulty === d ? "bg-yellow-400 text-surface-0 shadow-[0_0_20px_rgba(255,193,7,0.2)]" : "text-white/30 hover:text-white/50"}`}>
                                     {d === "all" ? "All Levels" : d.charAt(0).toUpperCase() + d.slice(1)}
                                 </button>
                             ))}
@@ -137,13 +137,13 @@ export default function CoursesPage() {
                                         key={course._id}
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: Math.min(i * 0.05, 0.4), ease }}
+                                        transition={{ delay: Math.min(i * 0.05, 0.4), duration: 0.4, ease }}
                                     >
                                         <Link href={`/courses/${course._id}`}
-                                            className="group block bg-surface-2/50 rounded-xl border border-white/[0.06] hover:border-white/[0.12] transition-all overflow-hidden">
+                                            className="card-hover group block bg-surface-2/50 rounded-xl border border-white/[0.06] overflow-hidden">
                                             {/* Thumbnail placeholder */}
-                                            <div className="h-36 bg-gradient-to-br from-yellow-400/5 to-amber-500/5 flex items-center justify-center border-b border-white/[0.04]">
-                                                <div className="opacity-40 group-hover:opacity-100 transition-opacity duration-300">
+                                            <div className="h-36 bg-gradient-to-br from-yellow-400/[0.04] to-amber-500/[0.03] flex items-center justify-center border-b border-white/[0.04]">
+                                                <div className="opacity-45 group-hover:opacity-100 transition-opacity duration-300">
                                                     <HexIcon size="lg">
                                                         <BookOpen size={22} />
                                                     </HexIcon>
@@ -160,8 +160,8 @@ export default function CoursesPage() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                <h3 className="text-sm font-semibold text-white mb-1 group-hover:text-yellow-400 transition-colors">{course.title}</h3>
-                                                <p className="text-xs text-white/25 line-clamp-2 mb-3">{course.description || "No description"}</p>
+                                                <h3 className="text-sm font-semibold text-white mb-1 group-hover:text-yellow-400 transition-colors duration-300">{course.title}</h3>
+                                                <p className="text-xs text-white/30 line-clamp-2 mb-3">{course.description || "No description"}</p>
                                                 <div className="flex items-center justify-between text-[11px] text-white/20">
                                                     <div className="flex items-center gap-3">
                                                         {course.estimated_hours > 0 && <span className="flex items-center gap-1"><Clock size={10} />{course.estimated_hours}h</span>}

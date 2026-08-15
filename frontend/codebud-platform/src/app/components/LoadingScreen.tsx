@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 const StaticHoneycomb = () => {
     return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03]">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.09]">
             <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">

@@ -63,7 +63,7 @@ export default function JobsPage() {
     });
 
     return (
-        <div className="min-h-screen bg-surface-0">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg-lg">
             <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04]">
                 <div className="h-full max-w-7xl mx-auto px-4 lg:px-8 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -82,10 +82,10 @@ export default function JobsPage() {
             </header>
 
             <main className="pt-16">
-                <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+                <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 page-enter">
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease }} className="mb-8">
                         <h1 className="text-2xl font-bold text-white mb-1">Job Opportunities</h1>
-                        <p className="text-sm text-white/25">Browse openings from verified companies</p>
+                        <p className="text-sm text-white/30">Browse openings from verified companies</p>
                     </motion.div>
 
                     {/* Filters */}
@@ -99,7 +99,7 @@ export default function JobsPage() {
                         <div className="flex gap-1 p-1 bg-surface-2/40 rounded-xl border border-white/[0.04]">
                             {["all", "full-time", "part-time", "internship", "remote"].map((t) => (
                                 <button key={t} onClick={() => setJobType(t)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${jobType === t ? "bg-yellow-400 text-surface-0" : "text-white/30 hover:text-white/50"}`}>
+                                    className={`pressable px-3 py-1.5 rounded-lg text-xs font-medium ${jobType === t ? "bg-yellow-400 text-surface-0 shadow-[0_0_20px_rgba(255,193,7,0.2)]" : "text-white/30 hover:text-white/50"}`}>
                                     {t === "all" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}
                                 </button>
                             ))}
@@ -136,11 +136,11 @@ export default function JobsPage() {
                                     transition={{ delay: Math.min(i * 0.04, 0.4), ease }}
                                 >
                                     <Link href={`/jobs/${job._id}`}
-                                        className="group block bg-surface-2/50 rounded-xl border border-white/[0.06] p-6 hover:border-white/[0.12] transition-all">
+                                        className="card-hover-row group block bg-surface-2/50 rounded-xl border border-white/[0.06] p-6">
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-3 mb-2">
-                                                    <h3 className="text-base font-semibold text-white group-hover:text-yellow-400 transition-colors">{job.title}</h3>
+                                                    <h3 className="text-base font-semibold text-white group-hover:text-yellow-400 transition-colors duration-300">{job.title}</h3>
                                                     <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-400/10 text-blue-400 border border-blue-400/20">
                                                         {job.type}
                                                     </span>
@@ -177,7 +177,7 @@ export default function JobsPage() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <ChevronRight size={16} className="text-white/10 group-hover:text-yellow-400/50 transition-colors shrink-0 mt-1" />
+                                            <ChevronRight size={16} className="text-white/10 group-hover:text-yellow-400/50 group-hover:translate-x-0.5 transition-all duration-300 shrink-0 mt-1" />
                                         </div>
                                     </Link>
                                 </motion.div>

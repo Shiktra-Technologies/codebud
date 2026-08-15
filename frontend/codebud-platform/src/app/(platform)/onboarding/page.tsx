@@ -235,7 +235,7 @@ export default function OnboardingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-surface-0 flex flex-col">
+        <div className="min-h-screen bg-surface-0 honeycomb-bg flex flex-col">
             {/* ── Top Bar ── */}
             <header className="sticky top-0 z-50 bg-surface-0/80 backdrop-blur-xl border-b border-white/[0.04]">
                 <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">

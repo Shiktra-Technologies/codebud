@@ -44,7 +44,7 @@ function StatCard({ label, value, icon: Icon, color, delay }: {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay, ease }}
-            className="relative bg-surface-1/80 backdrop-blur-xl rounded-2xl border border-white/[0.06] p-5 overflow-hidden group hover:border-white/[0.1] transition-all duration-300"
+            className="card-hover-subtle relative bg-surface-1/80 backdrop-blur-xl rounded-2xl border border-white/[0.06] p-5 overflow-hidden group"
         >
             <div className="absolute top-0 right-0 w-24 h-24 pointer-events-none" style={{
                 background: `radial-gradient(circle, ${color}08 0%, transparent 70%)`,
@@ -96,7 +96,7 @@ function StudentsTab({ students, loading, onSelectStudent }: {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05, ease }}
                     onClick={() => onSelectStudent(s._id)}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:border-yellow-400/20 hover:bg-surface-2/50 transition-all duration-200 text-left group"
+                    className="card-hover-row w-full flex items-center gap-4 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:bg-surface-2/50 text-left group"
                 >
                     <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center text-yellow-400 font-bold text-sm shrink-0">
                         {(s.display_name || s.email)[0].toUpperCase()}
@@ -164,7 +164,7 @@ function AnalyticsTab({ students, loading, preSelectedStudent, onClearPreSelecte
                         <button
                             key={s._id}
                             onClick={() => setSelectedStudent(s._id)}
-                            className="flex items-center gap-3 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:border-yellow-400/20 hover:bg-surface-2/50 transition-all text-left"
+                            className="card-hover-row flex items-center gap-3 p-4 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:bg-surface-2/50 text-left"
                         >
                             <div className="w-9 h-9 rounded-lg bg-yellow-400/10 flex items-center justify-center text-yellow-400 font-bold text-sm">
                                 {(s.display_name || s.email)[0].toUpperCase()}
@@ -345,7 +345,7 @@ function SubmissionsTab({ students, loading }: {
                             <button
                                 key={s._id}
                                 onClick={() => setSelectedStudent(s._id)}
-                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-surface-2/30 border border-white/[0.04] hover:border-yellow-400/20 text-left transition-all"
+                                className="card-hover-row w-full flex items-center gap-3 p-3 rounded-xl bg-surface-2/30 border border-white/[0.04] text-left"
                             >
                                 <div className="w-8 h-8 rounded-lg bg-yellow-400/10 flex items-center justify-center text-yellow-400 font-bold text-xs">
                                     {(s.display_name || s.email)[0].toUpperCase()}
@@ -781,7 +781,7 @@ export default function MentorDashboardPage() {
 
     return (
         <BootSequence>
-            <div className="min-h-screen bg-surface-0 flex">
+            <div className="min-h-screen bg-surface-0 honeycomb-bg-lg flex">
                 {/* ── Sidebar ── */}
                 <aside className="w-64 bg-surface-1/50 backdrop-blur-xl border-r border-white/[0.04] flex flex-col shrink-0">
                     {/* Logo */}
