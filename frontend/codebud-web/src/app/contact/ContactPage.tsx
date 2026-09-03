@@ -12,8 +12,21 @@ import {
     Twitter,
 } from "lucide-react";
 import { PageLayout } from "../components/layout/PageLayout";
+import { sendViaFormSubmit } from "@/lib/formsubmit";
 
 const ease = [0.16, 1, 0.3, 1] as const;
+
+/* Drives the <select> and the mail subject line, so the inbox shows
+   "Enterprise Plans" rather than the "enterprise" form value. */
+const subjectOptions = [
+    { value: "general", label: "General Inquiry" },
+    { value: "support", label: "Technical Support" },
+    { value: "enterprise", label: "Enterprise Plans" },
+    { value: "partnership", label: "Partnerships" },
+    { value: "feedback", label: "Feedback" },
+] as const;
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* ── Contact Info cards ── */
 const contactInfo = [
@@ -123,8 +136,9 @@ export function ContactPage() {
     const [focusedField, setFocusedField] = useState<string | null>(null);
     const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
     const [error, setError] = useState("");
-    // Honeypot: hidden from people, irresistible to bots. See the API route.
-    const [company, setCompany] = useState("");
+    // Honeypot: hidden from people, irresistible to bots. FormSubmit drops any
+    // submission that fills it in.
+    const [honey, setHoney] = useState("");
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -136,29 +150,49 @@ export function ContactPage() {
         e.preventDefault();
         if (status === "sending") return;
 
+        const name = formState.name.trim();
+        const email = formState.email.trim();
+        const message = formState.message.trim();
+
+        // The API route used to validate this server-side. Posting straight to
+        // FormSubmit means nothing of ours sees the payload, so the check has to
+        // happen here or a blank message reaches the inbox.
+        if (!name || !message) {
+            setError("Name and message are required.");
+            setStatus("error");
+            return;
+        }
+        if (!EMAIL.test(email)) {
+            setError("Enter a valid email address.");
+            setStatus("error");
+            return;
+        }
+
         setStatus("sending");
         setError("");
 
-        try {
-            const res = await fetch("/api/contact", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...formState, company, topic: "contact" }),
-            });
-            const data = await res.json().catch(() => ({}));
+        const subject =
+            subjectOptions.find((o) => o.value === formState.subject)?.label ?? "General Inquiry";
 
-            if (!res.ok) {
-                setError(data.error ?? "Something went wrong. Please try again.");
-                setStatus("error");
-                return;
-            }
+        const result = await sendViaFormSubmit({
+            name,
+            email,
+            subject,
+            message,
+            _honey: honey,
+            _subject: `Contact form — ${subject}`,
+            // Replying in the inbox answers the visitor, not FormSubmit.
+            _replyto: email,
+        });
 
-            setStatus("sent");
-            setFormState({ name: "", email: "", subject: "general", message: "" });
-        } catch {
-            setError("Network error. Please try again, or email us directly.");
+        if (!result.ok) {
+            setError(result.error);
             setStatus("error");
+            return;
         }
+
+        setStatus("sent");
+        setFormState({ name: "", email: "", subject: "general", message: "" });
     };
 
     const inputClasses =
@@ -241,11 +275,11 @@ export function ContactPage() {
                                             onChange={handleChange}
                                             className={inputClasses + " appearance-none cursor-pointer"}
                                         >
-                                            <option value="general">General Inquiry</option>
-                                            <option value="support">Technical Support</option>
-                                            <option value="enterprise">Enterprise Plans</option>
-                                            <option value="partnership">Partnerships</option>
-                                            <option value="feedback">Feedback</option>
+                                            {subjectOptions.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
 
@@ -268,15 +302,15 @@ export function ContactPage() {
                                     {/* Honeypot — off-screen rather than display:none, which
                                         some bots detect. Never announced to assistive tech. */}
                                     <div className="absolute left-[-9999px]" aria-hidden="true">
-                                        <label htmlFor="company">Company</label>
+                                        <label htmlFor="_honey">Company</label>
                                         <input
-                                            id="company"
-                                            name="company"
+                                            id="_honey"
+                                            name="_honey"
                                             type="text"
                                             tabIndex={-1}
                                             autoComplete="off"
-                                            value={company}
-                                            onChange={(e) => setCompany(e.target.value)}
+                                            value={honey}
+                                            onChange={(e) => setHoney(e.target.value)}
                                         />
                                     </div>
 
