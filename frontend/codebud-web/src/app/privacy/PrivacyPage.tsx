@@ -91,7 +91,7 @@ export function PrivacyPage() {
                         animate={{ opacity: 1 }}
                         className="flex items-center gap-2 text-xs text-muted-foreground/70 mb-10 justify-center"
                     >
-                        <Calendar size={12} strokeWidth={1.5} />
+                        <Calendar size={12} />
                         Last updated: February 1, 2026
                     </motion.div>
 
@@ -173,7 +173,7 @@ export function PrivacyPage() {
                                         <li>Withdraw consent at any time (where processing is based on consent).</li>
                                         <li>Lodge a complaint with your local data protection authority.</li>
                                     </ul>
-                                    <p>To exercise these rights, email <a href="mailto:privacy@codebud.dev" className="text-primary/60 hover:text-primary transition-colors">privacy@codebud.dev</a>.</p>
+                                    <p>To exercise these rights, email <a href="mailto:info@mycodebud.in" className="text-primary/60 hover:text-primary transition-colors">info@mycodebud.in</a>.</p>
                                 </PolicySection>
 
                                 <PolicySection id="cookies" title="Cookies" index={5}>
@@ -193,8 +193,8 @@ export function PrivacyPage() {
                                 <PolicySection id="contact" title="Contact Us" index={7}>
                                     <p>If you have questions or concerns about this Privacy Policy or our data practices, please contact us:</p>
                                     <ul className="list-disc pl-5 space-y-1.5">
-                                        <li>Email: <a href="mailto:privacy@codebud.dev" className="text-primary/60 hover:text-primary transition-colors">privacy@codebud.dev</a></li>
-                                        <li>Address: Shiktra Technologies LLP, Bangalore, India</li>
+                                        <li>Email: <a href="mailto:info@mycodebud.in" className="text-primary/60 hover:text-primary transition-colors">info@mycodebud.in</a></li>
+                                        <li>Address: Shiktra Technologies LLP, Bengaluru, India</li>
                                     </ul>
                                 </PolicySection>
                             </div>

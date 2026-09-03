@@ -1,0 +1,735 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * Honeycomb + Honey cursor — standalone stylesheet.
+ *
+ * Extracted from codebud-platform/src/styles/theme.css. Everything the
+ * HoneycombField / HoneycombWave / HoneyCursor components need, and nothing
+ * else. Import it once, globally, after your own reset:
+ *
+ *     import "./honeycomb-cursor.css";
+ *
+ * Global opt-out for every effect in here:
+ *     document.documentElement.dataset.honey = "off";
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Tokens ──────────────────────────────────────────────────────────
+ * Override any of these in your own :root AFTER this file to retheme.
+ * The comb reads brass-on-carbon by default; --carbon-comb-edge is the
+ * one dial that decides how loud it is.
+ * ─────────────────────────────────────────────────────────────────── */
+/* Only the tokens theme.css does not already define. The carbon, brass and
+   easing scales come from theme.css — this file is imported after it, so
+   redeclaring them here would be duplication, not configuration. */
+:root {
+    /* Honeycomb gutter — the brass line between cells, and the one dial that
+       decides how loud the ambient comb reads. Kept as rgba, not a brass token,
+       because only the gutter is ever this transparent. L1 runs quieter than L0
+       because it stacks over a painted header zone rather than bare canvas. */
+    --carbon-comb-edge:    rgba(242,183,5,0.22); /* L0 ambient plate gutter */
+    --carbon-comb-edge-l1: rgba(242,183,5,0.10); /* L1 feature-band gutter  */
+
+    /* Comb wave — the brass the travelling ring paints the gutter with. The ONE
+       dial for how loud the wave is; the base gutter above stays untouched so
+       the resting plate is unchanged. Alpha, not lightness: the wave is
+       additive light over the existing gutter. */
+    --comb-wave-brass: rgba(242,183,5,0.72);
+
+    /* Honey — the cursor's liquid brass. --honey-vibrance is the single dial:
+       1 = neon, 0 = grey. */
+    --honey-vibrance: 0.57;
+    --honey-pool:      oklch(81.1% calc(0.166 * var(--honey-vibrance)) 85);
+    --honey-pool-hot:  oklch(86.4% calc(0.144 * var(--honey-vibrance)) 89);
+    --honey-pool-deep: oklch(72.3% calc(0.148 * var(--honey-vibrance)) 84);
+    --honey-pool-lift: oklch(83.4% calc(0.165 * var(--honey-vibrance)) 88);
+    --honey-pool-pale: oklch(90.9% calc(0.104 * var(--honey-vibrance)) 91);
+    /* Rim glows carry channels rather than a colour: rgb(var(--honey-rim) / a).
+       Matches --honey-pool-hot. */
+    --honey-rim: 232 208 148;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Comb wave — the ONE animated thing on the ambient plate.
+ *
+ * §A2 says the honeycomb never moves, and the plate still doesn't: this is a
+ * separate overlay that only ever brightens the GUTTER, in a ring that travels
+ * from beyond the corners inward to the centre and repeats. The cells, their
+ * fill and the plate's geometry are untouched, so what moves is light across
+ * the outlines rather than the comb itself — which is what gives the flat
+ * tiling its sense of depth.
+ *
+ * HOW IT MOVES. On canvas, per cell, in HoneycombWave — not with a CSS mask.
+ * Two CSS approaches were tried and both compute correctly while never
+ * repainting in Chrome: an interpolated registered custom property inside
+ * mask-image, and an animated mask-size. Either way the ring rendered once and
+ * sat still. More fundamentally a mask can only light cells that already sit
+ * in fixed positions; moving them needs the cells drawn individually.
+ *
+ * COST. One compositor layer, one masked element, and a deliberately slow
+ * 9s loop. `contain: strict` keeps its repaints from touching anything else.
+ * Nothing here reflows and nothing above it repaints.
+ *
+ * OPT-OUT. Honours `prefers-reduced-motion` (unlike the honey layer, which is
+ * a deliberate documented exception) and the same `data-honey="off"` switch,
+ * so one control turns off all of the product's ambient motion. When it is
+ * off the layer is hidden outright rather than frozen mid-sweep, which would
+ * leave a bright arc parked across the page.
+ * ───────────────────────────────────────────────────────────────────── */
+
+/*
+ * The wave canvas. Sits above the static plate inside the same fixed
+ * container, so it inherits the plate's edge masks and is clipped identically.
+ *
+ * It paints opaquely — canvas colour, brass backing, then every cell — so the
+ * plate beneath is the resting comb and the fallback, never a second image
+ * showing through the displaced one.
+ */
+.comb-canvas {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/*
+ * MOTION PREFERENCE — same deliberate deviation the honey layer makes, and for
+ * the same reason. Gating this on `prefers-reduced-motion` looked like the
+ * careful choice and in practice switched the effect off for a large share of
+ * users: Windows' "animation effects" toggle drives that media query and is
+ * commonly off (it is off on the machine this was built on), so the wave was
+ * invisible to them with nothing to indicate why.
+ *
+ * The opt-out is the product's own switch, exactly as for the honey layer: set
+ * `data-honey="off"` on <html> and all ambient motion stops together. Hiding
+ * the canvas reveals the static plate underneath, so the comb is still there —
+ * it simply stops moving.
+ */
+html[data-honey="off"] .comb-canvas {
+    display: none;
+}
+
+
+/*
+ * Honey layer (§5.5) — liquid cursor + liquid hover.
+ *
+ * One idea, two surfaces: brass behaves like honey. The pointer is a body of
+ * liquid that lags, stretches and recovers; a click throws droplets and leaves
+ * a smear; a card under the pointer fills with a pool that wobbles.
+ *
+ * MOTION PREFERENCE — deliberate deviation, documented
+ * This layer runs even under `prefers-reduced-motion: reduce`, and the block
+ * at the end of this file re-grants it the animation budget the global reduce
+ * rule takes away. That global rule flattens every animation to 0.01ms, which
+ * silently disabled the hive loader and this layer outright. The honey layer
+ * is the product's signature and was asked for explicitly, so the opt-out is
+ * moved from the media query to an attribute: set `data-honey="off"` on <html>
+ * and the cursor unmounts and every honey animation stops. If this should go
+ * back to being preference-driven, delete the re-grant block at the bottom and
+ * restore the media check in HoneyCursor.
+ *
+ * STILL GATED — `pointer: coarse`. There is no cursor to replace on touch, and
+ * a hover pool sticks on after a tap until something else is tapped.
+ *
+ * CONTRAST — hover paints a WASH, never a fill. Body text on carbon surfaces is
+ * bone; flooding a card with brass would put that text on a light saturated
+ * ground at roughly 1.4:1. The pool tops out at 0.24 alpha over the card's own
+ * fill, so every hover state keeps the contrast it had at rest.
+ */
+
+/* ── Liquid cursor ─────────────────────────────────────────────────── */
+
+.honey-cursor-layer {
+    position: fixed;
+    inset: 0;
+    /*
+     * THE TOP OF THE STACK, and it has to be.
+     *
+     * `cursor: none` is set on body and inherits everywhere, so the blob IS
+     * the pointer — wherever it is painted under something, the student has no
+     * cursor at all. This sat at 2147483000, the same value as the proctor's
+     * camera preview, and the submit-confirmation modal deliberately went one
+     * step above that (2147483100) so the camera could not cover it. The blob
+     * went under the modal with it: opening "Submit test?" mid-test made the
+     * pointer vanish over the one dialog that most needs a visible one.
+     *
+     * Nothing may outrank this layer. It is `pointer-events: none`, so being
+     * on top costs no clicks — it never intercepts anything.
+     */
+    z-index: 2147483647;
+    pointer-events: none;
+    /* NOT filtered. The filter lives on the small box below — see the note
+       there for why that matters. */
+    contain: layout style paint;
+}
+
+/*
+ * The box that carries the cursor blob. It travels with the pointer; the blob
+ * is positioned relative to its centre.
+ *
+ * NOT FILTERED, deliberately. The goo filter's only job was merging several
+ * blobs into one body of liquid — with the trail removed there is a single
+ * circle, and a blurred-then-thresholded circle is just a circle. Keeping it
+ * would rasterise, blur and colour-matrix a 420x420 surface on every frame to
+ * produce a shape CSS already draws for free.
+ *
+ * The filter is still defined and still used by .honey-splash, where several
+ * droplets DO need to merge. Restoring the cursor trail means restoring
+ * `filter: url(#honey-goo)` here as well as the extra segments.
+ */
+.honey-cursor-goo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 420px;
+    height: 420px;
+    margin: -210px 0 0 -210px;
+    will-change: transform;
+    transform: translate3d(-500px, -500px, 0);
+}
+
+.honey-blob {
+    position: absolute;
+    /* Centre of the filtered box; the loop offsets each blob from here. */
+    top: 50%;
+    left: 50%;
+    border-radius: 50%;
+    background: var(--brass-500, #F2B705);
+    /* Every frame writes transform only, so this element never leaves the
+       compositor and never touches layout. */
+    will-change: transform;
+    transform: translate3d(-200px, -200px, 0);
+}
+
+/* The head, and nothing behind it. The trailing sizes (.honey-blob-1/2/3, at
+   15/11/7px) were what the goo filter merged into a strand of honey; the trail
+   was removed, so they are gone with it. Restoring it means adding them back
+   here and extending SEGMENT_EASE in HoneyCursor. */
+/* The cursor reads as a drop, not a disc — it sits under the pointer for the
+   whole session, so it has to stay out of the way of what it is pointing at.
+   Sized down from 16px; the velocity stretch already makes it read larger
+   while moving, which is where "too big" came from. */
+.honey-blob-0 { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
+
+/* Over something clickable the head swells — same liquid, a little more of it.
+   A ~25% bump, not the 70% it was: the swell is meant to acknowledge that a
+   thing is clickable, and at 27px it became the largest thing on the button it
+   was sitting on. The width/height transition is what makes it feel viscous. */
+.honey-cursor-layer[data-hot="true"] .honey-blob-0 {
+    width: 15px;
+    height: 15px;
+    margin: -7.5px 0 0 -7.5px;
+}
+
+.honey-blob-0 {
+    transition: width 0.28s var(--ease-out), height 0.28s var(--ease-out),
+        margin 0.28s var(--ease-out);
+}
+
+/* Click splash. Each droplet gets its own launch vector, size and fall from
+   script; the keyframes only describe the arc. Two stages, not one: real
+   liquid decelerates outward and then drops, so the horizontal throw finishes
+   before the fall does. */
+/*
+ * One filtered box per click, created at the click point and discarded when the
+ * animation ends. Droplets used to be appended to the full-viewport filtered
+ * layer, so a single click made the browser filter the entire screen for the
+ * length of the splash.
+ */
+.honey-splash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 380px;
+    height: 380px;
+    margin: -190px 0 0 -190px;
+    pointer-events: none;
+    filter: url(#honey-goo);
+    will-change: transform;
+}
+
+.honey-droplet {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border-radius: 50%;
+    background: var(--brass-500, #F2B705);
+    animation: honey-splash var(--dur, 0.7s) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes honey-splash {
+    0% {
+        transform: translate3d(0, 0, 0) scale(0.35);
+        opacity: 1;
+    }
+    35% {
+        transform: translate3d(calc(var(--dx) * 0.75), calc(var(--dy) * 0.75), 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate3d(var(--dx), calc(var(--dy) + var(--gy)), 0) scale(0.15);
+        opacity: 0;
+    }
+}
+
+/* The smear left behind at the click point — the liquid that did not leave.
+   Spreads, then gets reabsorbed. */
+.honey-smear {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 26px;
+    height: 26px;
+    margin: -13px 0 0 -13px;
+    border-radius: 50%;
+    background: var(--brass-500, #F2B705);
+    animation: honey-smear 0.6s var(--ease-out) forwards;
+}
+
+@keyframes honey-smear {
+    0%   { transform: scale(0.2); opacity: 0.9; }
+    45%  { transform: scale(1.5); opacity: 0.55; }
+    100% { transform: scale(0.1); opacity: 0; }
+}
+
+/* A ring outside the goo layer, so it stays a clean rim instead of being
+   swallowed into the blob mass. */
+.honey-ring {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    border: 2px solid rgba(242, 183, 5, 0.85);
+    pointer-events: none;
+    /* Directly under the blob, above everything else — a click ring that only
+       half-appears because a modal covers it reads as a rendering fault. */
+    z-index: 2147483646;
+    animation: honey-ring 0.55s var(--ease-out) forwards;
+}
+
+@keyframes honey-ring {
+    0%   { transform: translate3d(var(--sx), var(--sy), 0) scale(0.4); opacity: 0.9; border-width: 3px; }
+    100% { transform: translate3d(var(--sx), var(--sy), 0) scale(4.2); opacity: 0; border-width: 1px; }
+}
+
+/* The native cursor is hidden only where the blob stands in for it. Text entry
+   keeps its I-beam: a caret position is information the blob cannot convey,
+   and losing it makes every input feel broken. */
+@media (pointer: fine) {
+    html.honey-cursor-active,
+    html.honey-cursor-active body,
+    html.honey-cursor-active a,
+    html.honey-cursor-active button,
+    html.honey-cursor-active [role="button"],
+    html.honey-cursor-active .bee-mascot,
+    html.honey-cursor-active .bee-hive {
+        cursor: none;
+    }
+
+    /*
+     * Text-entry surfaces keep the native caret. A caret position is
+     * information the blob cannot convey, and losing it makes a field feel
+     * broken — so `cursor: none` is lifted here and the blob itself is hidden
+     * (see [data-text] below).
+     *
+     * `cursor` inherits, so without these rules body's `cursor: none` reaches
+     * every descendant. The code editor and the console are included because
+     * both are places you select and read text character by character, even
+     * though only one of them accepts typing.
+     */
+    html.honey-cursor-active input,
+    html.honey-cursor-active textarea,
+    html.honey-cursor-active select,
+    html.honey-cursor-active [contenteditable="true"],
+    html.honey-cursor-active .monaco-editor,
+    html.honey-cursor-active .monaco-editor *,
+    html.honey-cursor-active pre,
+    html.honey-cursor-active code,
+    html.honey-cursor-active [data-honey-text] {
+        cursor: auto;
+    }
+}
+
+/*
+ * The blob is hidden outright over anything you type or select in. Opacity
+ * rather than display, so it fades out and back rather than popping — and so
+ * the loop keeps tracking underneath and the blob is already in the right
+ * place when it reappears.
+ */
+.honey-cursor-layer {
+    transition: opacity 0.18s var(--ease-out);
+}
+
+.honey-cursor-layer[data-text="true"] {
+    opacity: 0;
+}
+
+/* ── Liquid hover ──────────────────────────────────────────────────── */
+
+/*
+ * THE FLOOD IS GONE. Hovering a card used to fill it with a brass pool that
+ * spread from the pointer's entry point, flip the whole subtree to carbon
+ * text, and crawl the border to honey. Hover now recolours the TEXT and
+ * nothing else - see the rule under the `position` block below.
+ *
+ * What went with it, so none of it is looked for later: the `::before` pool and
+ * its `--honey-fill` mask, the `@property --honey-fill` registration, the
+ * `:hover`/`:focus-within` fill trigger, the §D1 carbon text/icon/fill flip,
+ * the `bg-surface` chip recess, the honey border-colour, the hover z-index
+ * lift, and the `.no-honey` / nested-card opt-outs that only existed to keep
+ * the flood off surfaces it broke. The honey CURSOR, its click droplets and
+ * smears, the drip rig and the ambient honeycomb layers are untouched.
+ *
+ * `position: relative` stays: cards and surfaces still hold absolutely
+ * positioned children of their own. It keeps the :where() wrapper so it
+ * carries ZERO specificity — as a plain `.honey-surface` selector it sits
+ * after Tailwind and beat every positioning utility of equal specificity, which
+ * is what once turned the playground's language dropdown into a 300px-tall
+ * navbar.
+ */
+:where(.honey-surface),
+:where([data-slot="card"]),
+:where(.tilt-3d) {
+    position: relative;
+}
+
+/*
+ * WHAT HOVER DOES NOW: the TITLE goes vibrant brass. Nothing else moves - not
+ * the body copy, not the metadata, not the icons or logos, and no fill, border
+ * or lift on the surface itself.
+ *
+ * TITLES ONLY, and the selector is what enforces it. The first cut of this
+ * rule was `:hover *`, inherited from the carbon flip the flood used to do,
+ * and it repainted every glyph in the card - subtitles, timestamps, chips and
+ * every lucide icon drawn with stroke="currentColor". A card that changes one
+ * line is a pointer; a card that changes entirely is the flood again in a
+ * different colour.
+ *
+ * WHAT COUNTS AS A TITLE: any heading, plus `[data-slot="card-title"]` for the
+ * shadcn <CardTitle>.
+ *
+ * IT PAINTS `-webkit-text-fill-color`, NOT `color`, and that is the whole
+ * trick for leaving icons alone. A lucide glyph is drawn with
+ * stroke="currentColor", so recolouring a title through `color` drags every
+ * icon nested in it along - including the leading glyph a lot of card titles
+ * carry. text-fill-color paints the text run and nothing else: `color` stays
+ * whatever it was, so currentColor still resolves to the original tone and
+ * icons and logos hold their colour. No gradient-clipped text exists in the
+ * app (`bg-clip-text` appears nowhere), which is the one thing that property
+ * would otherwise collide with.
+ *
+ * Titles written as <p class="font-semibold"> rather than a heading are NOT
+ * covered - there is no marker to select them by. Give one a heading tag, or
+ * `data-slot="card-title"`, to opt it in.
+ *
+ * --brass-400 rather than the calmed --honey-pool-* group. Those tokens exist
+ * because the old pool painted a whole card at full opacity and a grid of them
+ * read as neon; a title is a few dozen thin strokes, so it wants the ramp's
+ * peak chroma or it reads as tan rather than yellow. 83.4% lightness on
+ * carbon-canvas is 12.1:1, so the flip gains contrast rather than spending it.
+ *
+ * !important is a backstop, not a necessity: utility classes set `color`, and
+ * nothing in the app declares -webkit-text-fill-color, so there is nothing to
+ * outrank today. It is there so a future component that sets the property for
+ * its own reasons cannot silently swallow the hover state.
+ *
+ * A SURFACE THAT CONTAINS ANOTHER SURFACE OPTS OUT. A panel is not the hover
+ * target; the cards inside it are. Without this, entering a dashboard panel
+ * lit every title in it at once and the card you were actually pointing at was
+ * indistinguishable from its neighbours. The test is "paints its own surface",
+ * not "is a card" - `bg-card` is the app's marker for an opaque surface, and
+ * the Next up panel's rows are plain links carrying it.
+ *
+ * Hover-capable fine pointers only. A tap latches :hover on until something
+ * else is tapped, which would leave a title lit long after you moved on.
+ */
+@media (hover: hover) and (pointer: fine) {
+    .honey-surface:not(:has(.honey-surface, [data-slot="card"], [class*="bg-card"])):hover
+        :is(h1, h2, h3, h4, h5, h6, [data-slot="card-title"]),
+    .honey-surface:not(:has(.honey-surface, [data-slot="card"], [class*="bg-card"])):focus-within
+        :is(h1, h2, h3, h4, h5, h6, [data-slot="card-title"]),
+    [data-slot="card"]:not(:has(.honey-surface, [data-slot="card"], [class*="bg-card"])):hover
+        :is(h1, h2, h3, h4, h5, h6, [data-slot="card-title"]) {
+        -webkit-text-fill-color: var(--brass-400) !important;
+    }
+}
+
+/* ── Drips ───────────────────────────────────────────────────────────── */
+
+/*
+ * Honey running off the bottom edge of a hovered card.
+ *
+ * THE FOUR PHASES
+ *   1. accumulate — a broad pool spreads along the edge and sags.
+ *   2. neck       — the pool draws down into a column under its own weight.
+ *   3. pinch-off  — the column thins until surface tension breaks it
+ *                    (Rayleigh–Plateau); the drop separates, the pool recoils.
+ *   4. fall       — the drop accelerates, narrowing across its axis and
+ *                    drawing out along it, the way a falling drop actually does.
+ *
+ * MATERIAL
+ * Pool, neck and bead are one gooed group: blurred together and re-thresholded
+ * so the three elements render as a single body of liquid. That merge does two
+ * jobs — the neck visibly narrows and snaps instead of three shapes sliding
+ * over each other, and the bead can start nested inside the pool, hidden, and
+ * emerge by travelling out of it.
+ *
+ * The threshold forces alpha to binary, so the group cannot be translucent
+ * from the inside; translucency is applied to the GROUP after filtering.
+ * Colour depth comes from gradients on the shapes, which survive the filter
+ * because the colour matrix only touches the alpha channel.
+ */
+.honey-drips {
+    position: absolute;
+    /* PERFORMANCE — a narrow strip centred on the drip, not the card's full
+       width. On a 1000px panel the filtered region was 1000x220; it is now
+       200x260 regardless of how wide the card is. --x is set by HoneyCursor. */
+    left: var(--x, 50%);
+    width: 200px;
+    margin-left: -100px;
+    top: 100%;
+    /* Tall enough for the longest randomised fall (drop 28px x fall ratio 10,
+       plus the neck and the exit drift). The clip-path below extends the same
+       distance again downward, so nothing gets cut off mid-drop. */
+    height: 260px;
+    pointer-events: none;
+    /* Horizontal backstop. The rig is sized and clamped against the host's real
+       width in HoneyCursor, so nothing should reach this — but a card that
+       resizes under the pointer would otherwise let the pool spill past the
+       edge, and honey running off thin air looks worse than a clipped drip.
+       Only the sides are clipped; the drop still falls below the card, which is
+       the whole point. */
+    clip-path: inset(0 0 -100% 0);
+}
+
+.honey-drip {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 0;
+}
+
+/* The silhouette. Translucent as a whole — honey is not opaque, and the edge
+   of a real drop is where you see through it most. */
+.honey-drip-body {
+    position: absolute;
+    top: 0;
+    left: 0;
+    filter: url(#honey-goo-drip);
+    opacity: 0.94;
+}
+
+.honey-drip-lip,
+.honey-drip-neck,
+.honey-drip-bead {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    animation-duration: var(--dur, 1.6s);
+    animation-delay: var(--delay, 0s);
+    animation-iteration-count: infinite;
+}
+
+/*
+ * The pool. Wide and shallow: honey creeps along an edge before it commits to
+ * a drop, so the run-off reads as coming off a broad wetted area rather than
+ * squeezing out of a point. Vertical gradient because a body of honey is lit
+ * from above and deepens toward its underside.
+ */
+.honey-drip-lip {
+    width: calc(var(--size, 24px) * var(--pool, 4.2));
+    height: calc(var(--size, 24px) * 1.25);
+    margin-left: calc(var(--size, 24px) * var(--pool, 4.2) / -2);
+    /* Pulled up into the card so the pool grows OUT of the edge. A full
+       ellipse read as a flying saucer parked under the card; flat on top and
+       round underneath is a meniscus — what liquid hanging off an edge
+       actually looks like. */
+    margin-top: calc(var(--size, 24px) * -0.55);
+    border-radius: 0 0 50% 50% / 0 0 100% 100%;
+    /* Starts at exactly the card's own brass so the overlap has no seam, and
+       deepens toward the underside where the honey is thickest. */
+    background: linear-gradient(
+        to bottom,
+        var(--honey-pool, #DDBD78) 0%,
+        var(--honey-pool, #DDBD78) 34%,
+        var(--honey-pool-deep, #BFA167) 100%
+    );
+    /* Scales from its top edge, so swelling sags downward instead of growing
+       up into the card. */
+    transform-origin: 50% 0%;
+    animation-name: honey-lip;
+    animation-timing-function: var(--ease-in-out);
+}
+
+.honey-drip-neck {
+    width: calc(var(--size, 24px) * 0.82);
+    height: calc(var(--size, 24px) * var(--neck, 2.2));
+    margin-left: calc(var(--size, 24px) * -0.41);
+    border-radius: 0 0 45% 45%;
+    background: linear-gradient(
+        to bottom,
+        var(--honey-pool-lift, #E2C680) 0%,
+        var(--honey-pool, #DDBD78) 60%,
+        var(--honey-pool-deep, #BFA167) 100%
+    );
+    transform-origin: 50% 0%;
+    animation-name: honey-neck;
+}
+
+/* Radial rather than linear: a drop is a lens, brightest where the light goes
+   through it and darkest at the rim where the path through the honey is
+   longest. */
+.honey-drip-bead {
+    width: var(--size, 24px);
+    height: var(--size, 24px);
+    margin-left: calc(var(--size, 24px) * -0.5);
+    border-radius: 50%;
+    background: radial-gradient(
+        circle at 34% 30%,
+        var(--honey-pool-pale, #F0E0B5) 0%,
+        var(--honey-pool-lift, #E2C680) 38%,
+        var(--honey-pool, #DDBD78) 66%,
+        var(--honey-pool-deep, #BFA167) 100%
+    );
+    transform-origin: 50% 50%;
+    animation-name: honey-bead;
+}
+
+@keyframes honey-lip {
+    0%, 100% { transform: scale(0.84, 0.7); }
+    /* spreading and sagging as honey collects */
+    32%      { transform: scale(1.16, 1.14); }
+    /* recoil the instant the drop lets go */
+    48%      { transform: scale(0.92, 0.58); }
+    62%      { transform: scale(1, 0.8); }
+}
+
+@keyframes honey-neck {
+    0%   { transform: scaleX(0.92) scaleY(0); animation-timing-function: ease-in; }
+    30%  { transform: scaleX(0.82) scaleY(1); animation-timing-function: ease-in; }
+    /* necking down before it breaks */
+    40%  { transform: scaleX(0.32) scaleY(1.2); animation-timing-function: ease-out; }
+    46%  { transform: scaleX(0) scaleY(0.72); }
+    58%  { transform: scaleX(0) scaleY(0); }
+    100% { transform: scaleX(0) scaleY(0); }
+}
+
+@keyframes honey-bead {
+    /*
+     * The drop is never created — it is always present, and starts nested
+     * INSIDE the pool where the goo filter absorbs it into that silhouette.
+     * It becomes visible only by travelling out of the pool and down the neck,
+     * which is how a real drop forms: liquid leaves the mass, it does not
+     * materialise next to it.
+     *
+     * The previous version faded the bead in at 12% while the neck was still
+     * growing, so a finished droplet popped into existence beside a
+     * half-formed drip. Opacity now holds at 1 for the whole descent and only
+     * fades once the drop is far below the card and on its way out of frame.
+     */
+    0% {
+        transform: translateY(calc(var(--size, 24px) * 0.12)) scale(0.58, 0.5);
+        animation-timing-function: ease-in;
+    }
+    /* travelling down inside the neck, still part of the same body */
+    20% {
+        transform: translateY(calc(var(--size, 24px) * var(--neck, 2.2) * 0.52)) scale(0.82, 0.78);
+        animation-timing-function: ease-in;
+    }
+    /* hanging at the neck's tip, heavy and flattened by its own weight */
+    34% {
+        transform: translateY(calc(var(--size, 24px) * var(--neck, 2.2) * 1.07)) scale(1.06, 0.92);
+        animation-timing-function: ease-in;
+    }
+    /* drawn long in the instant before the neck lets go */
+    44% {
+        transform: translateY(calc(var(--size, 24px) * var(--neck, 2.2) * 1.41)) scale(0.86, 1.2);
+        animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+    }
+    /* free: surface tension snaps it back to round */
+    52% {
+        transform: translateY(calc(var(--size, 24px) * var(--neck, 2.2) * 1.86)) scale(1.05, 0.95);
+        animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+    }
+    /*
+     * Free fall, compressed into under a fifth of the cycle. The drop is clear
+     * of the frame by 70%, and the rest belongs to the pool rebuilding — which
+     * is the slow part in reality, so the rhythm reads right even though the
+     * fall itself is quick.
+     *
+     * Width pays for height throughout, so volume reads as conserved.
+     */
+    58% {
+        transform: translateY(calc(var(--fall, 150px) * 0.5)) scale(0.74, 1.38);
+        opacity: 1;
+        animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+    }
+    66% {
+        transform: translateY(var(--fall, 150px)) scale(0.54, 1.74);
+        opacity: 1;
+        animation-timing-function: cubic-bezier(0.4, 0, 1, 1);
+    }
+    70% {
+        transform: translateY(calc(var(--fall, 150px) + 40px)) scale(0.44, 1.96);
+        opacity: 0;
+    }
+    /* Reset to the start pose while invisible, so the loop has no visible
+       jump back up the screen. */
+    71% {
+        transform: translateY(calc(var(--size, 24px) * 0.12)) scale(0.58, 0.5);
+        opacity: 0;
+    }
+    /* Back inside the pool, where the goo merge hides it until it sets off
+       again — the fade is belt-and-braces, not something you can see. */
+    82% {
+        transform: translateY(calc(var(--size, 24px) * 0.12)) scale(0.58, 0.5);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(calc(var(--size, 24px) * 0.12)) scale(0.58, 0.5);
+        opacity: 1;
+    }
+}
+
+/* Coarse pointers hover-lock: a tap leaves a drip rig stuck on until something
+   else is tapped. Drop it there. (The card flood it used to hang off is gone
+   entirely — see "Liquid hover" above.) */
+@media (hover: none), (pointer: coarse) {
+    .honey-drips {
+        display: none;
+    }
+}
+
+/* ── Motion re-grant ──────────────────────────────────────────────────
+ * A global `prefers-reduced-motion` rule that flattens animations to
+ * 0.01ms silently kills this layer. These buy the duration back; keep them
+ * LAST in your cascade. The opt-out is data-honey="off", not the media
+ * query — see the honey-layer header above.
+ * ─────────────────────────────────────────────────────────────────── */
+html:not([data-honey="off"]) .honey-droplet {
+    animation-duration: var(--dur, 0.7s) !important;
+    animation-iteration-count: 1 !important;
+}
+
+html:not([data-honey="off"]) .honey-smear {
+    animation-duration: 0.6s !important;
+    animation-iteration-count: 1 !important;
+}
+
+html:not([data-honey="off"]) .honey-ring {
+    animation-duration: 0.55s !important;
+    animation-iteration-count: 1 !important;
+}
+
+html:not([data-honey="off"]) .honey-drip-lip,
+html:not([data-honey="off"]) .honey-drip-neck,
+html:not([data-honey="off"]) .honey-drip-bead {
+    animation-duration: var(--dur, 1.6s) !important;
+    animation-iteration-count: infinite !important;
+}
+
+html:not([data-honey="off"]) .honey-blob {
+    transition-duration: 0.55s !important;
+}

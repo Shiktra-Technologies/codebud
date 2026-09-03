@@ -92,7 +92,7 @@ export function TermsPage() {
                         animate={{ opacity: 1 }}
                         className="flex items-center gap-2 text-xs text-muted-foreground/70 mb-10 justify-center"
                     >
-                        <Calendar size={12} strokeWidth={1.5} />
+                        <Calendar size={12} />
                         Last updated: February 1, 2026
                     </motion.div>
 
@@ -189,15 +189,15 @@ export function TermsPage() {
                                 </TermsSection>
 
                                 <TermsSection id="governing-law" title="Governing Law" index={7}>
-                                    <p>These Terms are governed by the laws of India. Any disputes arising under these Terms shall be resolved in the courts of Bangalore, Karnataka, India.</p>
+                                    <p>These Terms are governed by the laws of India. Any disputes arising under these Terms shall be resolved in the courts of Bengaluru, Karnataka, India.</p>
                                     <p>If any provision of these Terms is found to be unenforceable, the remaining provisions shall continue in full force and effect.</p>
                                 </TermsSection>
 
                                 <TermsSection id="contact" title="Contact" index={8}>
                                     <p>For questions about these Terms, please contact us:</p>
                                     <ul className="list-disc pl-5 space-y-1.5">
-                                        <li>Email: <a href="mailto:legal@codebud.dev" className="text-primary/60 hover:text-primary transition-colors">legal@codebud.dev</a></li>
-                                        <li>Address: Shiktra Technologies LLP, Bangalore, India</li>
+                                        <li>Email: <a href="mailto:info@mycodebud.in" className="text-primary/60 hover:text-primary transition-colors">info@mycodebud.in</a></li>
+                                        <li>Address: Shiktra Technologies LLP, Bengaluru, India</li>
                                     </ul>
                                 </TermsSection>
                             </div>

@@ -144,7 +144,7 @@ export default function NotFound() {
                 >
                     <Link href="/">
                         <Button variant="default" size="lg" className="px-8 group">
-                            <Home size={16} className="mr-1.5" strokeWidth={1.5} />
+                            <Home size={16} className="mr-1.5" />
                             Take Me Home
                         </Button>
                     </Link>
@@ -154,7 +154,7 @@ export default function NotFound() {
                         className="px-8"
                         onClick={() => window.history.back()}
                     >
-                        <ArrowLeft size={16} className="mr-1.5" strokeWidth={1.5} />
+                        <ArrowLeft size={16} className="mr-1.5" />
                         Go Back
                     </Button>
                 </motion.div>
@@ -167,7 +167,7 @@ export default function NotFound() {
                     <img
                         src="/logo/logo.png"
                         alt=""
-                        className="w-8 h-8 object-contain shrink-0"
+                        className="w-8 h-8 rounded-lg object-contain shrink-0"
                     />
                     <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                 </Link>

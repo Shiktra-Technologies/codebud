@@ -1,36 +1,38 @@
 import type { Metadata } from "next";
 import { fontVariables } from "@/fonts";
 import { HoneycombField } from "@/components/HoneycombField";
+import HoneyCursor from "@/components/HoneyCursor";
 import "@/styles/index.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-    title: "MYCODEBUD — Learn to Code. Build the Future.",
+    title: "MYCODEBUD — Proof, not paperwork.",
     description:
-        "From zero to hero — MYCODEBUD is your companion on the journey from coding basics to advanced development. Interactive lessons, real projects, and a thriving community.",
+        "A career and capability-building ecosystem for engineering students — guidance, mentorship, projects, DSA, hackathons and placement support. A Shiktra Technologies LLP venture.",
     keywords: [
-        "learn to code",
-        "coding courses",
-        "react tutorial",
-        "full-stack development",
-        "coding bootcamp",
-        "programming for beginners",
+        "engineering student placement",
+        "DSA practice",
+        "interview preparation",
+        "student mentorship",
+        "hackathon support",
+        "novelty projects",
+        "campus placement India",
         "MYCODEBUD",
     ],
     authors: [{ name: "Shiktra Technologies LLP" }],
     openGraph: {
-        title: "MYCODEBUD — Learn to Code. Build the Future.",
+        title: "MYCODEBUD — Proof, not paperwork.",
         description:
-            "Interactive coding courses, real-world projects, and AI-powered feedback. Join 10,000+ developers building the future.",
+            "Guidance, mentorship, novelty-first projects, placement-aligned DSA and hackathon support — ₹99 a month. A Shiktra Technologies LLP venture.",
         siteName: "MYCODEBUD",
         type: "website",
         locale: "en_US",
     },
     twitter: {
         card: "summary_large_image",
-        title: "MYCODEBUD — Learn to Code. Build the Future.",
+        title: "MYCODEBUD — Proof, not paperwork.",
         description:
-            "Interactive coding courses, real-world projects, and AI-powered feedback. Join 10,000+ developers.",
+            "Guidance, mentorship, novelty-first projects, placement-aligned DSA and hackathon support — ₹99 a month. A Shiktra Technologies LLP venture.",
     },
     robots: {
         index: true,
@@ -51,6 +53,7 @@ export default function RootLayout({
                 <Providers>
                     {children}
                 </Providers>
+                <HoneyCursor />
             </body>
         </html>
     );

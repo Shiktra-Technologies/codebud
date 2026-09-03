@@ -2,7 +2,7 @@
 
 import React, { Suspense, lazy } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, ChevronDown, File, Folder, Play } from "lucide-react";
+import { ArrowRight, ChevronDown, Play } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -121,11 +121,7 @@ export const Hero = () => {
                     transition={{ duration: 0.8, delay: 0.35, ease }}
                     className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold leading-[1.05] tracking-tight mb-7"
                 >
-                    Learn to{" "}
-                    <span className="text-primary">Code.</span>
-                    <br />
-                    Build the{" "}
-                    <span className="text-primary">Future.</span>
+                    MY<span className="text-primary">CODEBUD</span>
                 </motion.h1>
 
                 {/* Subtitle */}
@@ -135,7 +131,7 @@ export const Hero = () => {
                     transition={{ duration: 0.7, delay: 0.55, ease }}
                     className="text-muted-foreground text-base md:text-lg lg:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
                 >
-                    From zero to hero — interactive lessons, real-world projects, AI-powered feedback, and a thriving community of 10,000+ developers.
+                    A career and capability-building ecosystem for engineering students — guidance, mentorship, projects, DSA, hackathons and placement support.
                 </motion.p>
 
                 {/* CTAs */}
@@ -148,12 +144,12 @@ export const Hero = () => {
                     <Link href={PLATFORM_AUTH_URL}>
                         <Button variant="default" size="lg" className="w-full sm:w-auto group px-8">
                             Start Learning Free
-                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform duration-200" strokeWidth={1.5} />
+                            <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform duration-200" />
                         </Button>
                     </Link>
                     <a href="/#features">
                         <Button variant="outline" size="lg" className="w-full sm:w-auto px-8">
-                            <Play size={15} className="mr-1" strokeWidth={1.5} />
+                            <Play size={15} className="mr-1" />
                             Watch Demo
                         </Button>
                     </a>
@@ -161,19 +157,14 @@ export const Hero = () => {
 
                 {/* ── 3D IDE Mockup ── */}
                 <motion.div
-                    initial={{ opacity: 0, y: 60, rotateX: 8 }}
-                    animate={{ opacity: 1, y: 0, rotateX: 0 }}
+                    initial={{ opacity: 0, y: 60 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1.0, delay: 0.9, ease }}
-                    className="w-full max-w-3xl mx-auto"
-                    style={{ perspective: 1200 }}
+                    className="ide-stage w-full max-w-3xl mx-auto"
                 >
-                    <div
-                        className="relative rounded-xl overflow-hidden border border-border"
-                        style={{
-                            transform: "perspective(1200px) rotateX(2deg)",
-                            animation: "ide-glow 4s ease-in-out infinite",
-                        }}
-                    >
+                    {/* The tilt itself lives in CSS (.ide-tilt) so it can flatten on
+                        hover and on narrow screens without fighting Motion. */}
+                    <div className="ide-tilt relative rounded-xl overflow-hidden border border-border">
                         {/* Gradient border glow */}
                         <div
                             className="absolute -inset-px rounded-xl pointer-events-none z-20"
@@ -194,22 +185,9 @@ export const Hero = () => {
                                 </div>
                                 <div className="flex gap-px flex-1">
                                     <div className="bg-muted px-4 py-1.5 rounded-t-lg text-[11px] text-muted-foreground font-mono flex items-center gap-2 border border-border border-b-0">
-                                        {/* React mark, drawn rather than set as the atom emoji:
-                                            nucleus + three orbits. Same 12px box as before. */}
-                                        <svg
-                                            width="12"
-                                            height="12"
-                                            viewBox="0 0 32 32"
-                                            className="text-muted-foreground"
-                                            aria-hidden="true"
-                                        >
+                                        <svg width="12" height="12" viewBox="0 0 32 32" className="text-muted-foreground">
                                             <circle cx="16" cy="16" r="14" fill="currentColor" opacity="0.2" />
-                                            <circle cx="16" cy="16" r="2.6" fill="currentColor" />
-                                            <g fill="none" stroke="currentColor" strokeWidth="1.6">
-                                                <ellipse cx="16" cy="16" rx="10.5" ry="4" />
-                                                <ellipse cx="16" cy="16" rx="10.5" ry="4" transform="rotate(60 16 16)" />
-                                                <ellipse cx="16" cy="16" rx="10.5" ry="4" transform="rotate(120 16 16)" />
-                                            </g>
+                                            <text x="16" y="21" textAnchor="middle" fontSize="16" fill="currentColor" fontWeight="bold">⚛</text>
                                         </svg>
                                         Welcome.tsx
                                     </div>
@@ -243,18 +221,13 @@ export const Hero = () => {
                                         key={i}
                                         className={`flex items-center gap-1.5 py-0.5 px-2 rounded text-[11px] font-mono cursor-default ${f.active
                                             ? "bg-primary/[0.08] text-primary/80"
-                                            : "text-muted-foreground"
+                                            : "text-muted-foreground hover:text-muted-foreground"
                                             }`}
                                         style={{ paddingLeft: `${8 + f.indent * 12}px` }}
                                     >
-                                        {/* The folder/file emoji became the real thing. The old
-                                            ternary branched on f.active to pick between two
-                                            identical glyphs, so that branch is gone too. */}
-                                        {f.isDir ? (
-                                            <Folder size={11} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
-                                        ) : (
-                                            <File size={11} strokeWidth={1.5} className="shrink-0" aria-hidden="true" />
-                                        )}
+                                        <span className="text-[9px]">
+                                            {f.isDir ? "📁" : f.active ? "📄" : "📄"}
+                                        </span>
                                         {f.name}
                                     </div>
                                 ))}
@@ -291,15 +264,20 @@ export const Hero = () => {
                     className="mt-10 sm:mt-14 flex flex-col items-center gap-3"
                 >
                     <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60 font-semibold">
-                        Trusted by developers at
+                        Mentors who&apos;ve worked at
                     </span>
                     <div className="flex items-center gap-6 sm:gap-8 text-muted-foreground/60">
-                        {["Google", "Microsoft", "Amazon", "Meta", "Stripe"].map((company) => (
+                        {["Amazon", "TCS", "Infosys", "Precisely", "SIH Jury"].map((company) => (
                             <span key={company} className="text-xs sm:text-sm font-semibold tracking-wide">
                                 {company}
                             </span>
                         ))}
                     </div>
+                    {/* The brand doc lists these as mentor affiliations shown for
+                        professional context, explicitly not endorsements. */}
+                    <span className="text-[10px] text-muted-foreground/40 max-w-md text-center">
+                        Mentor affiliations shown for context on professional background — not endorsements by these organisations.
+                    </span>
                 </motion.div>
             </div>
 
@@ -311,7 +289,7 @@ export const Hero = () => {
                 className="relative z-10 pb-8"
             >
                 <motion.div animate={{ y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
-                    <ChevronDown size={20} className="text-muted-foreground/70" strokeWidth={1.5} />
+                    <ChevronDown size={20} className="text-muted-foreground/70" />
                 </motion.div>
             </motion.div>
         </section>

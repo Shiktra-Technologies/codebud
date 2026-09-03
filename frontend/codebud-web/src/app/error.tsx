@@ -42,7 +42,7 @@ export default function Error({
                     className="mb-6 flex justify-center"
                 >
                     <div className="w-20 h-20 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
-                        <AlertTriangle size={36} className="text-destructive/80" strokeWidth={1.5} />
+                        <AlertTriangle size={36} className="text-destructive/80" />
                     </div>
                 </motion.div>
 
@@ -102,12 +102,12 @@ export default function Error({
                         className="px-8 group"
                         onClick={() => reset()}
                     >
-                        <RefreshCw size={16} className="mr-1.5 group-hover:rotate-180 transition-transform duration-500" strokeWidth={1.5} />
+                        <RefreshCw size={16} className="mr-1.5 group-hover:rotate-180 transition-transform duration-500" />
                         Try Again
                     </Button>
                     <Link href="/">
                         <Button variant="outline" size="lg" className="px-8">
-                            <Home size={16} className="mr-1.5" strokeWidth={1.5} />
+                            <Home size={16} className="mr-1.5" />
                             Go Home
                         </Button>
                     </Link>
@@ -121,7 +121,7 @@ export default function Error({
                     <img
                         src="/logo/logo.png"
                         alt=""
-                        className="w-8 h-8 object-contain shrink-0"
+                        className="w-8 h-8 rounded-lg object-contain shrink-0"
                     />
                     <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                 </Link>

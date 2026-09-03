@@ -1,59 +1,62 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React from "react";
 import { motion } from "motion/react";
-import { BookOpen, Code, Users, Zap, Trophy, Rocket } from "lucide-react";
+import { Book, Code, Users, Zap, Trophy, Rocket } from "lucide-react";
 
 import { SectionBadge } from "@/components/section-badge";
+import { Tilt3D } from "@/components/Tilt3D";
+import { HoneycombBand } from "@/components/HoneycombField";
+import { HexCluster } from "@/components/HexCluster";
 
 const features = [
     {
-        icon: BookOpen,
-        title: "Structured Learning Paths",
+        icon: Rocket,
+        title: "Real Projects, Not Templates",
         description:
-            "From HTML basics to full-stack mastery — follow curated roadmaps designed by industry experts.",
+            "Novelty-first, portfolio-ready work — never the same copied project every batch turns in.",
         span: "lg:col-span-1 lg:row-span-2",
         visual: "paths",
     },
     {
-        icon: Code,
-        title: "Hands-On Coding Labs",
-        description:
-            "Practice in real-time coding environments. Build projects, not just theory.",
-        span: "lg:col-span-1",
-        visual: "code",
-    },
-    {
-        icon: Zap,
-        title: "AI-Powered Feedback",
-        description:
-            "Get instant code reviews and personalized suggestions to level up faster.",
-        span: "lg:col-span-1",
-        visual: "ai",
-    },
-    {
         icon: Users,
-        title: "Peer Community",
+        title: "Mentorship From Practitioners",
         description:
-            "Collaborate with fellow learners, join coding challenges, and grow together.",
+            "Learn from people who've shipped code and sat on the other side of the interview table.",
         span: "lg:col-span-1",
-        visual: "community",
+        visual: "mentorship",
+    },
+    {
+        icon: Code,
+        title: "Placement-Aligned DSA",
+        description:
+            "Practice tracks and interview questions built around what companies actually ask.",
+        span: "lg:col-span-1",
+        visual: "dsa",
     },
     {
         icon: Trophy,
-        title: "Certifications & Badges",
+        title: "Hackathon Support",
         description:
-            "Earn recognized certificates as you complete milestones in your coding journey.",
+            "Mentor guidance and technical support to compete in national-level hackathons and challenges.",
         span: "lg:col-span-1",
-        visual: "certs",
+        visual: "hackathons",
     },
     {
-        icon: Rocket,
-        title: "Career Launchpad",
+        icon: Zap,
+        title: "₹99 A Month",
         description:
-            "Access internship opportunities, resume building tools, and mock interviews.",
+            "High-value career preparation priced so cost is never the reason a student sits out.",
+        span: "lg:col-span-1",
+        visual: "pricing",
+    },
+    {
+        icon: Book,
+        title: "An Ecosystem, Not A Course",
+        description:
+            "Guidance, mentorship, projects and placement support that work together — not scattered across apps.",
         span: "lg:col-span-1 lg:row-span-2",
-        visual: "career",
+        visual: "ecosystem",
     },
 ];
 
@@ -64,7 +67,7 @@ function CardVisual({ type }: { type: string }) {
     if (type === "paths") {
         return (
             <div className="mt-4 space-y-2 opacity-40 group-hover:opacity-60 transition-opacity duration-500">
-                {["HTML & CSS", "JavaScript", "React", "Node.js", "Full-Stack"].map((step, i) => (
+                {["Core project", "Novelty brief", "Mentor code review", "GitHub-ready docs", "Demo Day"].map((step, i) => (
                     <div key={step} className="flex items-center gap-2.5">
                         <div className={`w-2 h-2 rounded-full ${i < 3 ? "bg-primary" : "bg-muted"}`} />
                         <div className="h-px flex-1 bg-muted" />
@@ -74,12 +77,20 @@ function CardVisual({ type }: { type: string }) {
             </div>
         );
     }
-    if (type === "career") {
+    if (type === "ecosystem") {
         return (
             <div className="mt-4 space-y-2 opacity-40 group-hover:opacity-60 transition-opacity duration-500">
-                {["Resume Builder", "Mock Interviews", "Internship Board", "Portfolio Review"].map((item, i) => (
+                {[
+                    "Guidance & Direction",
+                    "Mentorship",
+                    "Core & Novelty Projects",
+                    "DSA Practice",
+                    "Interview Preparation",
+                    "Hackathons",
+                    "Placement Support",
+                ].map((item) => (
                     <div key={item} className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
-                        <span className="text-primary/60">→</span>
+                        <span className="text-primary/60">&rarr;</span>
                         {item}
                     </div>
                 ))}
@@ -89,7 +100,11 @@ function CardVisual({ type }: { type: string }) {
     return null;
 }
 
-/* ── Spotlight card with mouse tracking ── */
+/* ── Tilting bento card ──
+ * The mouse-tracking "spotlight" this used to carry painted a gradient whose
+ * every stop was `transparent`, so it cost a handler per move and rendered
+ * nothing. Tilt3D's sheen is the same idea with a colour in it, and it rides
+ * the same pointer position that drives the tilt. */
 function FeatureCard({
     feature,
     index,
@@ -97,23 +112,6 @@ function FeatureCard({
     feature: (typeof features)[0];
     index: number;
 }) {
-    const cardRef = useRef<HTMLDivElement>(null);
-    const spotlightRef = useRef<HTMLDivElement>(null);
-
-    const handleMouseMove = useCallback((e: React.MouseEvent) => {
-        if (!cardRef.current || !spotlightRef.current) return;
-        const rect = cardRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        spotlightRef.current.style.background = `radial-gradient(400px circle at ${x}px ${y}px, transparent, transparent 60%)`;
-    }, []);
-
-    const handleMouseLeave = useCallback(() => {
-        if (spotlightRef.current) {
-            spotlightRef.current.style.background = "transparent";
-        }
-    }, []);
-
     const isTall = feature.span.includes("row-span-2");
 
     return (
@@ -124,22 +122,17 @@ function FeatureCard({
             transition={{ delay: index * 0.08, duration: 0.6, ease }}
             className={`${feature.span}`}
         >
-            <div
-                ref={cardRef}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
-                className="group relative h-full bg-card backdrop-blur-sm border border-border rounded-xl p-7 transition-all duration-500 hover:border-primary/15 hover:bg-card hover:-translate-y-1 hover:overflow-hidden overflow-hidden"
+            <Tilt3D
+                stageClassName="h-full"
+                className="group h-full bg-card backdrop-blur-sm border border-border rounded-xl p-7 overflow-hidden hover:border-primary/15"
             >
-                {/* Mouse-tracking spotlight */}
-                <div
-                    ref={spotlightRef}
-                    className="absolute inset-0 pointer-events-none z-0 transition-[background] duration-300"
-                />
-
-                {/* Gradient top border on hover */}
-                <div className="relative z-10">
-                    <div className="mb-5 w-11 h-11 rounded-lg bg-muted border border-border flex items-center justify-center text-muted-foreground">
-                        <feature.icon size={20} strokeWidth={1.5} />
+                <div className="relative z-10 tilt-layer-2">
+                    {/* Hexagonal plinth — the comb's own cell, extruded, so the
+                        icon sits on the same geometry as the field behind it. */}
+                    <div className="hex-stack mb-5 w-12 h-12 tilt-layer-1">
+                        <div className="hex-badge w-full h-full text-primary/80">
+                            <feature.icon size={19} strokeWidth={1.5} />
+                        </div>
                     </div>
 
                     <h3 className="text-base font-semibold mb-2.5 text-foreground group-hover:text-foreground transition-colors duration-200">
@@ -151,7 +144,7 @@ function FeatureCard({
 
                     {isTall && <CardVisual type={feature.visual} />}
                 </div>
-            </div>
+            </Tilt3D>
         </motion.div>
     );
 }
@@ -167,6 +160,9 @@ export const Features = () => {
                     background: "radial-gradient(ellipse, transparent 0%, transparent 60%)",
                 }}
             />
+
+            <HoneycombBand top="0" height={320} />
+            <HexCluster side="right" />
 
             <div className="max-w-7xl mx-auto px-6 relative z-10">
                 {/* Section header */}
@@ -188,9 +184,9 @@ export const Features = () => {
                         transition={{ delay: 0.05, duration: 0.6, ease }}
                         className="text-3xl md:text-5xl lg:text-6xl font-extrabold mb-5 text-foreground tracking-tight"
                     >
-                        Everything you need to
+                        Six reasons students
                         <br className="hidden sm:block" />
-                        <span className="text-primary"> become a developer</span>
+                        <span className="text-primary"> pick MyCodeBud</span>
                     </motion.h2>
 
                     <motion.p
@@ -200,7 +196,7 @@ export const Features = () => {
                         transition={{ delay: 0.1, duration: 0.5, ease }}
                         className="text-muted-foreground text-base md:text-lg max-w-lg mx-auto leading-relaxed"
                     >
-                        Tools, community, and curriculum designed to take you from beginner to confident developer.
+                        Not another course library. An ecosystem built so preparation turns into evidence a recruiter actually believes.
                     </motion.p>
                 </div>
 

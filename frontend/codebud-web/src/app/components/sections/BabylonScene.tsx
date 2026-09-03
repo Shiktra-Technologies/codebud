@@ -21,8 +21,11 @@ export const BabylonScene: React.FC = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Respect reduced motion
-        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        // Opt-out is `data-honey="off"`, matching the honeycomb and honey layers
+        // rather than prefers-reduced-motion — Windows' "animation effects"
+        // toggle drives that query and is commonly off, which froze this scene
+        // for a large share of users with nothing to indicate why.
+        const isStill = () => document.documentElement.dataset.honey === "off";
 
         const engine = new Engine(canvas, true, { preserveDrawingBuffer: false, stencil: false });
         engine.setHardwareScalingLevel(2); // Half-res for perf
@@ -67,29 +70,30 @@ export const BabylonScene: React.FC = () => {
         }
 
         const particles: ParticleData[] = [];
-        const meshTypes = ["box", "octahedron", "torus", "icosphere"] as const;
+        // Hexagonal prisms — the ambient comb's flat-top cell, extruded. Depth
+        // varies so the field reads as cells at different distances rather than
+        // one repeated token. A Babylon cylinder at tessellation 6 IS a hex
+        // prism, and it arrives flat-top, matching HoneycombField's geometry.
+        const cellDepths = [0.18, 0.32, 0.5, 0.26] as const;
 
-        for (let i = 0; i < 18; i++) {
-            const type = meshTypes[i % meshTypes.length];
-            const size = 0.15 + Math.random() * 0.35;
-            let mesh;
-
-            switch (type) {
-                case "box":
-                    mesh = MeshBuilder.CreateBox(`p${i}`, { size }, scene);
-                    break;
-                case "octahedron":
-                    mesh = MeshBuilder.CreatePolyhedron(`p${i}`, { type: 1, size: size * 0.7 }, scene);
-                    break;
-                case "torus":
-                    mesh = MeshBuilder.CreateTorus(`p${i}`, { diameter: size, thickness: size * 0.25, tessellation: 16 }, scene);
-                    break;
-                case "icosphere":
-                    mesh = MeshBuilder.CreateIcoSphere(`p${i}`, { radius: size * 0.5, subdivisions: 1 }, scene);
-                    break;
-            }
+        for (let i = 0; i < 26; i++) {
+            const size = 0.22 + Math.random() * 0.5;
+            const mesh = MeshBuilder.CreateCylinder(
+                `p${i}`,
+                {
+                    diameter: size,
+                    height: size * cellDepths[i % cellDepths.length],
+                    tessellation: 6,
+                },
+                scene,
+            );
 
             mesh.material = i % 3 === 0 ? solidMat : wireMat;
+
+            // Lay the prism on its side so the hexagonal face points at the
+            // camera — a cylinder is built standing up, which would show the
+            // extrusion edge-on and read as a bar.
+            mesh.rotation.x = Math.PI / 2;
 
             // Scatter in 3D space
             const spread = 14;
@@ -97,7 +101,7 @@ export const BabylonScene: React.FC = () => {
             mesh.position.y = (Math.random() - 0.5) * spread * 0.6;
             mesh.position.z = (Math.random() - 0.5) * spread;
 
-            mesh.rotation.x = Math.random() * Math.PI;
+            mesh.rotation.x += (Math.random() - 0.5) * 0.9;
             mesh.rotation.y = Math.random() * Math.PI;
 
             particles.push({
@@ -126,7 +130,7 @@ export const BabylonScene: React.FC = () => {
             lastTime = now - (delta % frameInterval);
             elapsed += delta / 1000;
 
-            if (!prefersReduced) {
+            if (!isStill()) {
                 for (const p of particles) {
                     p.mesh.position.y = p.baseY + Math.sin(elapsed * p.floatSpeed) * p.floatAmp;
                     p.mesh.rotation.x += p.rotSpeed.x;
@@ -153,7 +157,7 @@ export const BabylonScene: React.FC = () => {
                         if (delta < frameInterval) return;
                         lastTime = now - (delta % frameInterval);
                         elapsed += delta / 1000;
-                        if (!prefersReduced) {
+                        if (!isStill()) {
                             for (const p of particles) {
                                 p.mesh.position.y = p.baseY + Math.sin(elapsed * p.floatSpeed) * p.floatAmp;
                                 p.mesh.rotation.x += p.rotSpeed.x;
@@ -185,7 +189,7 @@ export const BabylonScene: React.FC = () => {
         <canvas
             ref={canvasRef}
             className="absolute inset-0 w-full h-full"
-            style={{ opacity: 0.35 }}
+            style={{ opacity: 0.45 }}
         />
     );
 };

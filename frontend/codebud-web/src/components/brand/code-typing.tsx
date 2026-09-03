@@ -2,30 +2,6 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { motion } from "motion/react";
-import { Rocket } from "lucide-react";
-
-/*
- * B1 step 1: two tokens in these snippets carried emoji (a bee after the
- * wordmark, a rocket in the "Level up!" comment). The typewriter reveals each
- * token by slicing its `text` one character at a time, so a component cannot
- * live inside a token string -- hence `node`, rendered once that token's
- * characters are fully typed. The bee is now the mascot mark itself; the rocket
- * is lucide's, which is decorative brand dressing here rather than a label.
- */
-const MascotMark = (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
-        src="/logo/logo.png"
-        alt=""
-        width={10}
-        height={10}
-        className="inline-block h-2.5 w-2.5 align-text-bottom object-contain"
-    />
-);
-
-const RocketMark = (
-    <Rocket size={12} strokeWidth={1.5} className="inline-block align-text-bottom" aria-hidden="true" />
-);
 
 /* ── CodeTyping ───────────────────────────────────────────────────── */
 /* Embeddable typewriter with syntax-highlighted code snippets        */
@@ -53,7 +29,7 @@ const codeSnippets = [
             { text: "", cls: "", newLine: true },
             { text: "        Hello, ", cls: "text-muted-foreground" },
             { text: "MYCODEBUD", cls: "text-foreground/90 font-bold" },
-            { text: " ", cls: "text-white", node: MascotMark },
+            { text: " 🐝", cls: "text-white" },
             { text: "", cls: "", newLine: true },
             { text: "      </", cls: "text-muted-foreground/70" },
             { text: "h1", cls: "text-foreground" },
@@ -111,7 +87,7 @@ const codeSnippets = [
             { text: "=", cls: "text-white/50" },
             { text: "ai", cls: "text-primary" },
             { text: ".", cls: "text-white/50" },
-            { text: "MyCodeBuddy", cls: "text-foreground/90" },
+            { text: "MyCodeBud", cls: "text-foreground/90" },
             { text: "()", cls: "text-white/50" },
             { text: "", cls: "", newLine: true },
             { text: ")", cls: "text-white/50" },
@@ -122,8 +98,7 @@ const codeSnippets = [
             { text: "start", cls: "text-foreground/90" },
             { text: "()", cls: "text-white/50" },
             { text: "  ", cls: "text-white/50" },
-            { text: "# → Level up! ", cls: "text-white/25" },
-            { text: " ", cls: "text-white/25", node: RocketMark },
+            { text: "# → Level up! 🚀", cls: "text-white/25" },
         ],
     },
 ];
@@ -132,9 +107,14 @@ interface CodeToken {
     text: string;
     cls: string;
     newLine?: boolean;
-    /** Rendered after `text`, but only once this token is fully typed. */
-    node?: React.ReactNode;
 }
+
+/* The editor always renders this many rows. Without it the block grows a line
+   at a time while typing — and again when it swaps to the taller snippet —
+   which reflows everything below the hero. */
+const maxLines = Math.max(
+    ...codeSnippets.map((s) => s.lines.filter((t) => t.newLine).length + 1),
+);
 
 export function CodeTyping() {
     const [snippetIdx, setSnippetIdx] = useState(0);
@@ -192,40 +172,41 @@ export function CodeTyping() {
 
         const visibleLen = Math.min(token.text.length, remaining);
         const visibleText = token.text.slice(0, visibleLen);
-        const fullyTyped = visibleLen === token.text.length;
         rendered += token.text.length;
 
         lines[lines.length - 1].push(
             <span key={`${rendered}-${token.text}`} className={token.cls}>
                 {visibleText}
-                {fullyTyped && token.node}
             </span>,
         );
     }
 
     return (
-        <div className="p-4 sm:p-5 font-mono text-[11px] sm:text-[13px] leading-5 sm:leading-6 min-h-[220px] sm:min-h-[260px]">
-            {lines.map((lineTokens, i) => (
-                <div key={i} className="flex">
-                    <span className="text-muted-foreground/50 w-5 sm:w-7 text-right mr-3 sm:mr-4 select-none text-[10px] sm:text-[11px]">
-                        {i + 1}
-                    </span>
-                    <span>
-                        {lineTokens}
-                        {i === lines.length - 1 && isTyping && (
-                            <motion.span
-                                animate={{ opacity: [1, 0] }}
-                                transition={{
-                                    repeat: Infinity,
-                                    duration: 0.8,
-                                    ease: "easeInOut",
-                                }}
-                                className="inline-block w-[7px] h-[14px] sm:h-[16px] bg-primary ml-px translate-y-[2px]"
-                            />
-                        )}
-                    </span>
-                </div>
-            ))}
+        <div className="p-4 sm:p-5 font-mono text-[11px] sm:text-[13px] leading-5 sm:leading-6">
+            {Array.from({ length: maxLines }, (_, i) => {
+                const lineTokens = lines[i];
+                return (
+                    <div key={i} className="flex">
+                        <span className="text-muted-foreground/50 w-5 sm:w-7 text-right mr-3 sm:mr-4 select-none text-[10px] sm:text-[11px]">
+                            {lineTokens ? i + 1 : <>&nbsp;</>}
+                        </span>
+                        <span>
+                            {lineTokens ?? <>&nbsp;</>}
+                            {i === lines.length - 1 && isTyping && (
+                                <motion.span
+                                    animate={{ opacity: [1, 0] }}
+                                    transition={{
+                                        repeat: Infinity,
+                                        duration: 0.8,
+                                        ease: "easeInOut",
+                                    }}
+                                    className="inline-block w-[7px] h-[14px] sm:h-[16px] bg-primary ml-px translate-y-[2px]"
+                                />
+                            )}
+                        </span>
+                    </div>
+                );
+            })}
         </div>
     );
 }

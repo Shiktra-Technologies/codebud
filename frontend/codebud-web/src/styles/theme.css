@@ -597,3 +597,269 @@
         scroll-behavior: auto !important;
     }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Hero IDE mockup — 3D tilt.
+ * The card sits on a perspective wrapper (.ide-stage) and leans back on the
+ * X axis so it reads as a physical slab rather than a flat screenshot.
+ * Hover eases it upright.
+ * ──────────────────────────────────────────────────────────────────── */
+
+.ide-stage {
+    perspective: 1400px;
+    perspective-origin: 50% 30%;
+}
+
+.ide-tilt {
+    transform-style: preserve-3d;
+    transform: rotateX(16deg);
+    transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 700ms cubic-bezier(0.16, 1, 0.3, 1);
+    /* The card leans back, so the shadow pools straight below it. */
+    box-shadow:
+        0 34px 60px -20px rgb(0 0 0 / 0.75),
+        0 12px 26px -14px rgb(0 0 0 / 0.55);
+}
+
+.ide-tilt:hover {
+    transform: rotateX(4deg) scale(1.015);
+    box-shadow:
+        0 26px 70px -18px rgb(0 0 0 / 0.7),
+        0 8px 22px -12px rgb(0 0 0 / 0.5);
+}
+
+/* Narrow viewports: the card is already close to the section edges, so a
+   softer lean keeps the top row readable. */
+@media (max-width: 767px) {
+    .ide-tilt {
+        transform: rotateX(9deg);
+    }
+}
+
+/* The resting tilt is a static pose, not motion, so it stays. Only the
+   transition and the hover shift are dropped. */
+@media (prefers-reduced-motion: reduce) {
+    .ide-tilt {
+        transition: none;
+    }
+
+    .ide-tilt:hover {
+        transform: rotateX(16deg);
+    }
+
+    @media (max-width: 767px) {
+        .ide-tilt:hover {
+            transform: rotateX(9deg);
+        }
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Hex 3D — the honeycomb read as geometry rather than texture.
+ *
+ * Three pieces, all sharing the comb's flat-top hexagon so the 3D layer and
+ * the ambient field are the same shape at different scales:
+ *
+ *   .tilt-3d      pointer-tracked card tilt (Tilt3D.tsx writes the angles)
+ *   .hex-badge    an extruded hexagonal cell, used as an icon plinth
+ *   .hex-plate    a static hexagon, for decorative stacks
+ *
+ * `.tilt-3d` is also one of the honey layer's hooks (honeycomb-cursor.css), so
+ * a card carrying it gets pointer tracking and the drip off its bottom edge for
+ * free. Opt a card out with `.no-tilt`.
+ * ──────────────────────────────────────────────────────────────────── */
+
+.tilt-stage {
+    perspective: 900px;
+    perspective-origin: 50% 50%;
+}
+
+.tilt-3d {
+    transform-style: preserve-3d;
+    /* Motion writes rotateX/rotateY into these on pointer move; the transform
+       itself never changes, so there is nothing to parse per frame. */
+    --tilt-x: 0deg;
+    --tilt-y: 0deg;
+    --tilt-z: 0px;
+    transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateZ(var(--tilt-z));
+    transition: transform 500ms var(--ease-out-expo);
+}
+
+/* While the pointer is inside, the card tracks it directly — a transition here
+   would make the tilt lag the cursor by half a second. */
+.tilt-3d[data-tilting="true"] {
+    transition: none;
+}
+
+/* The specular band that rides the pointer, so the tilt reads as a lit surface
+   and not just a rotation. */
+.tilt-sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 400ms var(--ease-out);
+    background: radial-gradient(320px circle at var(--sheen-x, 50%) var(--sheen-y, 50%),
+            rgba(242, 183, 5, 0.10),
+            rgba(242, 183, 5, 0.03) 42%,
+            transparent 68%);
+}
+
+.tilt-3d[data-tilting="true"] .tilt-sheen {
+    opacity: 1;
+}
+
+/* Children that should sit off the card face rather than on it. */
+.tilt-layer-1 {
+    transform: translateZ(28px);
+}
+
+.tilt-layer-2 {
+    transform: translateZ(14px);
+}
+
+/* ── Hexagonal cell, extruded ─────────────────────────────────────────
+ * Flat-top, matching the comb: the top edge runs 25%→75%, points at the
+ * left and right. The "extrusion" is a second hexagon offset behind the
+ * face, so the badge reads as a cell lifted out of the field.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.hex-badge,
+.hex-plate {
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.hex-badge {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background:
+        linear-gradient(150deg,
+            rgba(242, 183, 5, 0.16) 0%,
+            rgba(242, 183, 5, 0.05) 45%,
+            rgba(242, 183, 5, 0.02) 100%),
+        var(--carbon-elevated);
+    transition: background 400ms var(--ease-out);
+}
+
+/* The lit top-left facet. Sits inside the same clip, so it takes the hexagon's
+   shape rather than a rectangle's. */
+.hex-badge::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.07), transparent 55%);
+    pointer-events: none;
+}
+
+.hex-stack {
+    position: relative;
+    transform-style: preserve-3d;
+}
+
+/* The extruded side wall — the same hexagon, pushed back and down-right. */
+.hex-stack::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate3d(3px, 4px, -10px);
+    background: var(--brass-900);
+    opacity: 0.55;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.group:hover .hex-badge {
+    background:
+        linear-gradient(150deg,
+            rgba(242, 183, 5, 0.30) 0%,
+            rgba(242, 183, 5, 0.10) 45%,
+            rgba(242, 183, 5, 0.03) 100%),
+        var(--carbon-elevated);
+}
+
+/* Opt-out is `data-honey="off"`, matching the honey layer — NOT
+   prefers-reduced-motion. Windows' "animation effects" toggle drives that
+   media query and is commonly off, which would silently disable this for a
+   large share of users with nothing to indicate why. The global reduce rule at
+   the top of this section flattens transitions to 0.01ms, so buy the duration
+   back here the same way honeycomb-cursor.css does for the honey layer. */
+html:not([data-honey="off"]) .tilt-3d {
+    transition-duration: 500ms !important;
+}
+
+html[data-honey="off"] .tilt-3d {
+    transform: none;
+}
+
+html[data-honey="off"] .tilt-sheen {
+    display: none;
+}
+
+/* ── Floating hex cluster ─────────────────────────────────────────────
+ * Decorative 3D cells drifting in a perspective box, for section corners.
+ * CSS rather than a second WebGL canvas: a handful of composited transforms
+ * costs nothing next to standing up another engine for six hexagons.
+ * ─────────────────────────────────────────────────────────────────── */
+
+.hex-cluster {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    perspective: 800px;
+    overflow: hidden;
+}
+
+.hex-float {
+    position: absolute;
+    transform-style: preserve-3d;
+    animation: hex-drift var(--dur, 18s) var(--ease-in-out) infinite;
+    animation-delay: var(--delay, 0s);
+    will-change: transform;
+}
+
+.hex-float > i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    background: linear-gradient(150deg,
+            rgba(242, 183, 5, 0.20),
+            rgba(242, 183, 5, 0.04) 55%,
+            transparent);
+}
+
+/* The cell's back wall, so each one reads as a solid with depth. */
+.hex-float > i::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate3d(2px, 3px, -8px);
+    background: var(--brass-900);
+    opacity: 0.4;
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+@keyframes hex-drift {
+    0% {
+        transform: rotateX(0deg) rotateY(0deg) translate3d(0, 0, 0);
+    }
+
+    50% {
+        transform: rotateX(28deg) rotateY(38deg) translate3d(0, -22px, 40px);
+    }
+
+    100% {
+        transform: rotateX(0deg) rotateY(0deg) translate3d(0, 0, 0);
+    }
+}
+
+/* Same opt-out as every other ambient layer, and the same duration re-grant. */
+html:not([data-honey="off"]) .hex-float {
+    animation-duration: var(--dur, 18s) !important;
+    animation-iteration-count: infinite !important;
+}
+
+html[data-honey="off"] .hex-float {
+    animation: none;
+}

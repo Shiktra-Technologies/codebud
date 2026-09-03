@@ -6,44 +6,45 @@ import {
     Lightbulb,
     Users,
     Shield,
-    Accessibility,
+    Sparkles,
     Target,
     Heart,
-    Globe,
     Code2,
 } from "lucide-react";
 import { PageLayout } from "../components/layout/PageLayout";
+import { Tilt3D } from "@/components/Tilt3D";
+import { HexCluster } from "@/components/HexCluster";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
 /* ── Values ── */
 const values = [
     {
-        icon: Lightbulb,
-        title: "Innovation First",
+        icon: Target,
+        title: "Proof Over Paperwork",
         description:
-            "We constantly push the boundaries of interactive education with AI-powered feedback, real-time collaboration, and cutting-edge curriculum.",
+            "A certificate says you showed up. A project proves you can build. Everything here is designed to produce something a student can point to.",
         gradient: "from-primary/20 to-primary/10",
     },
     {
         icon: Users,
-        title: "Community Driven",
+        title: "Practitioners, Not Lecturers",
         description:
-            "Learning is better together. Our vibrant community of 10,000+ developers supports, mentors, and inspires each other every day.",
+            "Mentors who have shipped code and sat on the other side of the interview table — across product companies, IT services, consulting and academia.",
         gradient: "from-muted to-muted",
     },
     {
-        icon: Shield,
-        title: "Quality Obsessed",
+        icon: Lightbulb,
+        title: "Novelty-First Briefs",
         description:
-            "Every course is crafted by industry veterans, peer-reviewed, and continuously updated to reflect real-world best practices.",
+            "Never the same copied project every batch turns in. Every brief is written to be defensible in an interview, with mentor code reviews at each stage.",
         gradient: "from-muted to-muted",
     },
     {
-        icon: Accessibility,
-        title: "Accessible to All",
+        icon: Sparkles,
+        title: "Affordable By Design",
         description:
-            "From absolute beginners to seasoned pros, MYCODEBUD meets you where you are with adaptive learning paths and flexible pricing.",
+            "The full ecosystem at ₹99 a month — no separate paywalls for mentorship, projects or interview prep. Cost is never the reason a student sits out.",
         gradient: "from-muted to-muted",
     },
 ];
@@ -51,49 +52,42 @@ const values = [
 /* ── Team ── */
 const team = [
     {
-        name: "Aman Rao",
+        name: "Rohan Gowda",
         role: "Founder & CEO",
+        initials: "RG",
+        gradient: "from-primary to-muted",
+    },
+    {
+        name: "Aman Rao M",
+        role: "Co-founder & CTO",
         initials: "AR",
         gradient: "from-primary to-muted",
     },
     {
-        name: "Priya Sharma",
-        role: "Head of Engineering",
-        initials: "PS",
+        name: "Nikhil Bajantri",
+        role: "Development Lead",
+        initials: "NB",
         gradient: "from-muted to-muted",
     },
     {
-        name: "Aiden Mitchell",
-        role: "Lead Curriculum Designer",
-        initials: "AM",
+        name: "Bimal P B",
+        role: "Full Stack Developer",
+        initials: "BP",
         gradient: "from-muted to-muted",
     },
     {
-        name: "Sarah Chen",
-        role: "Head of Community",
-        initials: "SC",
-        gradient: "from-muted to-muted",
-    },
-    {
-        name: "Ravi Patel",
-        role: "AI & ML Lead",
-        initials: "RP",
-        gradient: "from-muted to-muted",
-    },
-    {
-        name: "Maya Johnson",
-        role: "Head of Design",
-        initials: "MJ",
+        name: "B Vibha",
+        role: "Full Stack Developer",
+        initials: "BV",
         gradient: "from-muted to-muted",
     },
 ];
 
 /* ── Metrics ── */
 const metrics = [
-    { label: "Active Students", value: 10000, suffix: "+", icon: Users },
-    { label: "Courses Published", value: 85, suffix: "+", icon: Code2 },
-    { label: "Countries Reached", value: 120, suffix: "+", icon: Globe },
-    { label: "Completion Rate", value: 94, suffix: "%", icon: Target },
+    { label: "DSA Catalogue", value: 3000, suffix: "+", icon: Code2 },
+    { label: "Aptitude Catalogue", value: 50000, suffix: "+", icon: Target },
+    { label: "Courses Published", value: 85, suffix: "+", icon: Sparkles },
 ];
 
 /* ── Animated Counter ── */
@@ -151,7 +145,7 @@ export function AboutPage() {
                     <span className="text-primary">coding education</span>
                 </>
             }
-            subtitle="We believe everyone deserves access to world-class coding education. MYCODEBUD is on a mission to empower the next generation of developers."
+            subtitle="Students should graduate with proof of what they can do, not just a stack of certificates. MYCODEBUD is built to close the distance between college, skills, practical experience and employability."
         >
             {/* ── Our Story ── */}
             <section className="py-24 relative overflow-hidden bg-background">
@@ -165,25 +159,33 @@ export function AboutPage() {
                             transition={{ duration: 0.7, ease }}
                         >
                             <h2 className="text-2xl md:text-4xl font-bold text-foreground mb-6 tracking-tight">
-                                From a dorm room idea to a{" "}
-                                <span className="text-primary">global platform</span>
+                                From one shared idea to an{" "}
+                                <span className="text-primary">ecosystem</span>
                             </h2>
                             <div className="space-y-4 text-muted-foreground leading-relaxed text-[15px]">
                                 <p>
-                                    MYCODEBUD started in 2023 when our founder, frustrated with fragmented
-                                    learning resources, envisioned a single platform that combines
-                                    interactive lessons, real-world projects, and AI-powered feedback.
+                                    MYCODEBUD started in 2025. Our founder shared the idea with our
+                                    co-founder, who began building the first version alone — a single
+                                    platform combining interactive lessons, real-world projects, and
+                                    AI-powered feedback instead of scattered learning resources.
                                 </p>
                                 <p>
-                                    What began as a weekend project quickly grew into a movement.
-                                    Thousands of students from over 120 countries now use MYCODEBUD
-                                    to learn full-stack development, data science, and more — with a
-                                    94% course completion rate that&apos;s unheard of in online education.
+                                    As the platform took shape, more people joined. What began as one
+                                    developer&apos;s side project became a small team building a DSA and
+                                    aptitude catalogue deep enough to take someone from fundamentals
+                                    all the way to interview-ready.
                                 </p>
                                 <p>
-                                    Today, we&apos;re backed by a passionate team of engineers, educators,
-                                    and designers who share one obsession: making coding education so
-                                    good, so engaging, that dropping out simply isn&apos;t an option.
+                                    MYCODEBUD is a subsidiary of Shiktra Technologies LLP, operating as
+                                    a Udyam Registered, VTU Registered initiative recognised by the
+                                    Govt. of Karnataka through K-TECH and the New Age Innovation
+                                    Network — connecting students, colleges and companies inside one
+                                    ecosystem.
+                                </p>
+                                <p>
+                                    Every layer of it — guidance, mentorship, projects, DSA, interview
+                                    preparation and hackathons — exists to produce something a student
+                                    can point to and say, &quot;I built this.&quot;
                                 </p>
                             </div>
                         </motion.div>
@@ -208,7 +210,7 @@ export function AboutPage() {
                                 <div className="relative z-10">
                                     <div className="flex items-center gap-3 mb-6">
                                         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                            <Heart size={20} className="text-primary" strokeWidth={1.5} />
+                                            <Heart size={20} className="text-primary" />
                                         </div>
                                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                                             Our Mission
@@ -244,7 +246,7 @@ export function AboutPage() {
                             What drives us
                         </h2>
                         <p className="text-muted-foreground max-w-lg mx-auto">
-                            Four principles that shape every decision we make.
+                            The principles the whole ecosystem is built on.
                         </p>
                     </motion.div>
 
@@ -256,19 +258,21 @@ export function AboutPage() {
                                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                                 viewport={{ once: true }}
                                 transition={{ delay: i * 0.08, duration: 0.6, ease }}
-                                className="group relative rounded-xl border border-border bg-card backdrop-blur-sm p-6 hover:border-primary/15 transition-colors duration-500 hover:-translate-y-1"
                             >
-                                {/* Hover glow */}
-                                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                                    style={{
-                                        background: "radial-gradient(ellipse at top, transparent 0%, transparent 60%)",
-                                    }}
-                                />
-                                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${v.gradient} flex items-center justify-center mb-4`}>
-                                    <v.icon size={20} className="text-foreground" strokeWidth={1.5} />
-                                </div>
-                                <h3 className="text-body font-semibold text-foreground mb-2">{v.title}</h3>
-                                <p className="text-sm text-muted-foreground leading-relaxed">{v.description}</p>
+                                <Tilt3D
+                                    stageClassName="h-full"
+                                    className="group h-full rounded-xl border border-border bg-card backdrop-blur-sm p-6 hover:border-primary/15"
+                                >
+                                    <div className="hex-stack w-12 h-12 mb-4 tilt-layer-1">
+                                        <div className="hex-badge w-full h-full text-primary/80">
+                                            <v.icon size={19} strokeWidth={1.5} />
+                                        </div>
+                                    </div>
+                                    <div className="tilt-layer-2">
+                                        <h3 className="text-body font-semibold text-foreground mb-2">{v.title}</h3>
+                                        <p className="text-sm text-muted-foreground leading-relaxed">{v.description}</p>
+                                    </div>
+                                </Tilt3D>
                             </motion.div>
                         ))}
                     </div>
@@ -278,6 +282,8 @@ export function AboutPage() {
 
             {/* ── Team ── */}
             <section className="py-24 relative overflow-hidden bg-background">
+                <HexCluster />
+
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -290,11 +296,11 @@ export function AboutPage() {
                             Meet the team
                         </h2>
                         <p className="text-muted-foreground max-w-lg mx-auto">
-                            Passionate builders, educators, and dreamers.
+                            The people building MyCodeBud.
                         </p>
                     </motion.div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
                         {team.map((member, i) => (
                             <motion.div
                                 key={member.name}
@@ -304,12 +310,10 @@ export function AboutPage() {
                                 transition={{ delay: i * 0.06, duration: 0.5, ease }}
                                 className="group text-center"
                             >
-                                <div className="relative mx-auto w-20 h-20 mb-3">
-                                    <div className={`w-full h-full rounded-xl bg-gradient-to-br ${member.gradient} flex items-center justify-center text-xl font-bold text-foreground group-hover:scale-105 group-hover:shadow-lg transition-all duration-300`}>
+                                <div className="hex-stack relative mx-auto w-20 h-20 mb-3 group-hover:scale-105 transition-transform duration-300">
+                                    <div className="hex-badge w-full h-full text-xl font-bold text-foreground">
                                         {member.initials}
                                     </div>
-                                    {/* Ring on hover */}
-                                    <div className="absolute -inset-1 rounded-xl border border-primary/0 group-hover:border-primary/20 transition-all duration-300" />
                                 </div>
                                 <h4 className="text-sm font-semibold text-foreground mb-0.5">{member.name}</h4>
                                 <p className="text-xs text-muted-foreground">{member.role}</p>
@@ -329,7 +333,7 @@ export function AboutPage() {
                     }}
                 />
                 <div className="max-w-5xl mx-auto px-6 relative z-10">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                         {metrics.map((m, i) => (
                             <motion.div
                                 key={m.label}
@@ -339,8 +343,10 @@ export function AboutPage() {
                                 transition={{ delay: i * 0.1, duration: 0.5, ease }}
                                 className="text-center group"
                             >
-                                <div className="w-12 h-12 rounded-xl bg-primary/[0.06] border border-primary/10 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/10 transition-colors duration-300">
-                                    <m.icon size={20} className="text-primary/70" strokeWidth={1.5} />
+                                <div className="hex-stack w-12 h-12 mx-auto mb-4">
+                                    <div className="hex-badge w-full h-full text-primary/70">
+                                        <m.icon size={20} />
+                                    </div>
                                 </div>
                                 <div className="text-3xl md:text-4xl font-extrabold text-foreground mb-1">
                                     <AnimatedCounter value={m.value} suffix={m.suffix} />

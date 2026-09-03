@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { SectionBadge } from "@/components/section-badge";
 import { Button } from "@/components/ui/button";
+import { HexCluster } from "@/components/HexCluster";
 import { PLATFORM_AUTH_URL } from "@/lib/platformUrl";
 
 const ease = [0.16, 1, 0.3, 1] as const;
@@ -23,6 +24,8 @@ const avatars = [
 export const CTA = () => {
     return (
         <section className="py-32 relative overflow-hidden">
+            <HexCluster />
+
             <div className="max-w-7xl mx-auto px-6 relative z-10">
                 <div className="max-w-2xl mx-auto text-center">
                     <motion.div
@@ -69,7 +72,7 @@ export const CTA = () => {
                         <Link href={PLATFORM_AUTH_URL}>
                             <Button variant="default" size="lg" className="px-10 group">
                                 Join MYCODEBUD Today
-                                <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" strokeWidth={1.5} />
+                                <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />
                             </Button>
                         </Link>
                         <a href="/#features">
@@ -98,7 +101,7 @@ export const CTA = () => {
                             ))}
                         </div>
                         <span className="text-sm text-muted-foreground">
-                            Join <span className="text-primary/70 font-semibold">10,000+</span> developers
+                            Join a <span className="text-primary/70 font-semibold">growing</span> community of developers
                         </span>
                     </motion.div>
                 </div>

@@ -1,2 +1,5 @@
 @import './tailwind.css';
 @import './theme.css';
+/* After theme.css — the honey layer's motion re-grant has to win over the
+   global prefers-reduced-motion rule at the end of theme.css. */
+@import './honeycomb-cursor.css';

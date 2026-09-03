@@ -22,20 +22,9 @@ const footerLinks = [
         ],
     },
     {
-        title: "Resources",
-        links: [
-            { label: "Documentation", href: "#" },
-            { label: "Blog", href: "/blog" },
-            { label: "Tutorials", href: "/blog" },
-            { label: "API Reference", href: "#" },
-        ],
-    },
-    {
         title: "Company",
         links: [
             { label: "About", href: "/about" },
-            { label: "Careers", href: "/careers" },
-            { label: "Press", href: "#" },
             { label: "Contact", href: "/contact" },
         ],
     },
@@ -55,12 +44,35 @@ const ease = [0.16, 1, 0.3, 1] as const;
 export const Footer = () => {
     const [email, setEmail] = useState("");
     const [isFocused, setIsFocused] = useState(false);
+    const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (email) {
+        if (!email || status === "sending") return;
+
+        setStatus("sending");
+        setError("");
+
+        try {
+            const res = await fetch("/api/contact", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, topic: "newsletter" }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                setError(data.error ?? "Could not sign you up. Please try again.");
+                setStatus("error");
+                return;
+            }
+
             setEmail("");
-            // TODO: newsletter signup
+            setStatus("sent");
+        } catch {
+            setError("Network error. Please try again.");
+            setStatus("error");
         }
     };
 
@@ -93,12 +105,12 @@ export const Footer = () => {
                             <img
                                 src="/logo/logo.png"
                                 alt=""
-                                className="w-5 h-5 object-contain shrink-0"
+                                className="w-8 h-8 rounded-lg object-contain shrink-0"
                             />
                             <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
                         </a>
                         <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                            The modern platform for learning to code. Interactive lessons, real projects, AI feedback, and a thriving community.
+                            A career and capability-building ecosystem for engineering students — guidance, mentorship, projects, DSA, hackathons and placement support.
                         </p>
 
                         {/* Social icons */}
@@ -110,7 +122,7 @@ export const Footer = () => {
                                     aria-label={s.label}
                                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground border border-border transition-all duration-300 hover:scale-110 hover:border-border ${s.hoverColor}`}
                                 >
-                                    <s.icon size={16} strokeWidth={1.5} />
+                                    <s.icon size={16} />
                                 </a>
                             ))}
                         </div>
@@ -119,7 +131,7 @@ export const Footer = () => {
                     {/* Newsletter */}
                     <div className="w-full max-w-md">
                         <h3 className="text-sm font-semibold text-foreground mb-2">Stay in the loop</h3>
-                        <p className="text-sm text-muted-foreground mb-4">Get weekly coding tips and platform updates.</p>
+                        <p className="text-sm text-muted-foreground mb-4">Ecosystem updates, hackathon calls and new project briefs.</p>
                         <form onSubmit={handleSubmit} className="relative">
                             <div
                                 className={`relative rounded-xl transition-all duration-300 ${isFocused ? "" : ""
@@ -145,19 +157,29 @@ export const Footer = () => {
                                     />
                                     <button
                                         type="submit"
-                                        className="px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm transition-all duration-200 flex items-center gap-1.5 hover:"
+                                        disabled={status === "sending"}
+                                        className="px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm transition-all duration-200 flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
-                                        <Send size={14} strokeWidth={1.5} />
-                                        Subscribe
+                                        <Send size={14} />
+                                        {status === "sending" ? "Sending…" : "Subscribe"}
                                     </button>
                                 </div>
                             </div>
+
+                            <p
+                                role="status"
+                                aria-live="polite"
+                                className={`mt-2 text-xs ${status === "error" ? "text-destructive" : "text-primary/80"}`}
+                            >
+                                {status === "sent" && "You're on the list."}
+                                {status === "error" && error}
+                            </p>
                         </form>
                     </div>
                 </div>
 
                 {/* Link grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-14">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-14">
                     {footerLinks.map((group) => (
                         <div key={group.title}>
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.2em] mb-4">
@@ -183,8 +205,8 @@ export const Footer = () => {
                 {/* Bottom bar */}
                 <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
-                        © {new Date().getFullYear()} MYCODEBUD. Made with
-                        <Heart size={11} className="text-destructive/60 fill-destructive/60" strokeWidth={1.5} />
+                        © {new Date().getFullYear()} Shiktra Technologies LLP. Made with
+                        <Heart size={11} className="text-destructive/60 fill-destructive/60" />
                         for developers.
                     </p>
 
@@ -195,7 +217,7 @@ export const Footer = () => {
                     >
                         Back to top
                         <div className="w-7 h-7 rounded-lg border border-border flex items-center justify-center group-hover:border-primary/20 group-hover:bg-primary/[0.05] transition-all duration-300">
-                            <ArrowUp size={12} className="group-hover:-translate-y-0.5 transition-transform" strokeWidth={1.5} />
+                            <ArrowUp size={12} className="group-hover:-translate-y-0.5 transition-transform" />
                         </div>
                     </button>
                 </div>

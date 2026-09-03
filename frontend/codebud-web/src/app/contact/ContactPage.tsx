@@ -20,22 +20,22 @@ const contactInfo = [
     {
         icon: Mail,
         title: "Email Us",
-        value: "hello@codebud.dev",
+        value: "info@mycodebud.in",
         description: "We'll respond within 24 hours",
         gradient: "from-primary/20 to-primary/10",
     },
     {
         icon: MapPin,
         title: "Location",
-        value: "Bangalore, India",
-        description: "Remote-first, globally distributed",
+        value: "Bengaluru, India",
+        description: "Shiktra Technologies LLP",
         gradient: "from-muted to-muted",
     },
     {
         icon: MessageCircle,
         title: "Community",
         value: "Discord & GitHub",
-        description: "Join 10,000+ developers",
+        description: "Join the developer community",
         gradient: "from-muted to-muted",
         socials: [
             { icon: Github, href: "#", label: "GitHub" },
@@ -49,23 +49,23 @@ const contactInfo = [
 const faqs = [
     {
         question: "How quickly will I get a response?",
-        answer: "We typically respond within 24 hours on business days. For urgent matters, drop a message in our Discord community where team members are almost always available.",
+        answer: "We typically respond within 24 hours on business days. You can also reach us directly at info@mycodebud.in.",
     },
     {
-        question: "Do you offer enterprise or team plans?",
-        answer: "Yes! We offer custom team plans with volume discounts, dedicated support, and admin dashboards. Email us at enterprise@codebud.dev for a tailored quote.",
+        question: "What does membership cost?",
+        answer: "₹99 per student per month, or ₹1,188 per year for the same rate paid upfront. There are no separate paywalls — every plan includes the entire ecosystem: guidance, mentorship, core and novelty projects, DSA, interview preparation and hackathon support.",
     },
     {
-        question: "Can I contribute to course content?",
-        answer: "Absolutely. We welcome community-contributed tutorials and courses. Check our contributor guidelines on GitHub or reach out to us for more details.",
+        question: "Do you work with colleges?",
+        answer: "Yes. Colleges use MyCodeBud for stronger placement outcomes and a structured way to keep students industry-ready. Email info@mycodebud.in and we will set up a call.",
     },
     {
-        question: "I found a bug — how do I report it?",
-        answer: "You can file an issue on our public GitHub repository, or report it directly via the in-app feedback widget. We triage all reports within 48 hours.",
+        question: "Can companies hire through MyCodeBud?",
+        answer: "Yes, and it is free of cost. Companies get access to filtered, capability-tested talent without building a pipeline themselves. Write to info@mycodebud.in to join the hiring network.",
     },
     {
-        question: "Are there partnership opportunities?",
-        answer: "We partner with bootcamps, universities, and tech companies. If you're interested in collaborating, email partnerships@codebud.dev and we'll set up a call.",
+        question: "Can I mentor students?",
+        answer: "We are always growing the mentor network across product companies, IT services, consulting and academia. If you have shipped real work and want to guide students, email info@mycodebud.in.",
     },
 ];
 
@@ -90,7 +90,8 @@ function FAQItem({ question, answer, index }: { question: string; answer: string
                 </span>
                 <ChevronDown
                     size={18}
-                    className={`text-primary/50 transition-transform duration-300 flex-shrink-0 ml-4 ${isOpen ? "rotate-180" : ""}`} strokeWidth={1.5} />
+                    className={`text-primary/50 transition-transform duration-300 flex-shrink-0 ml-4 ${isOpen ? "rotate-180" : ""}`}
+                />
             </button>
             <AnimatePresence>
                 {isOpen && (
@@ -120,6 +121,10 @@ export function ContactPage() {
         message: "",
     });
     const [focusedField, setFocusedField] = useState<string | null>(null);
+    const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+    const [error, setError] = useState("");
+    // Honeypot: hidden from people, irresistible to bots. See the API route.
+    const [company, setCompany] = useState("");
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -127,9 +132,33 @@ export function ContactPage() {
         setFormState((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: form submission
+        if (status === "sending") return;
+
+        setStatus("sending");
+        setError("");
+
+        try {
+            const res = await fetch("/api/contact", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...formState, company, topic: "contact" }),
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                setError(data.error ?? "Something went wrong. Please try again.");
+                setStatus("error");
+                return;
+            }
+
+            setStatus("sent");
+            setFormState({ name: "", email: "", subject: "general", message: "" });
+        } catch {
+            setError("Network error. Please try again, or email us directly.");
+            setStatus("error");
+        }
     };
 
     const inputClasses =
@@ -236,13 +265,40 @@ export function ContactPage() {
                                         />
                                     </div>
 
-                                    <button
-                                        type="submit"
-                                        className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-200 hover: hover:scale-[1.02] active:scale-[0.98]"
-                                    >
-                                        <Send size={15} strokeWidth={1.5} />
-                                        Send Message
-                                    </button>
+                                    {/* Honeypot — off-screen rather than display:none, which
+                                        some bots detect. Never announced to assistive tech. */}
+                                    <div className="absolute left-[-9999px]" aria-hidden="true">
+                                        <label htmlFor="company">Company</label>
+                                        <input
+                                            id="company"
+                                            name="company"
+                                            type="text"
+                                            tabIndex={-1}
+                                            autoComplete="off"
+                                            value={company}
+                                            onChange={(e) => setCompany(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        <button
+                                            type="submit"
+                                            disabled={status === "sending"}
+                                            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm px-8 py-3 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                        >
+                                            <Send size={15} />
+                                            {status === "sending" ? "Sending…" : "Send Message"}
+                                        </button>
+
+                                        <p
+                                            role="status"
+                                            aria-live="polite"
+                                            className={`text-sm ${status === "error" ? "text-destructive" : "text-primary/80"}`}
+                                        >
+                                            {status === "sent" && "Thanks — we'll reply within 24 hours."}
+                                            {status === "error" && error}
+                                        </p>
+                                    </div>
                                 </form>
                             </div>
                         </motion.div>
@@ -265,7 +321,7 @@ export function ContactPage() {
                                     />
                                     <div className="relative z-10">
                                         <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${info.gradient} flex items-center justify-center mb-4`}>
-                                            <info.icon size={20} className="text-foreground" strokeWidth={1.5} />
+                                            <info.icon size={20} className="text-foreground" />
                                         </div>
                                         <h3 className="font-semibold text-foreground text-sm mb-1">{info.title}</h3>
                                         <p className="text-primary/70 font-medium text-sm mb-1">{info.value}</p>
@@ -280,7 +336,7 @@ export function ContactPage() {
                                                         aria-label={s.label}
                                                         className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground border border-border hover:text-primary/70 hover:border-primary/20 transition-all duration-300"
                                                     >
-                                                        <s.icon size={14} strokeWidth={1.5} />
+                                                        <s.icon size={14} />
                                                     </a>
                                                 ))}
                                             </div>
