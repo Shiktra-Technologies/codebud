@@ -53,8 +53,24 @@ export async function sendViaFormSubmit(fields: FormSubmitFields): Promise<FormS
         return { ok: false, error: "Network error. Please try again, or email us directly." };
     }
 
-    if (!response.ok) {
-        // 403 is the usual answer for a target that was never activated.
+    // FormSubmit answers 200 even when it refuses the submission — a target that
+    // was never activated, or a request it does not trust, comes back as
+    // {"success":"false","message":"..."} with an HTTP 200. Reading response.ok
+    // alone therefore told the visitor their message had been sent when nothing
+    // had been relayed, which is the one outcome this form must never produce.
+    let payload: { success?: string; message?: string } | null = null;
+    try {
+        payload = await response.json();
+    } catch {
+        payload = null;
+    }
+
+    const accepted = response.ok && String(payload?.success ?? "") === "true";
+    if (!accepted) {
+        console.error(
+            `[contact] FormSubmit did not accept the submission: http=${response.status} ` +
+            `success=${payload?.success ?? "(absent)"} message=${payload?.message ?? "(none)"}`
+        );
         return {
             ok: false,
             error: "Could not send your message. Please email us directly at info@mycodebud.in.",
