@@ -1,0 +1,218 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * Hive cursor — see src/components/HiveCursor.tsx.
+ *
+ * Every shape here is one the site already uses: the comb's flat-top cell,
+ * the dial's sight frame (as corner brackets), the mono label. Strokes carry a
+ * carbon under-line so the brass still reads on brass fills (notices, story
+ * cards, the CTA) — no blend modes, which would turn it blue on brass.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* Kept in step with DESKTOP_POINTER in HiveCursor.tsx. */
+@media (hover: hover) and (pointer: fine) and (min-width: 768px) {
+    html.hive-cursor-active,
+    html.hive-cursor-active * {
+        cursor: none;
+    }
+
+    /* Fields keep the native caret (the layer hides over them). Kept in step
+       with TEXT in HiveCursor.tsx. */
+    html.hive-cursor-active :is(input:not([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]),
+        textarea,
+        select,
+        [contenteditable=""],
+        [contenteditable="true"],
+        [data-cursor="text"],
+        [data-cursor="text"] *) {
+        cursor: auto;
+    }
+}
+
+/* Never on touch screens or in the mobile layout, whatever the script last
+   decided — the inline display it sets loses to this. */
+@media (hover: none), (pointer: coarse), (max-width: 767px) {
+    .hive-cursor {
+        display: none !important;
+    }
+}
+
+.hive-cursor {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    contain: strict;
+    transition: opacity 0.2s var(--ease-out);
+}
+
+.hive-cursor[data-visible="false"],
+.hive-cursor[data-mode="text"] {
+    opacity: 0;
+}
+
+.hive-cursor__dot,
+.hive-cursor__cell,
+.hive-cursor__corner,
+.hive-cursor__tag,
+.hive-cursor__pulse {
+    position: absolute;
+    left: 0;
+    top: 0;
+    will-change: transform;
+}
+
+/* The hotspot — exact, never lags. */
+.hive-cursor__dot {
+    width: 4px;
+    height: 4px;
+    margin: -2px 0 0 -2px;
+    border-radius: 9999px;
+    background: var(--brass-400);
+    box-shadow: 0 0 0 1.5px rgb(12 10 8 / 0.75);
+    transition: opacity 0.18s var(--ease-out);
+}
+
+/* Locked, the brackets already say where you are — the dot would only sit on
+   the label it is pointing at. */
+.hive-cursor[data-mode="lock"] .hive-cursor__dot {
+    opacity: 0;
+}
+
+/* The trailing cell. The box is the cell's own 30×26, centred on the point. */
+.hive-cursor__cell {
+    width: 30px;
+    height: 26px;
+    margin: -13px 0 0 -15px;
+}
+
+.hive-cursor__hex {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    transition:
+        opacity 0.22s var(--ease-out),
+        transform 0.32s var(--ease-spring);
+}
+
+.hive-cursor__hex-under {
+    fill: none;
+    stroke: rgb(12 10 8 / 0.55);
+    stroke-width: 3.2;
+}
+
+/* brass-400, a step brighter than the comb's gutters, so the cell never
+   reads as one more cell of the background. */
+.hive-cursor__hex-line {
+    fill: rgb(242 183 5 / 0);
+    stroke: var(--brass-400);
+    stroke-width: 1.4;
+    transition: fill 0.25s var(--ease-out);
+}
+
+.hive-cursor__hex-tick {
+    stroke: var(--brass-400);
+    stroke-width: 1.4;
+}
+
+/* Clickable, but too big to bracket (a full-width link panel): the cell fills. */
+.hive-cursor[data-hot="true"] .hive-cursor__hex-line {
+    fill: rgb(242 183 5 / 0.18);
+}
+
+/* Locked: the cell collapses into the brackets. */
+.hive-cursor[data-mode="lock"] .hive-cursor__hex {
+    opacity: 0;
+    transform: scale(0.4);
+}
+
+/* ── Brackets ── each is drawn from its own corner point inward. */
+.hive-cursor__corner {
+    width: 9px;
+    height: 9px;
+    border: 0 solid var(--brass-500);
+    opacity: 0;
+    filter: drop-shadow(0 0 1px rgb(12 10 8 / 0.9));
+    transition: opacity 0.2s var(--ease-out);
+}
+
+.hive-cursor__corner--tl {
+    border-top-width: 1.5px;
+    border-left-width: 1.5px;
+}
+
+.hive-cursor__corner--tr {
+    margin-left: -9px;
+    border-top-width: 1.5px;
+    border-right-width: 1.5px;
+}
+
+.hive-cursor__corner--bl {
+    margin-top: -9px;
+    border-bottom-width: 1.5px;
+    border-left-width: 1.5px;
+}
+
+.hive-cursor__corner--br {
+    margin: -9px 0 0 -9px;
+    border-bottom-width: 1.5px;
+    border-right-width: 1.5px;
+}
+
+.hive-cursor[data-mode="lock"] .hive-cursor__corner {
+    opacity: 1;
+}
+
+/* ── Action tag ── */
+.hive-cursor__tag {
+    padding: 3px 6px 3px 7px;
+    border-radius: 3px;
+    background: rgb(12 10 8 / 0.92);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+    color: var(--brass-400);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.18s var(--ease-out);
+}
+
+.hive-cursor[data-mode="lock"] .hive-cursor__tag {
+    opacity: 1;
+}
+
+/* ── Click pulse — a cell-shaped ring, thrown away on animationend ── */
+.hive-cursor__pulse {
+    width: 30px;
+    height: 26px;
+    margin: -13px 0 0 -15px;
+}
+
+.hive-cursor__pulse svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: none;
+    stroke: var(--brass-500);
+    stroke-width: 1;
+    animation: hive-pulse 0.55s var(--ease-out) forwards;
+}
+
+.hive-cursor__pulse polygon {
+    vector-effect: non-scaling-stroke;
+}
+
+@keyframes hive-pulse {
+    from {
+        transform: scale(0.5);
+        opacity: 0.9;
+    }
+
+    to {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
