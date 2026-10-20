@@ -1,16 +1,12 @@
 "use client";
 
-/*
- * Error boundary page — same frame as the 404: a decoding mark over the brass
- * horizon, the error itself in a code block, and mono actions.
- */
-
-import Link from "next/link";
 import { motion } from "motion/react";
+import { RefreshCw, Home, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
-import { BrassRing } from "./components/home/BrassRing";
-import { EASE_OUT, RiseText, ScrambleText } from "./components/home/primitives";
-import { PageNav } from "./components/site/PageNav";
+import { Button } from "@/components/ui/button";
+
+const ease = [0.16, 1, 0.3, 1] as const;
 
 export default function Error({
     error,
@@ -20,58 +16,116 @@ export default function Error({
     reset: () => void;
 }) {
     return (
-        <>
-            <main id="page-hero" className="lost">
-                <ScrambleText as="p" text="Error — something broke" duration={800} className="scene-label text-signal-400" />
-                <ScrambleText as="p" text="</>" duration={1000} delay={150} className="lost__code lost__code--glyph" />
-                <RiseText as="h1" text="Oops! Something broke." play delay={0.5} className="lost__title" />
-                <motion.p
-                    className="lost__lede"
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.9, ease: EASE_OUT }}
-                >
-                    An unexpected error occurred. Our team has been notified and we&apos;re working on a fix.
-                </motion.p>
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden">
 
+            {/* Red-tinted spotlight */}
+            <div
+                className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[600px] h-[600px] rounded-full pointer-events-none"
+                style={{
+                    background: "radial-gradient(circle, transparent 0%, transparent 60%)",
+                }}
+            />
+            <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full pointer-events-none"
+                style={{
+                    background: "radial-gradient(ellipse, transparent 0%, transparent 60%)",
+                }}
+            />
+
+            {/* Content */}
+            <div className="relative z-10 text-center max-w-xl mx-auto">
+                {/* Icon */}
                 <motion.div
-                    className="typed-code lost__term"
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 1.05, ease: EASE_OUT }}
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, ease }}
+                    className="mb-6 flex justify-center"
                 >
-                    <span className="block truncate text-signal-400">
-                        {error.message || "An unexpected error occurred"}
-                    </span>
-                    {error.digest && <span className="block tok-com">digest: {error.digest}</span>}
+                    <div className="w-20 h-20 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+                        <AlertTriangle size={36} className="text-destructive/80" />
+                    </div>
                 </motion.div>
 
-                <motion.ul
-                    className="lost__links"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.8, delay: 1.2 }}
+                {/* Headline */}
+                <motion.h1
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.15, ease }}
+                    className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-foreground mb-4 tracking-tight"
                 >
-                    <li>
-                        <button type="button" onClick={() => reset()} className="contact-link mh-focus">
-                            <span aria-hidden="true" className="contact-link__arrow">
-                                ↻
-                            </span>
-                            Try again
-                        </button>
-                    </li>
-                    <li>
-                        <Link href="/" className="contact-link mh-focus">
-                            <span aria-hidden="true" className="contact-link__arrow">
-                                →
-                            </span>
-                            Go home
-                        </Link>
-                    </li>
-                </motion.ul>
-            </main>
-            <BrassRing variant="page" />
-            <PageNav />
-        </>
+                    Oops! Something <span className="text-primary">broke</span>
+                </motion.h1>
+
+                {/* Subtitle */}
+                <motion.p
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.25, ease }}
+                    className="text-muted-foreground text-base md:text-lg mb-8 leading-relaxed max-w-md mx-auto"
+                >
+                    An unexpected error occurred. Our team has been notified and we're working on a fix.
+                </motion.p>
+
+                {/* Error details in IDE-style terminal */}
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.35, ease }}
+                    className="bg-card backdrop-blur-sm border border-destructive/10 rounded-xl p-4 mb-10 max-w-md mx-auto text-left font-mono text-xs overflow-hidden"
+                >
+                    <div className="flex items-center gap-1.5 mb-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-destructive/60" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary/60" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-muted" />
+                        <span className="ml-2 text-[10px] text-muted-foreground/70">error output</span>
+                    </div>
+                    <div className="text-destructive/60 truncate">
+                        {error.message || "An unexpected error occurred"}
+                    </div>
+                    {error.digest && (
+                        <div className="text-muted-foreground/60 mt-1 text-[10px]">
+                            digest: {error.digest}
+                        </div>
+                    )}
+                </motion.div>
+
+                {/* CTAs */}
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.45, ease }}
+                    className="flex flex-col sm:flex-row items-center justify-center gap-3"
+                >
+                    <Button
+                        variant="default"
+                        size="lg"
+                        className="px-8 group"
+                        onClick={() => reset()}
+                    >
+                        <RefreshCw size={16} className="mr-1.5 group-hover:rotate-180 transition-transform duration-500" />
+                        Try Again
+                    </Button>
+                    <Link href="/">
+                        <Button variant="outline" size="lg" className="px-8">
+                            <Home size={16} className="mr-1.5" />
+                            Go Home
+                        </Button>
+                    </Link>
+                </motion.div>
+            </div>
+
+            {/* Navbar */}
+            <div className="fixed top-0 left-0 right-0 z-50 p-5">
+                <Link href="/" className="flex items-center gap-2.5 group w-fit">
+                    {/* decorative — the MYCODEBUD wordmark beside it carries the name */}
+                    <img
+                        src="/logo/logo.png"
+                        alt=""
+                        className="w-8 h-8 rounded-lg object-contain shrink-0"
+                    />
+                    <span className="text-lg font-bold text-primary tracking-tight">MYCODEBUD</span>
+                </Link>
+            </div>
+        </div>
     );
 }
