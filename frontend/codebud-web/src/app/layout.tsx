@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { fontVariables } from "@/fonts";
 import { HoneycombField } from "@/components/HoneycombField";
-import HiveCursor from "@/components/HiveCursor";
-import RouteProgress from "@/components/RouteProgress";
+import HoneyCursor from "@/components/HoneyCursor";
 import "@/styles/index.css";
 import { Providers } from "./providers";
 
@@ -54,8 +53,7 @@ export default function RootLayout({
                 <Providers>
                     {children}
                 </Providers>
-                <RouteProgress />
-                <HiveCursor />
+                <HoneyCursor />
             </body>
         </html>
     );
