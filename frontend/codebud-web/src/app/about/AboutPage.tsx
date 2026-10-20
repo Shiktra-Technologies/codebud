@@ -1,362 +1,288 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+/*
+ * About — the story at reading pace, in the homepage's vocabulary: notices
+ * for the founding team's words, toned photography for the three stages, the
+ * ecosystem's seven layers as a bar list, the values, the team cards from the
+ * homepage, and the numbers ticker. All copy is MYCODEBUD's own (the previous
+ * About page and the info document).
+ */
+
 import { motion } from "motion/react";
-import {
-    Lightbulb,
-    Users,
-    Shield,
-    Sparkles,
-    Target,
-    Heart,
-    Code2,
-} from "lucide-react";
+import { Lightbulb, Sparkles, Target, Users } from "lucide-react";
+
 import { PageLayout } from "../components/layout/PageLayout";
-import { Tilt3D } from "@/components/Tilt3D";
-import { HexCluster } from "@/components/HexCluster";
+import { EASE_OUT, Notice, Photo } from "../components/home/primitives";
+import { TeamGrid } from "../components/home/TeamScene";
+import { TickerBand } from "../components/home/TickerBand";
 
-const ease = [0.16, 1, 0.3, 1] as const;
+/* ── Content ──────────────────────────────────────────────────────────── */
 
-/* ── Values ── */
-const values = [
+const STORY = [
+    "MYCODEBUD started in 2025. Our founder shared the idea with our co-founder, who began building the first version alone — a single platform combining interactive lessons, real-world projects, and AI-powered feedback instead of scattered learning resources.",
+    "As the platform took shape, more people joined. What began as one developer's side project became a small team building a DSA and aptitude catalogue deep enough to take someone from fundamentals all the way to interview-ready.",
+    "MYCODEBUD is a subsidiary of Shiktra Technologies LLP, operating as a Udyam Registered, VTU Registered initiative recognised by the Govt. of Karnataka through K-TECH and the New Age Innovation Network — connecting students, colleges and companies inside one ecosystem.",
+    "Every layer of it — guidance, mentorship, projects, DSA, interview preparation and hackathons — exists to produce something a student can point to and say, “I built this.”",
+];
+
+const NOTES = [
+    {
+        id: "first",
+        time: "2025",
+        body: "Make coding education so interactive and engaging that anyone can go from zero to shipping real products.",
+    },
+    {
+        id: "mission",
+        time: "Mission",
+        body: "Move students from theory to practical capability — guidance, mentorship, meaningful projects, DSA, interview prep and hackathons — priced so access is never the barrier.",
+    },
+];
+
+const STAGES = [
+    {
+        n: "01",
+        title: "Learn",
+        body: "Structured guidance and DSA fundamentals, aligned to what companies expect.",
+        image: { src: "/images/home/step-02-learn.webp", alt: "A student working through digital logic on a whiteboard" },
+    },
+    {
+        n: "02",
+        title: "Build",
+        body: "Novelty and core projects, reviewed by mentors, not left to guesswork.",
+        image: { src: "/images/home/step-03-build.webp", alt: "Source code on a monitor" },
+    },
+    {
+        n: "03",
+        title: "Prove",
+        body: "Hackathons, mock interviews and Demo Days that turn effort into evidence.",
+        image: { src: "/images/home/step-06-hackathon.webp", alt: "Teams building at a hackathon" },
+    },
+];
+
+/** The info document's seven ecosystem layers and their weights (sum: 100). */
+const LAYERS = [
+    { name: "Guidance & Direction", share: 10 },
+    { name: "Mentorship", share: 15 },
+    { name: "Core & Novelty Projects", share: 20 },
+    { name: "DSA Practice", share: 15 },
+    { name: "Interview Preparation", share: 15 },
+    { name: "Hackathons & Competitions", share: 15 },
+    { name: "Career & Placement Support", share: 10 },
+];
+const LAYER_MAX = Math.max(...LAYERS.map((l) => l.share));
+
+const VALUES = [
     {
         icon: Target,
         title: "Proof Over Paperwork",
-        description:
-            "A certificate says you showed up. A project proves you can build. Everything here is designed to produce something a student can point to.",
-        gradient: "from-primary/20 to-primary/10",
+        body: "A certificate says you showed up. A project proves you can build. Everything here is designed to produce something a student can point to.",
     },
     {
         icon: Users,
         title: "Practitioners, Not Lecturers",
-        description:
-            "Mentors who have shipped code and sat on the other side of the interview table — across product companies, IT services, consulting and academia.",
-        gradient: "from-muted to-muted",
+        body: "Mentors who have shipped code and sat on the other side of the interview table — across product companies, IT services, consulting and academia.",
     },
     {
         icon: Lightbulb,
         title: "Novelty-First Briefs",
-        description:
-            "Never the same copied project every batch turns in. Every brief is written to be defensible in an interview, with mentor code reviews at each stage.",
-        gradient: "from-muted to-muted",
+        body: "Never the same copied project every batch turns in. Every brief is written to be defensible in an interview, with mentor code reviews at each stage.",
     },
     {
         icon: Sparkles,
         title: "Affordable By Design",
-        description:
-            "The full ecosystem at ₹99 a month — no separate paywalls for mentorship, projects or interview prep. Cost is never the reason a student sits out.",
-        gradient: "from-muted to-muted",
+        body: "The full ecosystem at ₹99 a month — no separate paywalls for mentorship, projects or interview prep. Cost is never the reason a student sits out.",
     },
 ];
 
-/* ── Team ── */
-const team = [
-    {
-        name: "Rohan Gowda",
-        role: "Founder & CEO",
-        initials: "RG",
-        gradient: "from-primary to-muted",
-    },
-    {
-        name: "Aman Rao M",
-        role: "Co-founder & CTO",
-        initials: "AR",
-        gradient: "from-primary to-muted",
-    },
-    {
-        name: "Nikhil Bajantri",
-        role: "Development Lead",
-        initials: "NB",
-        gradient: "from-muted to-muted",
-    },
-    {
-        name: "Bimal P B",
-        role: "Full Stack Developer",
-        initials: "BP",
-        gradient: "from-muted to-muted",
-    },
-    {
-        name: "B Vibha",
-        role: "Full Stack Developer",
-        initials: "BV",
-        gradient: "from-muted to-muted",
-    },
-];
+/* ── Pieces ───────────────────────────────────────────────────────────── */
 
-/* ── Metrics ── */
-const metrics = [
-    { label: "DSA Catalogue", value: 3000, suffix: "+", icon: Code2 },
-    { label: "Aptitude Catalogue", value: 50000, suffix: "+", icon: Target },
-    { label: "Courses Published", value: 85, suffix: "+", icon: Sparkles },
-];
-
-/* ── Animated Counter ── */
-function AnimatedCounter({
-    value,
-    suffix,
-    duration = 2,
-}: {
-    value: number;
-    suffix: string;
-    duration?: number;
-}) {
-    const [count, setCount] = useState(0);
-    const ref = useRef<HTMLSpanElement>(null);
-    const hasAnimated = useRef(false);
-
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting && !hasAnimated.current) {
-                    hasAnimated.current = true;
-                    const start = performance.now();
-                    const animate = (now: number) => {
-                        const progress = Math.min((now - start) / (duration * 1000), 1);
-                        const eased = 1 - Math.pow(1 - progress, 3);
-                        setCount(Math.floor(eased * value));
-                        if (progress < 1) requestAnimationFrame(animate);
-                    };
-                    requestAnimationFrame(animate);
-                }
-            },
-            { threshold: 0.5 }
-        );
-        if (ref.current) observer.observe(ref.current);
-        return () => observer.disconnect();
-    }, [value, duration]);
-
+function SectionHead({ id, label, title, lede }: { id: string; label: string; title: string; lede?: string }) {
     return (
-        <span ref={ref}>
-            {count.toLocaleString()}
-            {suffix}
-        </span>
+        <motion.div
+            className="section-head"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.8, ease: EASE_OUT }}
+        >
+            <p className="scene-label text-brass-500">{label}</p>
+            <h2 id={id} className="section-head__title">
+                {title}
+            </h2>
+            {lede && <p className="section-head__lede">{lede}</p>}
+        </motion.div>
     );
 }
 
-/* ── Page ── */
+/* ── Page ─────────────────────────────────────────────────────────────── */
+
 export function AboutPage() {
     return (
         <PageLayout
-            badge="Our Story"
-            title={
-                <>
-                    Building the future of
-                    <br />
-                    <span className="text-primary">coding education</span>
-                </>
-            }
-            subtitle="Students should graduate with proof of what they can do, not just a stack of certificates. MYCODEBUD is built to close the distance between college, skills, practical experience and employability."
+            eyebrow="Our story"
+            title="Students should graduate with proof, not a stack of certificates."
+            lede="MYCODEBUD is built to close the distance between college, skills, practical experience and employability."
+            meta={[
+                { label: "Started", value: "2025" },
+                { label: "Based in", value: "Bengaluru" },
+                { label: "A venture of", value: "Shiktra Technologies LLP" },
+            ]}
         >
-            {/* ── Our Story ── */}
-            <section className="py-24 relative overflow-hidden bg-background">
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    <div className="grid md:grid-cols-2 gap-16 items-center">
-                        {/* Text */}
-                        <motion.div
-                            initial={{ opacity: 0, x: -30 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.7, ease }}
-                        >
-                            <h2 className="text-2xl md:text-4xl font-bold text-foreground mb-6 tracking-tight">
-                                From one shared idea to an{" "}
-                                <span className="text-primary">ecosystem</span>
-                            </h2>
-                            <div className="space-y-4 text-muted-foreground leading-relaxed text-[15px]">
-                                <p>
-                                    MYCODEBUD started in 2025. Our founder shared the idea with our
-                                    co-founder, who began building the first version alone — a single
-                                    platform combining interactive lessons, real-world projects, and
-                                    AI-powered feedback instead of scattered learning resources.
-                                </p>
-                                <p>
-                                    As the platform took shape, more people joined. What began as one
-                                    developer&apos;s side project became a small team building a DSA and
-                                    aptitude catalogue deep enough to take someone from fundamentals
-                                    all the way to interview-ready.
-                                </p>
-                                <p>
-                                    MYCODEBUD is a subsidiary of Shiktra Technologies LLP, operating as
-                                    a Udyam Registered, VTU Registered initiative recognised by the
-                                    Govt. of Karnataka through K-TECH and the New Age Innovation
-                                    Network — connecting students, colleges and companies inside one
-                                    ecosystem.
-                                </p>
-                                <p>
-                                    Every layer of it — guidance, mentorship, projects, DSA, interview
-                                    preparation and hackathons — exists to produce something a student
-                                    can point to and say, &quot;I built this.&quot;
-                                </p>
-                            </div>
-                        </motion.div>
-
-                        {/* Visual Card */}
-                        <motion.div
-                            initial={{ opacity: 0, x: 30 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.7, delay: 0.1, ease }}
-                            className="relative"
-                        >
-                            <div className="relative rounded-xl border border-border bg-card backdrop-blur-sm p-8 overflow-hidden">
-                                {/* Glow */}
-                                <div
-                                    className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
-                                    style={{
-                                        background:
-                                            "radial-gradient(circle, transparent 0%, transparent 60%)",
-                                    }}
-                                />
-                                <div className="relative z-10">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                            <Heart size={20} className="text-primary" />
-                                        </div>
-                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                                            Our Mission
-                                        </span>
-                                    </div>
-                                    <p className="text-xl md:text-2xl font-bold text-foreground leading-snug mb-4">
-                                        &quot;Make coding education so interactive and engaging that anyone
-                                        can go from zero to shipping real products.&quot;
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        — The MYCODEBUD Founding Team
-                                    </p>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                </div>
-            </section>
-
-
-            {/* ── Core Values ── */}
-            <section className="py-24 relative overflow-hidden bg-background">
-
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, ease }}
-                        className="text-center mb-16"
-                    >
-                        <h2 className="text-2xl md:text-4xl font-bold text-foreground tracking-tight mb-4">
-                            What drives us
+            {/* ── The story, with the founding team's words pinned beside it ── */}
+            <section className="page-section" aria-labelledby="about-story">
+                <div className="about-story">
+                    <div>
+                        <p className="scene-label text-brass-500">From one shared idea</p>
+                        <h2 id="about-story" className="section-head__title">
+                            …to an ecosystem.
                         </h2>
-                        <p className="text-muted-foreground max-w-lg mx-auto">
-                            The principles the whole ecosystem is built on.
-                        </p>
-                    </motion.div>
-
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                        {values.map((v, i) => (
-                            <motion.div
-                                key={v.title}
-                                initial={{ opacity: 0, y: 25, filter: "blur(6px)" }}
-                                whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                                viewport={{ once: true }}
-                                transition={{ delay: i * 0.08, duration: 0.6, ease }}
-                            >
-                                <Tilt3D
-                                    stageClassName="h-full"
-                                    className="group h-full rounded-xl border border-border bg-card backdrop-blur-sm p-6 hover:border-primary/15"
+                        <div className="about-story__body">
+                            {STORY.map((p, i) => (
+                                <motion.p
+                                    key={i}
+                                    initial={{ opacity: 0, y: 18 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true, margin: "-60px" }}
+                                    transition={{ duration: 0.7, ease: EASE_OUT }}
                                 >
-                                    <div className="hex-stack w-12 h-12 mb-4 tilt-layer-1">
-                                        <div className="hex-badge w-full h-full text-primary/80">
-                                            <v.icon size={19} strokeWidth={1.5} />
-                                        </div>
-                                    </div>
-                                    <div className="tilt-layer-2">
-                                        <h3 className="text-body font-semibold text-foreground mb-2">{v.title}</h3>
-                                        <p className="text-sm text-muted-foreground leading-relaxed">{v.description}</p>
-                                    </div>
-                                </Tilt3D>
-                            </motion.div>
-                        ))}
+                                    {p}
+                                </motion.p>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </section>
-
-
-            {/* ── Team ── */}
-            <section className="py-24 relative overflow-hidden bg-background">
-                <HexCluster />
-
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, ease }}
-                        className="text-center mb-16"
-                    >
-                        <h2 className="text-2xl md:text-4xl font-bold text-foreground tracking-tight mb-4">
-                            Meet the team
-                        </h2>
-                        <p className="text-muted-foreground max-w-lg mx-auto">
-                            The people building MyCodeBud.
-                        </p>
-                    </motion.div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
-                        {team.map((member, i) => (
-                            <motion.div
-                                key={member.name}
-                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    <ol className="about-notes" aria-label="From the founding team">
+                        {NOTES.map((note, i) => (
+                            <motion.li
+                                key={note.id}
+                                initial={{ opacity: 0, y: -14, scale: 0.97 }}
                                 whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: i * 0.06, duration: 0.5, ease }}
-                                className="group text-center"
+                                viewport={{ once: true, margin: "-80px" }}
+                                transition={{ duration: 0.6, delay: i * 0.35, ease: EASE_OUT }}
                             >
-                                <div className="hex-stack relative mx-auto w-20 h-20 mb-3 group-hover:scale-105 transition-transform duration-300">
-                                    <div className="hex-badge w-full h-full text-xl font-bold text-foreground">
-                                        {member.initials}
-                                    </div>
-                                </div>
-                                <h4 className="text-sm font-semibold text-foreground mb-0.5">{member.name}</h4>
-                                <p className="text-xs text-muted-foreground">{member.role}</p>
-                            </motion.div>
+                                <Notice
+                                    from="MYCODEBUD founding team"
+                                    time={note.time}
+                                    tone={i === NOTES.length - 1 ? "brass" : "carbon"}
+                                >
+                                    {note.body}
+                                </Notice>
+                            </motion.li>
                         ))}
+                    </ol>
+                </div>
+            </section>
+
+            {/* ── Learn → Build → Prove ── */}
+            <section className="page-section" aria-labelledby="about-stages">
+                <SectionHead id="about-stages" label="The path" title="Learn. Build. Prove." />
+                <ol className="stages">
+                    {STAGES.map((s, i) => (
+                        <motion.li
+                            key={s.n}
+                            className="stage"
+                            initial={{ opacity: 0, y: 48 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-60px" }}
+                            transition={{ duration: 0.8, delay: i * 0.1, ease: EASE_OUT }}
+                        >
+                            <Photo {...s.image} className="absolute inset-0" />
+                            <div aria-hidden="true" className="stage__scrim" />
+                            <p className="scene-label relative z-10 text-brass-400">Stage {s.n}</p>
+                            <div className="relative z-10 mt-auto">
+                                <h3 className="stage__title">{s.title}</h3>
+                                <p className="scene-mono mt-3 text-carbon-bone/90">{s.body}</p>
+                            </div>
+                        </motion.li>
+                    ))}
+                </ol>
+            </section>
+
+            {/* ── Seven layers ── */}
+            <section className="page-section" aria-labelledby="about-layers">
+                <div className="layers-wrap">
+                    <div>
+                        <p className="scene-label text-brass-500">The ecosystem</p>
+                        <h2 id="about-layers" className="section-head__title">
+                            Seven layers, one journey.
+                        </h2>
+                        <p className="section-head__lede">
+                            Layers that reinforce each other — a student moves through direction, skill-building and
+                            practical exposure until preparation becomes proof.
+                        </p>
+                        <p className="layers-figure">
+                            <span className="layers-figure__value">7</span>
+                            <span className="layers-figure__label">ecosystem layers</span>
+                        </p>
+                    </div>
+                    <div>
+                        <p className="layers-scale" aria-hidden="true">
+                            <span>Share of the ecosystem</span>
+                            <span>0–{LAYER_MAX}%</span>
+                        </p>
+                        <ol className="layers" aria-label="Each layer's share of the ecosystem">
+                            {LAYERS.map((layer, i) => (
+                                <li key={layer.name} className="layers__row">
+                                    <span className="layers__name">
+                                        <span className="layers__idx">{String(i + 1).padStart(2, "0")}</span>
+                                        {layer.name}
+                                    </span>
+                                    <span aria-hidden="true" className="layers__track">
+                                        <motion.span
+                                            className="layers__bar"
+                                            style={{ width: `${(layer.share / LAYER_MAX) * 100}%` }}
+                                            initial={{ scaleX: 0 }}
+                                            whileInView={{ scaleX: 1 }}
+                                            viewport={{ once: true, margin: "-40px" }}
+                                            transition={{ duration: 1, delay: 0.15 + i * 0.07, ease: EASE_OUT }}
+                                        />
+                                    </span>
+                                    <span className="layers__value">{layer.share}%</span>
+                                </li>
+                            ))}
+                        </ol>
                     </div>
                 </div>
             </section>
 
+            {/* ── Values ── */}
+            <section className="page-section" aria-labelledby="about-values">
+                <SectionHead id="about-values" label="What drives us" title="The principles the whole ecosystem is built on." />
+                <ul className="values">
+                    {VALUES.map((v, i) => (
+                        <motion.li
+                            key={v.title}
+                            className="value-card"
+                            initial={{ opacity: 0, y: 32 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-60px" }}
+                            transition={{ duration: 0.7, delay: i * 0.08, ease: EASE_OUT }}
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="hex-stack h-[2.8rem] w-[3.25rem]">
+                                    <span className="hex-badge h-full w-full text-brass-400">
+                                        <v.icon size={18} strokeWidth={1.6} />
+                                    </span>
+                                </div>
+                                <span className="scene-label text-carbon-tertiary">{String(i + 1).padStart(2, "0")}</span>
+                            </div>
+                            <h3 className="value-card__title">{v.title}</h3>
+                            <p className="value-card__body">{v.body}</p>
+                        </motion.li>
+                    ))}
+                </ul>
+            </section>
 
-            {/* ── Metrics ── */}
-            <section className="py-24 relative overflow-hidden bg-background">
-                <div
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[300px] rounded-full pointer-events-none"
-                    style={{
-                        background: "radial-gradient(ellipse, transparent 0%, transparent 60%)",
-                    }}
+            {/* ── People ── */}
+            <section className="page-section" aria-labelledby="about-team">
+                <SectionHead
+                    id="about-team"
+                    label="The people behind it"
+                    title="A small team, practitioner mentors, and a hiring network."
                 />
-                <div className="max-w-5xl mx-auto px-6 relative z-10">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        {metrics.map((m, i) => (
-                            <motion.div
-                                key={m.label}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: i * 0.1, duration: 0.5, ease }}
-                                className="text-center group"
-                            >
-                                <div className="hex-stack w-12 h-12 mx-auto mb-4">
-                                    <div className="hex-badge w-full h-full text-primary/70">
-                                        <m.icon size={20} />
-                                    </div>
-                                </div>
-                                <div className="text-3xl md:text-4xl font-extrabold text-foreground mb-1">
-                                    <AnimatedCounter value={m.value} suffix={m.suffix} />
-                                </div>
-                                <p className="text-sm text-muted-foreground">{m.label}</p>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
+                <TeamGrid />
             </section>
+
+            <TickerBand />
         </PageLayout>
     );
 }

@@ -19,7 +19,7 @@ export const Navbar = () => {
     }, []);
 
     const navLinks = [
-        { label: "Features", href: "/#features" },
+        { label: "How it works", href: "/#how" },
         { label: "About", href: "/about" },
         { label: "Contact", href: "/contact" },
     ];

@@ -1,0 +1,1896 @@
+/* ═══════════════════════════════════════════════════════════════════════
+ * Homepage scroll scenes.
+ *
+ * Only the homepage's scene components use these classes. Colours, radii,
+ * easing and fonts all come from the Machined Hive tokens in theme.css — this
+ * file adds layout and motion, never a new colour. §D1 holds throughout: any
+ * text on a brass / patina fill is carbon-canvas.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Shared type ──────────────────────────────────────────────────────── */
+
+.scene-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.scene-mono {
+    font-family: var(--font-mono);
+    font-size: 0.78125rem;
+    line-height: 1.55;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.scene-statement {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.1rem, 5.4vw, 5.25rem);
+    line-height: 1;
+    letter-spacing: -0.035em;
+    color: var(--carbon-bone);
+    text-wrap: balance;
+}
+
+/* A character mid-decode. */
+.scramble-glyph {
+    opacity: 0.55;
+}
+
+/* WordReveal: the wrapper carries scroll progress (--p, written by the
+   component) and each word maps its own slice of it (--a → --b) to an
+   opacity between --dim and 1. */
+.word-reveal {
+    --p: 0;
+}
+
+.word-reveal__word {
+    display: inline-block;
+    opacity: clamp(var(--dim), calc(var(--dim) + (1 - var(--dim)) * (var(--p) - var(--a)) / (var(--b) - var(--a))), 1);
+}
+
+/* RiseText: each word waits below its clipped line box until the statement
+   plays, then rises in turn (the stagger is set inline as a delay). */
+.rise-text__word {
+    display: inline-block;
+    transform: translateY(105%);
+}
+
+.rise-text--play .rise-text__word {
+    animation: rise-word 0.9s var(--ease-out-expo) both;
+}
+
+@keyframes rise-word {
+    from {
+        transform: translateY(105%);
+    }
+
+    to {
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise-text--play .rise-text__word {
+        animation: none;
+        transform: none;
+    }
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+
+.hero-scrim {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 36svh;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+            color-mix(in oklch, var(--carbon-canvas) 85%, transparent),
+            transparent);
+}
+
+.hero-wordmark {
+    --wordmark-size: clamp(2rem, 8.4vw, 9.5rem);
+    position: absolute;
+    inset: 0 0 auto 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.9rem 1rem 0;
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: var(--wordmark-size);
+    line-height: 0.8;
+    color: var(--carbon-bone);
+}
+
+/* Fixed-width cells so a cycling glyph never nudges its neighbours. */
+/* One cell per letter. The decode's glyphs and the letter itself share the
+   cell's grid area, and each shows only in its time slot — the delays are set
+   inline by HeroScene. Pure CSS, so it plays from the first paint. */
+.hero-letter {
+    display: inline-grid;
+    width: 0.84em;
+    justify-items: center;
+}
+
+.hero-letter:first-child {
+    justify-items: start;
+}
+
+.hero-letter:last-child {
+    justify-items: end;
+}
+
+.hero-letter > span {
+    grid-area: 1 / 1;
+}
+
+/* A glyph is visible only while its 45ms animation runs (no fill). */
+.hero-letter__glyph {
+    visibility: hidden;
+    opacity: 0.6;
+    animation: hero-glyph 45ms linear;
+}
+
+@keyframes hero-glyph {
+
+    from,
+    to {
+        visibility: visible;
+    }
+}
+
+/* The letter lands as its last glyph ends, and stays. */
+.hero-letter__char {
+    animation: hero-char 1ms linear both;
+}
+
+@keyframes hero-char {
+    from {
+        visibility: hidden;
+    }
+
+    to {
+        visibility: visible;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-letter__glyph {
+        display: none;
+    }
+
+    .hero-letter__char {
+        animation: none;
+    }
+}
+
+.hero-notices {
+    position: absolute;
+    top: calc(0.9rem + clamp(2rem, 8.4vw, 9.5rem) * 0.8 + 1.4rem);
+    right: 1rem;
+    width: min(25rem, calc(100% - 2rem));
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+@media (max-width: 767px) {
+    .hero-notices {
+        left: 1rem;
+        width: auto;
+    }
+}
+
+.hero-corner {
+    position: absolute;
+    bottom: 1.4rem;
+    display: none;
+    align-items: center;
+    gap: 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+}
+
+@media (min-width: 768px) {
+    .hero-corner {
+        display: flex;
+    }
+}
+
+.hero-corner--left {
+    left: 1rem;
+}
+
+.hero-corner--right {
+    right: 1rem;
+}
+
+.hero-scroll-line {
+    position: relative;
+    width: 2.75rem;
+    height: 1px;
+    overflow: hidden;
+    background: var(--carbon-border);
+}
+
+.hero-scroll-line::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--brass-500);
+    transform: translateX(-100%);
+    animation: hero-scroll-line 2.4s var(--ease-in-out) infinite;
+}
+
+@keyframes hero-scroll-line {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    55% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(101%);
+    }
+}
+
+/* ── Notice (hero messages + proof thread) ────────────────────────────── */
+
+.notice {
+    border-radius: var(--radius-md);
+    padding: 0.8rem 0.95rem 0.95rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    transition:
+        background-color 0.5s var(--ease-out),
+        color 0.5s var(--ease-out),
+        box-shadow 0.5s var(--ease-out);
+}
+
+.notice--brass {
+    background: var(--brass-500);
+    color: var(--carbon-canvas);
+    box-shadow: 0 22px 50px -22px rgb(242 183 5 / 0.55);
+}
+
+.notice--carbon {
+    background: var(--carbon-elevated);
+    color: var(--carbon-bone);
+    box-shadow: inset 0 0 0 1px var(--carbon-border), var(--elev-2);
+}
+
+.notice__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.625rem;
+    line-height: 1rem;
+    letter-spacing: 0.08em;
+    opacity: 0.72;
+}
+
+.notice__mark {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    object-fit: contain;
+    box-shadow: 0 0 0 1px rgb(12 10 8 / 0.25);
+}
+
+.notice__body {
+    margin-top: 0.85rem;
+    font-size: 0.8125rem;
+    line-height: 1.42;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+/* ── Story ────────────────────────────────────────────────────────────── */
+
+.story-slot {
+    flex: none;
+    height: 100%;
+    /* Pre-measure width; the scene overrides it in px once it knows the stage. */
+    width: calc((100vw - 48px) / 3);
+}
+
+@media (max-width: 767px) {
+    .story-slot {
+        width: calc(100vw - 48px);
+    }
+}
+
+.story-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    height: 100%;
+    padding: 0.9rem 1.1rem 5.75rem;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.story-card--brass {
+    background: var(--brass-500);
+    color: var(--carbon-canvas);
+}
+
+.story-card--patina {
+    background: var(--patina-500);
+    color: var(--carbon-canvas);
+}
+
+.story-card--carbon {
+    background: var(--carbon-surface);
+    color: var(--carbon-bone);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+}
+
+.story-card--elevated {
+    background: var(--carbon-elevated);
+    color: var(--carbon-bone);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+}
+
+.story-card__title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(1.7rem, 2.75vw, 2.9rem);
+    line-height: 1.02;
+    letter-spacing: -0.028em;
+    max-width: 14ch;
+}
+
+.story-card__lead {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    max-width: 34ch;
+}
+
+.story-card__visual {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+}
+
+.story-bars {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    gap: 4px;
+}
+
+.story-bar {
+    position: relative;
+    flex: 1;
+    height: 2px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: color-mix(in oklch, currentColor 22%, transparent);
+}
+
+.story-bar__fill {
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    transform-origin: left center;
+}
+
+.story-orb {
+    width: min(70%, 21rem);
+}
+
+/* Seven-cell cluster on the brass card. */
+.comb-cluster {
+    width: min(64%, 17rem);
+    height: auto;
+    overflow: visible;
+}
+
+.comb-cluster__cell {
+    fill: transparent;
+    stroke: var(--carbon-canvas);
+    stroke-opacity: 0.5;
+    stroke-width: 1.2;
+    animation: comb-cell 4.2s var(--ease-in-out) infinite;
+}
+
+.comb-cluster__core {
+    fill: var(--carbon-canvas);
+}
+
+.comb-cluster__glyph {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 500;
+    fill: var(--brass-500);
+}
+
+@keyframes comb-cell {
+
+    0%,
+    100% {
+        fill: transparent;
+    }
+
+    50% {
+        fill: rgb(12 10 8 / 0.12);
+    }
+}
+
+/* Drifting comb on the patina card. One opaque stroke per tile, faded as a
+   whole — translucent strokes would double up on shared edges. */
+.comb-drift {
+    position: absolute;
+    inset: -45%;
+    opacity: 0.32;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='84' height='48.497' viewBox='0 0 84 48.497'%3E%3Cpath d='M28 24.249L14 48.497L-14 48.497L-28 24.249L-14 0L14 0Z M70 0L56 24.249L28 24.249L14 0L28 -24.249L56 -24.249Z M70 48.497L56 72.746L28 72.746L14 48.497L28 24.249L56 24.249Z M112 24.249L98 48.497L70 48.497L56 24.249L70 0L98 0Z' fill='none' stroke='%230C0A08' stroke-width='1.2'/%3E%3C/svg%3E");
+    background-size: 84px 48.497px;
+    animation: comb-drift 30s linear infinite;
+    -webkit-mask-image: radial-gradient(closest-side, #000 35%, transparent);
+    mask-image: radial-gradient(closest-side, #000 35%, transparent);
+}
+
+@keyframes comb-drift {
+    to {
+        transform: translate3d(-84px, -96.994px, 0);
+    }
+}
+
+/* Typed snippet on the ecosystem card. */
+.typed-code {
+    position: relative;
+    width: min(88%, 25rem);
+    padding: 1.1rem 1.2rem;
+    border-radius: var(--radius-md);
+    background: var(--carbon-canvas);
+    box-shadow: inset 0 0 0 1px var(--carbon-border), 0 30px 60px -30px rgb(0 0 0 / 0.7);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    white-space: pre;
+    color: var(--carbon-bone);
+    overflow: hidden;
+}
+
+@media (max-width: 767px) {
+    .typed-code {
+        font-size: 0.6875rem;
+    }
+}
+
+.tok-kw {
+    color: var(--brass-400);
+}
+
+.tok-str {
+    color: var(--patina-300);
+}
+
+.tok-com {
+    color: var(--carbon-secondary);
+    font-style: italic;
+}
+
+.tok-dim {
+    color: color-mix(in oklch, var(--carbon-bone) 70%, transparent);
+}
+
+.typed-caret {
+    display: inline-block;
+    width: 0.55em;
+    height: 1.05em;
+    margin-left: 1px;
+    vertical-align: -0.15em;
+    background: var(--brass-500);
+    animation: typed-caret 1s steps(1) infinite;
+}
+
+@keyframes typed-caret {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* ── Orb ──────────────────────────────────────────────────────────────── */
+
+@property --orb-a {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: #f7e7b0;
+}
+
+@property --orb-b {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: #f2b705;
+}
+
+@property --orb-c {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: #e0662a;
+}
+
+.orb {
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 50% 50%,
+            var(--orb-a) 0%,
+            var(--orb-b) 44%,
+            var(--orb-c) 80%,
+            color-mix(in oklch, var(--orb-c) 55%, var(--carbon-canvas)) 100%);
+    box-shadow: 0 0 70px -14px var(--orb-b), inset 0 0 0 1px rgb(255 255 255 / 0.08);
+    animation: 11s var(--ease-in-out) infinite alternate;
+}
+
+.orb--brass {
+    --orb-a: var(--patina-300);
+    --orb-b: var(--brass-500);
+    --orb-c: var(--ember-500);
+    animation-name: orb-brass;
+}
+
+.orb--patina {
+    --orb-a: var(--brass-200);
+    --orb-b: var(--patina-500);
+    --orb-c: var(--steel-500);
+    animation-name: orb-patina;
+}
+
+.orb--ember {
+    --orb-a: var(--brass-300);
+    --orb-b: var(--ember-500);
+    --orb-c: var(--signal-500);
+    animation-name: orb-ember;
+}
+
+@keyframes orb-brass {
+    50% {
+        --orb-a: var(--brass-100);
+        --orb-b: var(--ember-500);
+        --orb-c: var(--signal-500);
+    }
+
+    100% {
+        --orb-a: var(--steel-500);
+        --orb-b: var(--brass-400);
+        --orb-c: var(--patina-500);
+    }
+}
+
+@keyframes orb-patina {
+    50% {
+        --orb-a: var(--patina-300);
+        --orb-b: var(--steel-500);
+        --orb-c: var(--patina-700);
+    }
+
+    100% {
+        --orb-a: var(--brass-300);
+        --orb-b: var(--patina-300);
+        --orb-c: var(--steel-500);
+    }
+}
+
+@keyframes orb-ember {
+    50% {
+        --orb-a: var(--carbon-bone);
+        --orb-b: var(--brass-500);
+        --orb-c: var(--ember-500);
+    }
+
+    100% {
+        --orb-a: var(--brass-200);
+        --orb-b: var(--signal-400);
+        --orb-c: var(--ember-500);
+    }
+}
+
+/* ── Journey dial ─────────────────────────────────────────────────────── */
+
+/* The dial's body runs off the bottom of the stage; fading the stage's last
+   quarter means its edge is never drawn as a line — not while pinned, and not
+   when the stage scrolls away or comes back. */
+.journey-stage {
+    -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 72%, transparent 100%);
+}
+
+.journey-dial__body {
+    fill: color-mix(in oklch, var(--carbon-canvas) 84%, transparent);
+}
+
+.journey-dial__glow {
+    fill: none;
+    stroke: rgb(242 183 5 / 0.1);
+    stroke-width: 16;
+}
+
+.journey-dial__rim {
+    fill: none;
+    stroke: color-mix(in oklch, var(--carbon-bone) 62%, transparent);
+    stroke-width: 1;
+}
+
+.journey-dial__tick {
+    stroke: color-mix(in oklch, var(--carbon-bone) 14%, transparent);
+    stroke-width: 1;
+}
+
+.journey-dial__tick--major {
+    stroke: color-mix(in oklch, var(--carbon-bone) 30%, transparent);
+}
+
+.journey-dial__label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    fill: var(--carbon-secondary);
+}
+
+.journey-sight {
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+}
+
+.journey-sight__line {
+    position: absolute;
+    left: -0.5px;
+    top: -84px;
+    height: 128px;
+    border-left: 1px dashed color-mix(in oklch, var(--carbon-bone) 55%, transparent);
+}
+
+.journey-sight__frame {
+    position: absolute;
+    left: -12px;
+    top: -12px;
+    width: 24px;
+    height: 24px;
+    box-shadow: inset 0 0 0 1px var(--carbon-bone);
+}
+
+.journey-meta {
+    position: absolute;
+    left: 50%;
+    width: min(25rem, calc(100% - 2rem));
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 1rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+}
+
+.journey-title {
+    max-width: 14ch;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 4vw, 3.75rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    text-align: center;
+    text-wrap: balance;
+    color: var(--carbon-bone);
+}
+
+.journey-body {
+    max-width: 31rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-transform: uppercase;
+    color: var(--carbon-bone);
+}
+
+/* ── Proof thread ─────────────────────────────────────────────────────── */
+
+.proof-msg {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 26rem;
+}
+
+.proof-msg--wide {
+    width: 29rem;
+}
+
+.proof-typing {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.75rem 0.95rem;
+    border-radius: var(--radius-md);
+    background: var(--carbon-elevated);
+    box-shadow: inset 0 0 0 1px var(--carbon-border), var(--elev-2);
+}
+
+.proof-typing__who {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+}
+
+.proof-diff {
+    margin-top: 1rem;
+    padding: 0.85rem 0.9rem;
+    border-radius: var(--radius-sm);
+    background: var(--carbon-canvas);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    font-weight: 400;
+}
+
+.proof-diff__row {
+    display: flex;
+    gap: 0.7rem;
+}
+
+.proof-diff__sign {
+    flex: none;
+    width: 1.4em;
+    text-align: center;
+}
+
+.proof-diff__row--del {
+    color: var(--signal-400);
+}
+
+.proof-diff__row--del .proof-diff__text {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+.proof-diff__row--add {
+    color: var(--patina-300);
+}
+
+.proof-diff__row--note {
+    color: var(--carbon-secondary);
+}
+
+/* ── Team ─────────────────────────────────────────────────────────────── */
+
+.team-headline {
+    max-width: 21ch;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.1rem, 5.4vw, 5.5rem);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+    color: var(--carbon-bone);
+}
+
+.team-card {
+    position: relative;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 18rem;
+    padding: 1.1rem;
+    border-radius: var(--radius-md);
+    background: var(--carbon-surface);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+    overflow: hidden;
+}
+
+.team-orb {
+    width: 3.25rem;
+}
+
+.team-card__title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(1.5rem, 2vw, 2rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--carbon-bone);
+}
+
+.team-card__note {
+    margin-top: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+}
+
+/* ── Contact ──────────────────────────────────────────────────────────── */
+
+.contact-glyph {
+    display: block;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: clamp(4.5rem, 14vw, 14rem);
+    line-height: 0.8;
+    letter-spacing: -0.06em;
+    color: var(--brass-500);
+}
+
+.contact-statement {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(1.9rem, 3.7vw, 3.6rem);
+    line-height: 1.06;
+    letter-spacing: -0.028em;
+    color: var(--carbon-bone);
+}
+
+.contact-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--carbon-bone);
+    /* On narrow screens the links sit over the horizon's glow. */
+    text-shadow: 0 1px 14px rgb(12 10 8 / 0.85);
+    transition: color 0.2s var(--ease-out);
+}
+
+.contact-link:hover {
+    color: var(--brass-400);
+}
+
+.contact-link__arrow {
+    display: inline-block;
+    color: var(--brass-500);
+    transition: transform 0.35s var(--ease-out);
+}
+
+.contact-link:hover .contact-link__arrow,
+.contact-link:focus-visible .contact-link__arrow {
+    transform: translateX(6px);
+}
+
+.contact-foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.75rem 2rem;
+    padding: 2.5rem 1rem 5.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 1rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    /* Sits on the horizon's glow, so it needs more than secondary grey. */
+    color: color-mix(in oklch, var(--carbon-bone) 82%, transparent);
+    text-shadow: 0 1px 14px rgb(12 10 8 / 0.9), 0 0 2px rgb(12 10 8 / 0.8);
+}
+
+@media (min-width: 768px) {
+    .contact-foot {
+        padding-bottom: 1.45rem;
+    }
+}
+
+.contact-foot__link {
+    transition: color 0.2s var(--ease-out);
+}
+
+.contact-foot__link:hover {
+    color: var(--carbon-bone);
+}
+
+/* ── Scene nav ────────────────────────────────────────────────────────── */
+
+/* Centred with auto margins, not a transform — motion owns `transform` here. */
+.scene-nav {
+    position: fixed;
+    inset-inline: 0;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    z-index: 50;
+    margin-inline: auto;
+    width: max-content;
+    max-width: calc(100% - 1.5rem);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--carbon-elevated) 86%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: inset 0 0 0 1px var(--carbon-border), 0 18px 40px -18px rgb(0 0 0 / 0.85);
+}
+
+.scene-nav__mark {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 26px;
+    border-radius: 4px;
+}
+
+.scene-nav__list {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.scene-nav__link {
+    position: relative;
+    z-index: 1;
+    display: block;
+    padding: 0.55rem 0.7rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--carbon-secondary);
+    transition: color 0.25s var(--ease-out);
+}
+
+.scene-nav__link:hover {
+    color: var(--carbon-bone);
+}
+
+.scene-nav__link.is-active {
+    color: var(--carbon-canvas);
+}
+
+.scene-nav__active {
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    background: var(--carbon-bone);
+}
+
+.scene-nav__cta {
+    flex: none;
+    padding: 0.55rem 0.75rem;
+    border-radius: 4px;
+    background: var(--brass-500);
+    color: var(--carbon-canvas);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background-color 0.2s var(--ease-out);
+}
+
+.scene-nav__cta:hover {
+    background: var(--brass-300);
+}
+
+/* Backed like the nav, so it reads as a control rather than a stray caption
+   when it sits over scene copy. */
+.scene-skip {
+    position: fixed;
+    right: 1rem;
+    bottom: 1.15rem;
+    z-index: 50;
+    padding: 0.45rem 0.6rem;
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--carbon-elevated) 86%, transparent);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+    transition: color 0.2s var(--ease-out);
+}
+
+.scene-skip:hover {
+    color: var(--carbon-bone);
+}
+
+@media (max-width: 767px) {
+    .scene-skip {
+        bottom: 4.4rem;
+    }
+}
+
+/* ── Ring fallback (no WebGL) — a static halo in the hero only ─────────── */
+
+.ring-fallback {
+    position: absolute;
+    left: 50%;
+    top: 50vh;
+    z-index: -1;
+    width: 94vmax;
+    height: 94vmax;
+    margin: -47vmax 0 0 -47vmax;
+    border-radius: 9999px;
+    pointer-events: none;
+    box-shadow:
+        0 0 0 1px rgb(242 183 5 / 0.7),
+        0 0 44px 8px rgb(242 183 5 / 0.32),
+        inset 0 0 44px 8px rgb(224 102 42 / 0.22);
+}
+
+/* ── Photography ──────────────────────────────────────────────────────── */
+
+/* Monochrome, re-toned brass through a colour-blend layer, with a faint
+   machined scanline — stock colour would fight the palette. Position is left
+   to the caller (an `absolute inset-0` utility, or the class it sits with):
+   this file is unlayered and would otherwise beat the Tailwind utilities. */
+.photo {
+    overflow: hidden;
+    isolation: isolate;
+    background: var(--carbon-elevated);
+}
+
+.photo img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(1) contrast(1.12) brightness(0.88);
+}
+
+.photo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(155deg, var(--brass-400), var(--ember-500));
+    mix-blend-mode: color;
+    opacity: 0.62;
+    pointer-events: none;
+}
+
+.photo--patina::after {
+    background: linear-gradient(155deg, var(--patina-300), var(--steel-500));
+}
+
+.photo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: repeating-linear-gradient(0deg, rgb(12 10 8 / 0.16) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+}
+
+/* Story — the full-bleed photo card. */
+.story-card--photo {
+    background: var(--carbon-elevated);
+    color: var(--carbon-bone);
+}
+
+.story-card__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+            rgb(12 10 8 / 0.84) 0%,
+            rgb(12 10 8 / 0.3) 28%,
+            transparent 46%,
+            rgb(12 10 8 / 0.4) 62%,
+            rgb(12 10 8 / 0.92) 100%);
+}
+
+/* ── Journey — step photo and "what you get" ──────────────────────────── */
+
+.journey-photo {
+    position: absolute;
+    left: max(1rem, 4vw);
+    width: min(26vw, 25rem);
+    aspect-ratio: 4 / 3;
+    margin: 0;
+}
+
+.journey-photo > div {
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+}
+
+.journey-photo--phone {
+    left: 50%;
+    width: min(78vw, 22rem);
+    aspect-ratio: auto;
+    transform: translateX(-50%);
+}
+
+.journey-photo__corner {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 0 solid var(--brass-500);
+}
+
+.journey-photo__corner--tl {
+    top: -7px;
+    left: -7px;
+    border-top-width: 1.5px;
+    border-left-width: 1.5px;
+}
+
+.journey-photo__corner--tr {
+    top: -7px;
+    right: -7px;
+    border-top-width: 1.5px;
+    border-right-width: 1.5px;
+}
+
+.journey-photo__corner--bl {
+    bottom: -7px;
+    left: -7px;
+    border-bottom-width: 1.5px;
+    border-left-width: 1.5px;
+}
+
+.journey-photo__corner--br {
+    bottom: -7px;
+    right: -7px;
+    border-bottom-width: 1.5px;
+    border-right-width: 1.5px;
+}
+
+.journey-photo__cap {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 12px);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--carbon-secondary);
+}
+
+.journey-photo--phone .journey-photo__cap {
+    display: none;
+}
+
+.journey-panel {
+    position: absolute;
+    right: max(1rem, 4vw);
+    width: min(24vw, 22rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.journey-panel__list {
+    display: grid;
+    gap: 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 0.78125rem;
+    line-height: 1.45;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--carbon-bone);
+}
+
+.journey-panel__list li {
+    display: flex;
+    gap: 0.7rem;
+}
+
+.journey-figure {
+    padding-top: 1rem;
+    border-top: 1px solid var(--carbon-border);
+}
+
+.journey-figure__value {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.2rem, 3.6vw, 3.5rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--brass-500);
+}
+
+.journey-figure__value.is-mono {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: clamp(1.3rem, 2vw, 1.85rem);
+    letter-spacing: -0.02em;
+}
+
+.journey-figure__label {
+    margin-top: 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 0.65625rem;
+    line-height: 1.45;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+}
+
+/* ── Proof — the paperwork the certificate message carries ────────────── */
+
+.proof-photo {
+    position: relative;
+    display: block;
+    height: 9.5rem;
+    margin-top: 0.9rem;
+    border-radius: var(--radius-sm);
+}
+
+@media (max-width: 767px) {
+    .proof-photo {
+        height: 7.25rem;
+    }
+}
+
+/* ── Proof — the product demo ─────────────────────────────────────────── */
+
+/* Behind the thread. Its top and bottom fade out so the stage never shows an
+   edge as it arrives or leaves. The demo is the product's own carbon-and-brass
+   UI, so it keeps its colour — it is only dimmed. */
+.demo-backdrop {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: var(--carbon-canvas);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 80%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 14%, #000 80%, transparent 100%);
+}
+
+.demo-backdrop__poster,
+.demo-backdrop__video {
+    position: absolute;
+    inset: 0;
+}
+
+.demo-backdrop__poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.06);
+    filter: saturate(0.85) brightness(0.7);
+}
+
+/* Hidden until YouTube reports it playing, so its loading chrome never shows. */
+.demo-backdrop__video {
+    overflow: hidden;
+    opacity: 0;
+    filter: saturate(0.85) brightness(0.72);
+    transition: opacity 1.4s var(--ease-out);
+}
+
+.demo-backdrop[data-playing] .demo-backdrop__video {
+    opacity: 1;
+}
+
+/* Cover the stage at 16:9, overscanned so the player's edges stay off-screen. */
+.demo-backdrop__frame {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(116vw, calc(116svh * 16 / 9));
+    height: calc(max(116vw, calc(116svh * 16 / 9)) * 9 / 16);
+    border: 0;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.demo-backdrop__shade {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 70% 65% at 50% 45%, rgb(12 10 8 / 0.5), rgb(12 10 8 / 0.86) 75%),
+        linear-gradient(to bottom, rgb(12 10 8 / 0.35), transparent 30%, transparent 70%, rgb(12 10 8 / 0.5));
+}
+
+/* The picture-in-picture card (desktop) — above the thread's full-stage list. */
+.demo-card-slot {
+    position: absolute;
+    left: max(1rem, 3vw);
+    bottom: 5.5rem;
+    z-index: 5;
+}
+
+.demo-card {
+    position: relative;
+    display: block;
+    width: 16rem;
+    text-align: left;
+    border-radius: var(--radius-md);
+    background: var(--carbon-elevated);
+    box-shadow: inset 0 0 0 1px var(--carbon-border), var(--elev-3);
+    transition: transform 0.4s var(--ease-out);
+}
+
+.demo-card:hover {
+    transform: translateY(-3px);
+}
+
+.demo-card__thumb {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.demo-card__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.8);
+    transition:
+        transform 0.8s var(--ease-out),
+        filter 0.4s var(--ease-out);
+}
+
+.demo-card:hover .demo-card__thumb img {
+    transform: scale(1.05);
+    filter: brightness(0.95);
+}
+
+.demo-card__play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: -1.375rem 0 0 -1.375rem;
+    display: grid;
+    place-items: center;
+    border-radius: 9999px;
+    background: var(--brass-500);
+    box-shadow: 0 10px 30px -8px rgb(242 183 5 / 0.6);
+    animation: demo-ping 2.4s var(--ease-out) infinite;
+    transition: transform 0.35s var(--ease-spring);
+}
+
+.demo-card:hover .demo-card__play {
+    transform: scale(1.08);
+}
+
+.demo-card__play svg {
+    width: 1rem;
+    height: 1rem;
+    margin-left: 2px;
+    fill: var(--carbon-canvas);
+}
+
+@keyframes demo-ping {
+    0% {
+        box-shadow: 0 0 0 0 rgb(242 183 5 / 0.45), 0 10px 30px -8px rgb(242 183 5 / 0.6);
+    }
+
+    70%,
+    100% {
+        box-shadow: 0 0 0 14px rgb(242 183 5 / 0), 0 10px 30px -8px rgb(242 183 5 / 0.6);
+    }
+}
+
+.demo-card__meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    line-height: 1rem;
+    text-transform: uppercase;
+}
+
+.demo-card__label {
+    letter-spacing: 0.14em;
+    color: var(--brass-500);
+}
+
+.demo-card__cta {
+    letter-spacing: 0.1em;
+    color: var(--carbon-bone);
+}
+
+.demo-card__corner {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 0 solid var(--brass-500);
+}
+
+.demo-card__corner--tl {
+    top: -6px;
+    left: -6px;
+    border-top-width: 1.5px;
+    border-left-width: 1.5px;
+}
+
+.demo-card__corner--br {
+    bottom: -6px;
+    right: -6px;
+    border-bottom-width: 1.5px;
+    border-right-width: 1.5px;
+}
+
+/* Phones: a pill in the free top-left corner (the caption is hidden there). */
+.demo-pill-slot {
+    position: absolute;
+    left: 1rem;
+    top: 0.9rem;
+    z-index: 5;
+}
+
+.demo-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--carbon-elevated) 88%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--carbon-bone);
+}
+
+.demo-pill svg {
+    width: 0.75rem;
+    height: 0.75rem;
+    fill: var(--brass-500);
+}
+
+/* The modal player. */
+.demo-dialog__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgb(12 10 8 / 0.84);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.demo-dialog {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 101;
+    width: min(92vw, 70rem, calc((90svh - 5rem) * 16 / 9));
+    display: grid;
+    gap: 0.75rem;
+    transform: translate(-50%, -50%);
+}
+
+.demo-dialog__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.demo-dialog__title {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brass-500);
+}
+
+.demo-dialog__close {
+    padding: 0.4rem 0.65rem;
+    border-radius: 4px;
+    background: var(--carbon-elevated);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--carbon-bone);
+    transition: color 0.2s var(--ease-out);
+}
+
+.demo-dialog__close:hover {
+    color: var(--brass-400);
+}
+
+.demo-dialog__frame {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: #000;
+    box-shadow: inset 0 0 0 1px var(--carbon-border), 0 40px 120px -30px rgb(0 0 0 / 0.9);
+}
+
+.demo-dialog__frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.demo-dialog__yt {
+    justify-self: end;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+    transition: color 0.2s var(--ease-out);
+}
+
+.demo-dialog__yt:hover {
+    color: var(--carbon-bone);
+}
+
+.demo-dialog__overlay[data-state="open"] {
+    animation: demo-fade 0.3s var(--ease-out);
+}
+
+.demo-dialog[data-state="open"] {
+    animation: demo-pop 0.45s var(--ease-out);
+}
+
+@keyframes demo-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes demo-pop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.96);
+    }
+}
+
+/* ── Team — photos, hex avatars, roster, chips, partners ──────────────── */
+
+.team-card__photo {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 64%;
+    opacity: 0.9;
+    -webkit-mask-image: linear-gradient(to bottom, #000 25%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 25%, transparent 100%);
+}
+
+/* Over a photo the copy needs a little carbon behind it to stay readable. */
+.team-card:has(.team-card__photo) :is(.team-card__title, .team-card__lead) {
+    text-shadow: 0 1px 14px rgb(12 10 8 / 0.9);
+}
+
+/* Phones stack the cards at their content height, so the photo would run
+   under the copy — there it becomes a banner, and the copy starts below it. */
+@media (max-width: 767px) {
+    .team-card:has(.team-card__photo) {
+        padding-top: 7.5rem;
+    }
+
+    .team-card__photo {
+        height: 10rem;
+        -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+        mask-image: linear-gradient(to bottom, #000 50%, transparent 100%);
+    }
+}
+
+.team-hexes {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+}
+
+/* Flat-top cell: 1 : 0.866. */
+.team-hex {
+    width: 3.25rem;
+    height: 2.815rem;
+}
+
+.team-hex .hex-badge {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--brass-300);
+}
+
+.team-card__lead {
+    margin-top: 0.5rem;
+    max-width: 42ch;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--carbon-secondary);
+}
+
+.team-roster {
+    margin-top: 1rem;
+    max-width: 34rem;
+    display: grid;
+    gap: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.team-roster li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px dashed var(--carbon-border);
+}
+
+.team-chips {
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.team-chip {
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    background: rgb(12 10 8 / 0.6);
+    box-shadow: inset 0 0 0 1px var(--carbon-border);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--carbon-bone);
+}
+
+.team-partners {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.team-partners li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+/* ── Ticker band ──────────────────────────────────────────────────────── */
+
+.ticker {
+    position: relative;
+    display: grid;
+    gap: 1.6rem;
+    padding: 12svh 0;
+    overflow: hidden;
+    border-block: 1px solid var(--carbon-border);
+    background: linear-gradient(to bottom, transparent, rgb(12 10 8 / 0.6) 30%, rgb(12 10 8 / 0.6) 70%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+}
+
+.ticker__track {
+    display: flex;
+    width: max-content;
+    will-change: transform;
+}
+
+.ticker__strip {
+    display: flex;
+    flex: none;
+    align-items: center;
+}
+
+.ticker__item {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.ticker__row--figures .ticker__item {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.4rem, 6.4vw, 6.25rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    color: var(--carbon-bone);
+}
+
+.ticker__outline {
+    color: transparent;
+    -webkit-text-stroke: 1.2px var(--brass-500);
+}
+
+.ticker__hex {
+    width: 0.42em;
+    height: 0.42em;
+    margin: 0 0.55em;
+    fill: none;
+    stroke: var(--brass-500);
+    stroke-width: 2;
+}
+
+.ticker__row--credentials .ticker__item {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--carbon-secondary);
+}
+
+.ticker__dot {
+    margin: 0 1.1rem;
+    color: var(--brass-500);
+}
+
+/* ── Floating logo ────────────────────────────────────────────────────── */
+
+/* 200px slab; FloatingLogo scales it and sets where it flies. */
+.float-logo {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 30;
+    width: 200px;
+    height: 200px;
+    pointer-events: none;
+    transform-origin: 50% 50%;
+    will-change: transform, opacity;
+}
+
+.float-logo__glow {
+    position: absolute;
+    inset: -45%;
+    background: radial-gradient(closest-side, rgb(242 183 5 / 0.34), rgb(242 183 5 / 0.08) 55%, transparent 72%);
+    filter: blur(6px);
+    animation: float-glow 5.5s var(--ease-in-out) infinite alternate;
+}
+
+.float-logo__shadow {
+    position: absolute;
+    left: 14%;
+    right: 14%;
+    bottom: -18%;
+    height: 12%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(0 0 0 / 0.6), transparent);
+    filter: blur(4px);
+    animation: float-shadow 5.5s var(--ease-in-out) infinite alternate;
+}
+
+.float-logo__bob {
+    position: absolute;
+    inset: 0;
+    perspective: 700px;
+    animation: float-bob 5.5s var(--ease-in-out) infinite alternate;
+}
+
+.float-logo__body {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+}
+
+/* The tile's corner radius is 42 of 203px. */
+.float-logo__layer,
+.float-logo__back,
+.float-logo__face {
+    position: absolute;
+    inset: 0;
+    border-radius: 20.7%;
+}
+
+.float-logo__layer {
+    background: linear-gradient(160deg, var(--brass-600), var(--brass-700));
+}
+
+.float-logo__layer:nth-child(n + 5) {
+    background: linear-gradient(160deg, var(--brass-700), var(--brass-900));
+}
+
+.float-logo__face {
+    width: 100%;
+    height: 100%;
+    transform: translateZ(1px);
+    backface-visibility: hidden;
+}
+
+.float-logo__back {
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 30% 25%, var(--carbon-input), var(--carbon-canvas));
+    box-shadow: inset 0 0 0 2px var(--brass-600);
+    backface-visibility: hidden;
+}
+
+.float-logo__back-hex {
+    position: absolute;
+    width: 64%;
+    fill: none;
+    stroke: var(--brass-500);
+    stroke-width: 0.8;
+    opacity: 0.55;
+}
+
+.float-logo__back-glyph {
+    position: relative;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 44px;
+    letter-spacing: -0.06em;
+    color: var(--brass-500);
+}
+
+@keyframes float-bob {
+    from {
+        transform: translateY(-7px) rotate(-1.2deg);
+    }
+
+    to {
+        transform: translateY(7px) rotate(1.2deg);
+    }
+}
+
+@keyframes float-shadow {
+    from {
+        transform: scaleX(0.9);
+        opacity: 0.45;
+    }
+
+    to {
+        transform: scaleX(1.06);
+        opacity: 0.7;
+    }
+}
+
+@keyframes float-glow {
+    from {
+        opacity: 0.7;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
