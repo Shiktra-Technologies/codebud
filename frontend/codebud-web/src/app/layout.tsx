@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { fontVariables } from "@/fonts";
 import { HoneycombField } from "@/components/HoneycombField";
-import HoneyCursor from "@/components/HoneyCursor";
 import "@/styles/index.css";
 import { Providers } from "./providers";
 
@@ -53,7 +52,6 @@ export default function RootLayout({
                 <Providers>
                     {children}
                 </Providers>
-                <HoneyCursor />
             </body>
         </html>
     );
